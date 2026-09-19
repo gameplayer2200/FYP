@@ -5,12 +5,14 @@ public class AnywhereDoor : MonoBehaviour
     [Header("开门设置")]
     [SerializeField] private float openAngle = 90f;   // 开门角度（度，绕本地 Z 轴）
     [SerializeField] private float duration = 0.8f;   // 开/关耗时（秒）
+    [SerializeField] private float autoCloseDelay = 10f; // 开门后自动关闭延时（秒）
 
     public bool IsOpen { get; private set; }
 
     private Quaternion closedLocalRot;
     private Quaternion openLocalRot;
     private Coroutine animating;
+    private Coroutine autoCloseRoutine;
 
     private void Awake()
     {
@@ -28,8 +30,19 @@ public class AnywhereDoor : MonoBehaviour
     public void SetOpen(bool open)
     {
         if (animating != null) { StopCoroutine(animating); animating = null; }
+        if (autoCloseRoutine != null) { StopCoroutine(autoCloseRoutine); autoCloseRoutine = null; }
         IsOpen = open;
         animating = StartCoroutine(RotateRoutine(open ? openLocalRot : closedLocalRot));
+        // 开门后计时，到点自动关闭；提前手动关门则不会触发
+        if (open && autoCloseDelay > 0f)
+            autoCloseRoutine = StartCoroutine(AutoCloseRoutine());
+    }
+
+    private System.Collections.IEnumerator AutoCloseRoutine()
+    {
+        yield return new WaitForSeconds(autoCloseDelay);
+        autoCloseRoutine = null;
+        SetOpen(false);
     }
 
     private System.Collections.IEnumerator RotateRoutine(Quaternion target)
