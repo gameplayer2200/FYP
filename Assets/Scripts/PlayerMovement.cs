@@ -22,9 +22,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float pitchMax = 60f;        // 最高仰视角（度）
 
     [Header("第一人称")]
-    [SerializeField] private float eyeHeightStand = 1.62f; // 站立视线高度
-    [SerializeField] private float eyeHeightCrouch = 1.0f; // 蹲下视线高度
-    [SerializeField] private float eyeForward = 0.12f;     // 眼睛向前偏移（防贴脸穿模）
+    [SerializeField] private float crouchEyeDrop = 0.6f; // 蹲下时视线下降高度（米）
 
     [Header("重力")]
     [SerializeField] private float gravity = -20f;
@@ -35,6 +33,7 @@ public class PlayerMovement : MonoBehaviour
     private float camPitch = 12f;
     private float verticalVelocity;
     private Vector3 horizontalVel;
+    private Vector3 baseCamLocalPos; // 编辑器里摆放的相机本地位置（视线高度基准）
 
     private bool crouching;
     private float standHeight;
@@ -47,12 +46,17 @@ public class PlayerMovement : MonoBehaviour
         camTransform = transform.Find("Camera");
         if (camTransform != null)
         {
-            // 第一人称：相机固定在眼高，水平视角归零（第三人称遗留的俯角清除）
-            camTransform.localPosition = new Vector3(0f, eyeHeightStand, eyeForward);
-            camTransform.localRotation = Quaternion.identity;
-            camPitch = 0f;
+            // 尊重编辑器里摆好的相机：以它的视线作为初始朝向（身体转向它），
+            // 相机上只保留俯仰角供鼠标上下控制，位置以摆放位置为基准
+            baseCamLocalPos = camTransform.localPosition;
+            float yawOff = camTransform.localEulerAngles.y;
+            if (Mathf.Abs(Mathf.DeltaAngle(yawOff, 0f)) > 0.01f)
+                transform.Rotate(0f, yawOff, 0f);
+            camPitch = camTransform.localEulerAngles.x;
+            if (camPitch > 180f) camPitch -= 360f;
+            camTransform.localRotation = Quaternion.Euler(camPitch, 0f, 0f);
             var cam = camTransform.GetComponent<Camera>();
-            if (cam != null) cam.nearClipPlane = 0.1f;
+            if (cam != null && cam.nearClipPlane > 0.3f) cam.nearClipPlane = 0.1f;
         }
         // 角色模型设为仅投影：第一人称看不见自己，但世界里保留影子
         foreach (var skin in GetComponentsInChildren<SkinnedMeshRenderer>())
@@ -100,12 +104,11 @@ public class PlayerMovement : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded && !crouching)
             verticalVelocity = Mathf.Sqrt(2f * -gravity * jumpHeight);
 
-        // 第一人称视线高度随蹲伏平滑升降
+        // 第一人称视线高度随蹲伏平滑升降（以摆放位置为基准）
         if (camTransform != null)
         {
             Vector3 lp = camTransform.localPosition;
-            lp.y = Mathf.Lerp(lp.y, crouching ? eyeHeightCrouch : eyeHeightStand, 10f * Time.deltaTime);
-            lp.z = eyeForward;
+            lp.y = Mathf.Lerp(lp.y, crouching ? baseCamLocalPos.y - crouchEyeDrop : baseCamLocalPos.y, 10f * Time.deltaTime);
             camTransform.localPosition = lp;
         }
 
