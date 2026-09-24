@@ -4,5 +4,11 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/SpecimenLab.unity
+    guid: 7f74b83c1ece01544afc38ddcb9cf49f
+  - enabled: 1
+    path: Assets/DemoScene.unity
+    guid: e9ccad99b7b8f6043a28102861b33611
   m_configObjects: {}

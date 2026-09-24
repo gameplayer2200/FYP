@@ -5,7 +5,8 @@ public class AnywhereDoor : MonoBehaviour
     [Header("开门设置")]
     [SerializeField] private float openAngle = 90f;   // 开门角度（度，绕本地 Z 轴）
     [SerializeField] private float duration = 0.8f;   // 开/关耗时（秒）
-    [SerializeField] private float autoCloseDelay = 10f; // 开门后自动关闭延时（秒）
+    [SerializeField] private float autoCloseDelay = 10f; // 开门后自动关闭延时（秒），0 = 不自动关
+    [SerializeField] private bool respondToKey = true;   // 是否响应 E 键开关（远端门设 false，由连接器控制）
 
     public bool IsOpen { get; private set; }
 
@@ -25,6 +26,13 @@ public class AnywhereDoor : MonoBehaviour
     public void Toggle()
     {
         SetOpen(!IsOpen);
+    }
+
+    // 运行时改开门角度（Awake 缓存的 openLocalRot 需要重算）
+    public void ConfigureOpenAngle(float angle)
+    {
+        openAngle = angle;
+        openLocalRot = closedLocalRot * Quaternion.Euler(0f, 0f, openAngle);
     }
 
     public void SetOpen(bool open)
@@ -60,9 +68,9 @@ public class AnywhereDoor : MonoBehaviour
         animating = null;
     }
 
-    // 临时测试触发：按 E 开/关门；之后接入近距离交互检测后可移除
+    // 临时测试触发：按 E 开/关门；respondToKey=false 的门（远端世界门）不响应
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.E)) Toggle();
+        if (respondToKey && Input.GetKeyDown(KeyCode.E)) Toggle();
     }
 }
