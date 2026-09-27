@@ -21,7 +21,6 @@ public class PortalPair : MonoBehaviour
     [SerializeField] private int rtWidth = 384;
     [SerializeField] private int rtHeight = 680;
     [SerializeField] private float renderRange = 15f;           // 玩家离门多近才开启渲染
-    [SerializeField] private bool fixedCameraDebug = true;      // 方案D：两侧固定取景机位（稳定画面，无视差）
 
     private Transform demoFrame;
     private Transform labQuad, demoQuad;
@@ -250,45 +249,13 @@ public class PortalPair : MonoBehaviour
         demoViewCam.enabled = dLab < renderRange;
         labViewCam.enabled = dDemo < renderRange;
 
-        if (Time.frameCount % 120 == 0)
-        {
-            Debug.Log("[PortalDiag] player=" + playerT.position.ToString("F1") +
-                      " dLab=" + dLab.ToString("F1") + " dDemo=" + dDemo.ToString("F1") +
-                      " || demoCam en=" + demoViewCam.enabled + " pos=" + demoViewCam.transform.position.ToString("F1") +
-                      " rot=" + demoViewCam.transform.rotation.eulerAngles.ToString("F0") +
-                      " || labCam en=" + labViewCam.enabled + " pos=" + labViewCam.transform.position.ToString("F1") +
-                      " rot=" + labViewCam.transform.rotation.eulerAngles.ToString("F0"));
-        }
 
-        // RT 诊断：把两台门洞相机的实际渲染输出落盘成 PNG
-        if (Time.frameCount % 300 == 10 && demoViewCam.enabled)
-            StartCoroutine(DumpRT(demoViewCam.targetTexture, "PortalRT_demoView.png"));
-        if (Time.frameCount % 300 == 160 && labViewCam.enabled)
-            StartCoroutine(DumpRT(labViewCam.targetTexture, "PortalRT_labView.png"));
 
         if (cooldown <= 0f)
         {
             TryCross(labFrame, true, ref prevZLab, demoFrame, demoEff);
             TryCross(demoFrame, false, ref prevZDemo, labFrame, labFrame.rotation);
         }
-    }
-
-    private System.Collections.IEnumerator DumpRT(RenderTexture rt, string fileName)
-    {
-        yield return new UnityEngine.WaitForEndOfFrame();
-        UnityEngine.RenderTexture prev = UnityEngine.RenderTexture.active;
-        UnityEngine.RenderTexture.active = rt;
-        var tex = new UnityEngine.Texture2D(rt.width, rt.height, UnityEngine.TextureFormat.RGB24, false);
-        tex.ReadPixels(new UnityEngine.Rect(0f, 0f, rt.width, rt.height), 0, 0);
-        tex.Apply();
-        UnityEngine.RenderTexture.active = prev;
-        byte[] bytes = tex.EncodeToPNG();
-        // 输出到项目外（Unity 不导入，避免 Asset 导入时序警告）
-        string dir = System.IO.Path.Combine(System.IO.Directory.GetParent(UnityEngine.Application.dataPath).FullName, "PortalDumps");
-        if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
-        System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, fileName), bytes);
-        UnityEngine.Object.Destroy(tex);
-        Debug.Log("[PortalDiag] RT 已导出: " + fileName);
     }
 
     // 穿行触发：raw local z 从 -（内容侧）穿到 +（门外侧）

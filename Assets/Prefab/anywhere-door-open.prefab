@@ -321,7 +321,7 @@ GameObject:
   - component: {fileID: 193592869142214120}
   - component: {fileID: 6139591142587538105}
   m_Layer: 0
-  m_Name: Cylinder.004
+  m_Name: door knob
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

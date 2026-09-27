@@ -22,18 +22,18 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float pitchMax = 60f;        // 最高仰视角（度）
 
     [Header("第一人称")]
-    [SerializeField] private float crouchEyeDrop = 0.6f; // 蹲下时视线下降高度（米）
 
     [Header("重力")]
     [SerializeField] private float gravity = -20f;
 
     private CharacterController controller;
-    private Animator animator;
+    private PlayerAnimatorProxy anim;
     private Transform camTransform;
     private float camPitch = 12f;
     private float verticalVelocity;
     private Vector3 horizontalVel;
     private Vector3 baseCamLocalPos; // 编辑器里摆放的相机本地位置（视线高度基准）
+    private Transform headBone; // 视角跟随的头部骨骼
 
     private bool crouching;
     private float standHeight;
@@ -42,7 +42,7 @@ public class PlayerMovement : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-        animator = GetComponent<Animator>();
+        anim = GetComponent<PlayerAnimatorProxy>();
         camTransform = transform.Find("Camera");
         if (camTransform != null)
         {
@@ -58,9 +58,10 @@ public class PlayerMovement : MonoBehaviour
             var cam = camTransform.GetComponent<Camera>();
             if (cam != null && cam.nearClipPlane > 0.3f) cam.nearClipPlane = 0.1f;
         }
-        // 角色模型设为仅投影：第一人称看不见自己，但世界里保留影子
-        foreach (var skin in GetComponentsInChildren<SkinnedMeshRenderer>())
-            skin.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+        // 抓 Head 骨骼（视角位置跟随用）
+        foreach (var s2 in GetComponentsInChildren<SkinnedMeshRenderer>())
+            foreach (var b2 in s2.bones)
+                if (b2 != null && b2.name == "Head") { headBone = b2; break; }
         standHeight = controller.height;
         standCenter = controller.center;
     }
@@ -73,6 +74,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        // 电量降级事件订阅（静态事件，Start 订阅防重放泄漏）
         // Esc 释放鼠标后，点左键重新锁定
         if (Cursor.lockState != CursorLockMode.Locked && Input.GetMouseButtonDown(0))
         {
@@ -100,26 +102,30 @@ public class PlayerMovement : MonoBehaviour
         else if (!wantCrouch && crouching && CanStandUp())
             SetCrouch(false);
 
-        // 跳跃（蹲下时不可跳）
-        if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded && !crouching)
+        // 跳跃（蹲下时不可跳；电量≤25 时功能已被系统关闭）
+        bool jumpAllowed = BatterySystem.Instance == null || BatterySystem.Instance.JumpEnabled;
+        if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded && !crouching && jumpAllowed)
             verticalVelocity = Mathf.Sqrt(2f * -gravity * jumpHeight);
 
-        // 第一人称视线高度随蹲伏平滑升降（以摆放位置为基准）
-        if (camTransform != null)
+        // 视角跟随 Head 骨骼：位置完全同步（含动画摆动），旋转仍由鼠标控制（避免动画晃镜头）
+        if (headBone != null && camTransform != null)
         {
-            Vector3 lp = camTransform.localPosition;
-            lp.y = Mathf.Lerp(lp.y, crouching ? baseCamLocalPos.y - crouchEyeDrop : baseCamLocalPos.y, 10f * Time.deltaTime);
-            camTransform.localPosition = lp;
+            var eyePos = headBone.position + headBone.up * 0.05f;
+            camTransform.position = eyePos;
         }
 
         // 输入是身体本地方向：W 前 / S 后 / A 左移 / D 右移
         float v = Input.GetAxisRaw("Vertical");
         float h = Input.GetAxisRaw("Horizontal");
+        // 充电时不许移动（可中断：按 E 或走开即停，由 ChargeStation 处理）
+        if (BatterySystem.Instance != null && BatterySystem.Instance.IsCharging) { v = 0f; h = 0f; }
         Vector3 input = Vector3.ClampMagnitude(new Vector3(h, 0f, v), 1f);
         bool moving = input.sqrMagnitude > 0.01f;
         bool backward = moving && v < -0.3f;
         bool strafe = moving && !backward && Mathf.Abs(h) >= Mathf.Abs(v);
-        bool running = moving && !backward && !strafe && !crouching && Input.GetKey(KeyCode.LeftShift);
+        // 冲刺需电量>50（降级链：≤50 系统关闭冲刺）
+        bool sprintAllowed = BatterySystem.Instance == null || BatterySystem.Instance.SprintEnabled;
+        bool running = moving && !backward && !strafe && !crouching && sprintAllowed && Input.GetKey(KeyCode.LeftShift);
 
         // 加速度模型：速度向目标值渐变；冲刺只给前进；蹲走限速
         float targetSpeed = moving ? (crouching ? crouchSpeed : (running ? runSpeed : walkSpeed)) : 0f;
@@ -128,21 +134,28 @@ public class PlayerMovement : MonoBehaviour
         float rate = moving ? acceleration : deceleration;
         horizontalVel = Vector3.MoveTowards(horizontalVel, moveDir * targetSpeed, rate * Time.deltaTime);
 
-        // 动画参数：Speed 按实际速度归一化（走满=0.5、跑满=1）；Backward 倒放 Walk；
-        // Crouch 切蹲姿；Grounded 驱动跳跃三段（Start→Loop→Land）
-        if (animator != null)
+        // 动画参数统一走 PlayerAnimatorProxy（单头驱动，避免多脚本互踩）
+        if (anim != null)
         {
             float speedNorm = Mathf.Clamp01(horizontalVel.magnitude / runSpeed);
-            animator.SetFloat("Speed", speedNorm, 0.05f, Time.deltaTime);
-            animator.SetBool("Backward", backward);
-            animator.SetBool("Crouch", crouching);
-            animator.SetBool("Grounded", controller.isGrounded);
+            anim.SetMove(speedNorm, backward, crouching, controller.isGrounded);
         }
 
         // 用 CharacterController.Move 移动（含垂直分量）
         Vector3 motion = horizontalVel;
         motion.y = verticalVelocity;
         controller.Move(motion * Time.deltaTime);
+    }
+
+    /// <summary>外部传送（电量重启/未来跨门）：安全处理 CharacterController 开关。</summary>
+    public void TeleportTo(Vector3 position)
+    {
+        var cc = GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+        transform.position = position;
+        if (cc != null) cc.enabled = true;
+        horizontalVel = Vector3.zero;
+        verticalVelocity = 0f;
     }
 
     private void SetCrouch(bool on)
