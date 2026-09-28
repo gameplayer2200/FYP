@@ -89,13 +89,8 @@ public class PortalPair : MonoBehaviour
             return;
         }
 
-        // 异世界门：扫 90° 立到门边（避免门板糊住传送门相机视野），常开
-        var demoDoor = demoFrame.GetComponentInChildren<AnywhereDoor>(true);
-        if (demoDoor != null)
-        {
-            demoDoor.ConfigureOpenAngle(90f);
-            if (!demoDoor.IsOpen) demoDoor.SetOpen(true);
-        }
+        // 异世界门（anywhere-door-open）：姿态以场景手工摆放为准（常开），程序不做任何旋转/开关操控
+        // 穿门由本类的门框触发检测负责，玩家 E 不作用于它
 
         // 禁用异世界自带相机
         foreach (var rootObj in scene.GetRootGameObjects())

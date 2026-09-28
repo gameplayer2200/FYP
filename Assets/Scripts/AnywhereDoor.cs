@@ -13,6 +13,7 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
     [SerializeField] private float autoCloseDelay = 10f; // 开门后自动关闭延时（秒），0 = 不自动关
     [SerializeField] private bool respondToKey = true;   // 是否参与交互（远端展示门设 false）
     [SerializeField] private bool spellOpen = true;      // 开门时播放施法演出
+    [SerializeField] private bool startOpen = false;     // 初始即为开态（demo 常开门用，无动画直接摆到开）
 
     [Header("施法时序")]
     [SerializeField] private float spellWindup = 0.5f;  // 挥法到门动的延迟
@@ -32,6 +33,7 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
         closedLocalRot = transform.localRotation;
         openLocalRot = closedLocalRot * Quaternion.Euler(0f, 0f, openAngle);
         IsOpen = false;
+        if (startOpen) { transform.localRotation = openLocalRot; IsOpen = true; }
         // 交互可发现性保障：InteractionRunner 靠物理扫描找交互物，
         // 本物体或父链上没有 Collider 时自动补一个触发体（不挡人不挡门）
         if (GetComponentInParent<Collider>(true) == null && GetComponent<Collider>() == null)

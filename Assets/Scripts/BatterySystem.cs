@@ -89,7 +89,7 @@ public class BatterySystem : MonoBehaviour
         if (IsDead) on = false;
         if (IsCharging == on) return;
         IsCharging = on;
-        if (anim != null && on) anim.SetCharging(true);
+        if (anim != null) anim.SetCharging(on); // 开关都要同步动画：取消充电也要放下手
     }
 
     private void Update()

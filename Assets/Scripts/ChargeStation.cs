@@ -4,6 +4,7 @@ using UnityEngine;
 public class ChargeStation : MonoBehaviour, IInteractable
 {
     [SerializeField] private float useRange = 2.5f;
+    private float cancelLockUntil; // 兜底取消后短时间内禁止 Interact 重新开启（防止同一次按键先取消又重启）
     public float InteractionRange { get { return useRange; } }
 
     public Transform GetInteractionPoint() { return transform; }
@@ -11,6 +12,7 @@ public class ChargeStation : MonoBehaviour, IInteractable
     public void Interact(GameObject player)
     {
         if (BatterySystem.Instance == null) return;
+        if (Time.time < cancelLockUntil) return; // 本按键周期已处理过（兜底取消）
         if (BatterySystem.Instance.IsCharging)
         {
             BatterySystem.Instance.SetCharging(false);
@@ -33,6 +35,7 @@ public class ChargeStation : MonoBehaviour, IInteractable
             if (pp != null && Vector3.Distance(pp.transform.position, transform.position) <= useRange + 1f)
             {
                 BatterySystem.Instance.SetCharging(false);
+                cancelLockUntil = Time.time + 0.25f; // 锁一小段，吃掉同一次按键的 Interact 分发
                 Debug.Log("[ChargeStation] 按 E 取消充电");
                 return;
             }
