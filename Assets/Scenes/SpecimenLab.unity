@@ -22155,6 +22155,7 @@ MonoBehaviour:
   autoCloseDelay: 10
   respondToKey: 1
   spellOpen: 1
+  startOpen: 0
   spellWindup: 1.2
   spellOutro: 0.6
 --- !u!1 &1168809617
@@ -35028,7 +35029,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 278c2498fbac5fd42a5837d54d1ae77e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldSceneName: DemoScene
+  worldSceneName: country house
   labFrame: {fileID: 1919903842}
   worldDoorName: anywhere-door
   portalSize: {x: 0.97, y: 1.72}
