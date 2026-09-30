@@ -46,14 +46,10 @@ public class PlayerMovement : MonoBehaviour
         camTransform = transform.Find("Camera");
         if (camTransform != null)
         {
-            // 尊重编辑器里摆好的相机：以它的视线作为初始朝向（身体转向它），
-            // 相机上只保留俯仰角供鼠标上下控制，位置以摆放位置为基准
+            // 相机旋转强制归零：场景里存过的运行时转身（Play 中 Ctrl+S 落盘）曾被
+            // yawOff 转嫁逻辑放大成"视角反 180°"，这里不再信任场景数据——
+            // 视线基准=身体朝向，俯仰由鼠标从 camPitch 起步
             baseCamLocalPos = camTransform.localPosition;
-            float yawOff = camTransform.localEulerAngles.y;
-            if (Mathf.Abs(Mathf.DeltaAngle(yawOff, 0f)) > 0.01f)
-                transform.Rotate(0f, yawOff, 0f);
-            camPitch = camTransform.localEulerAngles.x;
-            if (camPitch > 180f) camPitch -= 360f;
             camTransform.localRotation = Quaternion.Euler(camPitch, 0f, 0f);
             var cam = camTransform.GetComponent<Camera>();
             if (cam != null && cam.nearClipPlane > 0.3f) cam.nearClipPlane = 0.1f;
@@ -108,10 +104,20 @@ public class PlayerMovement : MonoBehaviour
             verticalVelocity = Mathf.Sqrt(2f * -gravity * jumpHeight);
 
         // 视角跟随 Head 骨骼：位置完全同步（含动画摆动），旋转仍由鼠标控制（避免动画晃镜头）
+        // 保险丝：Animator 初始化/重定向的瞬态会把骨骼采样到建模姿势（实测飘出 6m），
+        // 骨骼离玩家根超过 1.5m 一律视为无效采样，相机保持本地位——防开场视角被拽飞
         if (headBone != null && camTransform != null)
         {
-            var eyePos = headBone.position + headBone.up * 0.05f;
-            camTransform.position = eyePos;
+            bool headSane = (headBone.position - transform.position).sqrMagnitude < 1.5f * 1.5f;
+            if (headSane)
+            {
+                var eyePos = headBone.position + headBone.up * 0.05f;
+                camTransform.position = eyePos;
+            }
+            else
+            {
+                camTransform.localPosition = baseCamLocalPos;
+            }
         }
 
         // 输入是身体本地方向：W 前 / S 后 / A 左移 / D 右移

@@ -9,6 +9,9 @@ public class ChargeStation : MonoBehaviour, IInteractable
 
     public Transform GetInteractionPoint() { return transform; }
 
+    private void OnEnable() { InteractionRegistry.Register(this); }
+    private void OnDisable() { InteractionRegistry.Unregister(this); }
+
     public void Interact(GameObject player)
     {
         if (BatterySystem.Instance == null) return;
