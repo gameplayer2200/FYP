@@ -104,8 +104,9 @@ public class PortalPair : MonoBehaviour
 
         // 屏与取景：两块 Plane 都是"门洞屏"（显示对方世界），相机各自站在对方 Plane 的位置、
         // 沿其正面反方向穿过门洞拍摄——画面透视与门洞完全对应
-        var rtDemo = MakeRT();
-        var rtLab = MakeRT();
+        int rtW = Mathf.RoundToInt(rtHeight * Mathf.Max(1f, playerCam.aspect));
+        var rtDemo = MakeRT(rtW);
+        var rtLab = MakeRT(rtW);
 
         // 实验室屏：Cube.001/Plane（找不到则自建 quad）
         var planeT = labFrame.Find("Cube.001/Plane");
@@ -152,6 +153,9 @@ public class PortalPair : MonoBehaviour
         // 相机取景：站在对方门洞屏的位置，面朝各自世界的内容方向（demo 内容在门框 -Z，lab 内容也在门框 -Z）
         demoViewCam = MakeCam(demoFrame, rtDemo, "PortalCam_DemoView");
         labViewCam = MakeCam(labFrame, rtLab, "PortalCam_LabView");
+        // 藏门：每台取景相机渲染时隐藏自己所在世界的门整体（门框/门板/门洞屏），防套娃
+        demoViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(demoFrame.root.gameObject);
+        labViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(labFrame.root.gameObject);
         if (demoPlane != null)
         {
             demoViewCam.transform.position = demoPlane.position;
@@ -186,9 +190,9 @@ public class PortalPair : MonoBehaviour
         return frame.InverseTransformPoint(playerT.position).z;
     }
 
-    private RenderTexture MakeRT()
+    private RenderTexture MakeRT(int width)
     {
-        var rt = new RenderTexture(rtWidth, rtHeight, 24);
+        var rt = new RenderTexture(width, rtHeight, 24);
         rt.Create();
         return rt;
     }
@@ -225,6 +229,18 @@ public class PortalPair : MonoBehaviour
         return cam;
     }
 
+    private static readonly Matrix4x4 FlipY180 = Matrix4x4.Rotate(Quaternion.Euler(0f, 180f, 0f));
+
+    // 虚拟相机摆到玩家眼位的镜像位姿，并对齐玩家视场
+    private void SyncPortalCam(Camera cam, Matrix4x4 portalTransform)
+    {
+        cam.transform.SetPositionAndRotation(
+            portalTransform.MultiplyPoint3x4(playerCam.transform.position),
+            portalTransform.rotation * playerCam.transform.rotation);
+        cam.fieldOfView = playerCam.fieldOfView;
+        cam.aspect = playerCam.aspect;
+    }
+
     // demo 门的"有效朝向"：内容侧定义到 raw +Z（即 raw 转半圈）
     private Quaternion DemoEff()
     {
@@ -238,11 +254,22 @@ public class PortalPair : MonoBehaviour
 
         Quaternion demoEff = DemoEff();
 
-        // 相机取景由 OnWorldLoaded 一次性锚定在两块门洞屏上（透视与门洞对应），Update 不再覆盖
+        // 视点同步（视差）：虚拟相机 = 玩家眼位经"门→门"传送变换的镜像，人动画面动。
+        // 不用斜裁剪投影（实测斜视角下会把可视区裁成细条），套娃由 PortalViewMask 解决
         float dLab = Vector3.Distance(playerT.position, labFrame.position);
         float dDemo = Vector3.Distance(playerT.position, demoFrame.position);
-        demoViewCam.enabled = dLab < renderRange;
-        labViewCam.enabled = dDemo < renderRange;
+        if (dLab < renderRange)
+        {
+            demoViewCam.enabled = true;
+            SyncPortalCam(demoViewCam, demoFrame.localToWorldMatrix * FlipY180 * labFrame.worldToLocalMatrix);
+        }
+        else demoViewCam.enabled = false;
+        if (dDemo < renderRange)
+        {
+            labViewCam.enabled = true;
+            SyncPortalCam(labViewCam, labFrame.localToWorldMatrix * FlipY180 * demoFrame.worldToLocalMatrix);
+        }
+        else labViewCam.enabled = false;
 
 
 
