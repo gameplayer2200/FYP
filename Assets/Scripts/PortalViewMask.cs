@@ -10,6 +10,11 @@ public class PortalViewMask : MonoBehaviour
 {
     private Renderer[] hide;
     private bool[] origEnabled;
+    private Material skyOverride;      // 项目无天空盒材质时给传送门相机专用的程序化蓝天
+    private Material prevSky;
+    private bool swappedSky;
+
+    public void SetSkybox(Material sky) => skyOverride = sky;
 
     public void SetHidden(GameObject root)
     {
@@ -21,6 +26,12 @@ public class PortalViewMask : MonoBehaviour
 
     private void OnPreRender()
     {
+        if (skyOverride != null && RenderSettings.skybox == null)
+        {
+            prevSky = RenderSettings.skybox;
+            RenderSettings.skybox = skyOverride;
+            swappedSky = true;
+        }
         if (hide == null) return;
         for (int i = 0; i < hide.Length; i++)
             if (hide[i] != null && hide[i].enabled) hide[i].enabled = false;
@@ -28,6 +39,11 @@ public class PortalViewMask : MonoBehaviour
 
     private void OnPostRender()
     {
+        if (swappedSky)
+        {
+            RenderSettings.skybox = prevSky;
+            swappedSky = false;
+        }
         if (hide == null) return;
         for (int i = 0; i < hide.Length; i++)
             if (hide[i] != null) hide[i].enabled = origEnabled[i];
