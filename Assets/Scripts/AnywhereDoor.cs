@@ -20,6 +20,7 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
     [SerializeField] private float spellOutro = 0.1f;   // 收势缓冲
 
     public bool IsOpen { get; private set; }
+    public float OpenAngle { get { return openAngle; } } // 配对门同步摆角用
     public float InteractionRange { get { return 3f; } }
 
     private Quaternion closedLocalRot;
@@ -59,6 +60,9 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
 
     public void Toggle() { SetOpen(!IsOpen); }
 
+    // 配对门同步用：远端门也要能 E（穿到异世界后从那边开门回来）
+    public void SetRespondToKey(bool on) { respondToKey = on; }
+
     // 运行时改开门角度（Awake 缓存的 openLocalRot 需要重算）
     public void ConfigureOpenAngle(float angle)
     {
@@ -68,14 +72,21 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
 
     public void SetOpen(bool open)
     {
+        SetOpen(open, true);
+    }
+
+    // scheduleAutoClose=false 供配对门镜像调用：自动关计时只由被交互的那扇门排，
+    // 否则两边各排各的计时器、到期后互相触发成级联
+    public void SetOpen(bool open, bool scheduleAutoClose)
+    {
         if (animating != null) { StopCoroutine(animating); animating = null; }
         if (autoCloseRoutine != null) { StopCoroutine(autoCloseRoutine); autoCloseRoutine = null; }
         IsOpen = open;
-        animating = StartCoroutine(OpenSequence(open));
+        animating = StartCoroutine(OpenSequence(open, scheduleAutoClose));
     }
 
     // 完整时序：挥法 → 门旋转 → 收势；开门后计时自动关
-    private System.Collections.IEnumerator OpenSequence(bool open)
+    private System.Collections.IEnumerator OpenSequence(bool open, bool scheduleAutoClose)
     {
         if (spellOpen && anim != null) anim.PlaySpellEnter();
         yield return new WaitForSeconds(spellWindup);
@@ -83,7 +94,7 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
         if (spellOpen && anim != null) anim.PlaySpellExit();
         yield return new WaitForSeconds(spellOutro);
         animating = null;
-        if (open && autoCloseDelay > 0f)
+        if (open && scheduleAutoClose && autoCloseDelay > 0f)
             autoCloseRoutine = StartCoroutine(AutoCloseRoutine());
     }
 

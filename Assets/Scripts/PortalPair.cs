@@ -24,6 +24,8 @@ public class PortalPair : MonoBehaviour
 
     private Transform demoFrame;
     private Transform labQuad, demoQuad;
+    private AnywhereDoor labDoor, demoDoor;   // 开关同步用：两侧门的开关组件
+    private bool lastLabOpen, lastDemoOpen;
     private Transform playerT;
     private Camera playerCam;
     private Camera labViewCam;   // 站实验室门框，渲染实验室 → 异世界侧门洞屏
@@ -102,12 +104,10 @@ public class PortalPair : MonoBehaviour
         playerT = player.transform;
         playerCam = player.GetComponentInChildren<Camera>();
 
-        // 屏与取景：两块 Plane 都是"门洞屏"（显示对方世界），相机各自站在对方 Plane 的位置、
-        // 沿其正面反方向穿过门洞拍摄——画面透视与门洞完全对应
-        float quadAspect = Mathf.Max(portalSize.x, 1.3f) / Mathf.Max(portalSize.y, 2.1f);
-        int rtW = Mathf.RoundToInt(rtHeight * quadAspect);
-        var rtDemo = MakeRT(rtW);
-        var rtLab = MakeRT(rtW);
+        // 屏与取景：两块屏都是"门洞屏"（显示对方世界），尺寸随门的实际缩放走（门可被用户缩放）——
+        // 相机各自站在对方屏的位置、沿其正面反方向穿过门洞拍摄，画面透视与门洞完全对应
+        var rtDemo = MakeRT(Mathf.RoundToInt(rtHeight * QuadAspect(labFrame)));  // 显示在实验室门上
+        var rtLab = MakeRT(Mathf.RoundToInt(rtHeight * QuadAspect(demoFrame)));  // 显示在异世界门上
 
         // 门洞屏：门模型自带的 Plane 一律停用（嵌在门体深处，画面像贴在盒底），
         // 统一用贴门洞平面的自建屏（大于门洞、边缘藏进门框后，向内容侧微缩防 z-fight）
@@ -118,16 +118,45 @@ public class PortalPair : MonoBehaviour
         labQuad = MakeQuad(labFrame, true, rtDemo, "PortalQuad_Lab");
         demoQuad = MakeQuad(demoFrame, false, rtLab, "PortalQuad_Demo");
         // 门框 Cube.001 带黑色背板子网格，会挡在贴门洞的新屏前面（用户最早诊断过的坑）——
-        // 把两侧门 Cube.001 链上的深色材质槽换成全透明（粉色件不受影响）
-        MakeFrameBlackInvisible(labFrame.root);
-        MakeFrameBlackInvisible(demoFrame.root);
+        // 把两侧门 Cube.001 链上的深色材质槽换成全透明（粉色件不受影响）。
+        // 注意只扫门自身子树：门若嵌在世界根下，扫 .root 会误伤整个世界的同名部件
+        MakeFrameBlackInvisible(labFrame);
+        MakeFrameBlackInvisible(demoFrame);
+
+        // 开关同步初始化：两侧门配成一对。anywhere-door 预制体本身不带开关脚本
+        // （实验室侧是场景实例上手动加的），远端门若没有就运行时补挂到与实验室门板同名的叶子上
+        labDoor = labFrame.GetComponentInChildren<AnywhereDoor>(true);
+        demoDoor = demoFrame.GetComponentInChildren<AnywhereDoor>(true);
+        if (demoDoor == null && labDoor != null)
+        {
+            foreach (var t in demoFrame.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == labDoor.gameObject.name)
+                {
+                    demoDoor = t.gameObject.AddComponent<AnywhereDoor>();
+                    demoDoor.ConfigureOpenAngle(labDoor.OpenAngle); // 摆角跟实验室侧一致（默认90°，实验室调过-180°）
+                    Debug.Log("[PortalPair] 远端门缺开关脚本，已补挂到叶子 " + t.name);
+                    break;
+                }
+            }
+        }
+        if (labDoor != null && demoDoor != null)
+        {
+            demoDoor.SetRespondToKey(true); // 远端也要能 E：穿过去后门自动关了人得能从那边开回来
+            if (demoDoor.IsOpen != labDoor.IsOpen) demoDoor.SetOpen(labDoor.IsOpen, false);
+            lastLabOpen = labDoor.IsOpen;
+            lastDemoOpen = labDoor.IsOpen;
+            Debug.Log("[PortalPair] 门开关已配对同步（初始=" + (labDoor.IsOpen ? "开" : "关") + "）");
+        }
+        else Debug.LogWarning("[PortalPair] 开关同步未启用：labDoor=" + (labDoor != null) + " demoDoor=" + (demoDoor != null));
 
         // 相机取景：站在对方门洞屏的位置，面朝各自世界的内容方向（demo 内容在门框 -Z，lab 内容也在门框 -Z）
         demoViewCam = MakeCam(demoFrame, rtDemo, "PortalCam_DemoView");
         labViewCam = MakeCam(labFrame, rtLab, "PortalCam_LabView");
-        // 藏门：每台取景相机渲染时隐藏自己所在世界的门整体（门框/门板/门洞屏），防套娃
-        demoViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(demoFrame.root.gameObject);
-        labViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(labFrame.root.gameObject);
+        // 藏门：每台取景相机渲染时隐藏对面那扇门整体（门框/门板/门洞屏），防套娃。
+        // 只藏门自身子树——门若嵌在世界根下，藏 .root 会把整个世界藏没（白屏元凶）
+        demoViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(demoFrame.gameObject);
+        labViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(labFrame.gameObject);
         // 项目没有天空盒材质（实验室天空为 null）：给两台传送门相机配程序化蓝天，
         // 否则门洞上半截是纯白背景——"开门一片白"的主因之一
         if (RenderSettings.skybox == null && Shader.Find("Skybox/Procedural") != null)
@@ -137,9 +166,9 @@ public class PortalPair : MonoBehaviour
             labViewCam.GetComponent<PortalViewMask>().SetSkybox(sky);
         }
         // 初始位姿锚在门洞平面（Update 的视点同步每帧覆盖，仅作首帧兜底）
-        demoViewCam.transform.position = demoFrame.position + demoFrame.up * portalCenterHeight;
+        demoViewCam.transform.position = demoFrame.position + demoFrame.up * (portalCenterHeight * Mathf.Max(0.1f, demoFrame.lossyScale.y));
         demoViewCam.transform.rotation = demoFrame.rotation * Quaternion.Euler(0f, 180f, 0f);
-        labViewCam.transform.position = labFrame.position + labFrame.up * portalCenterHeight;
+        labViewCam.transform.position = labFrame.position + labFrame.up * (portalCenterHeight * Mathf.Max(0.1f, labFrame.lossyScale.y));
         labViewCam.transform.rotation = labFrame.rotation * Quaternion.Euler(0f, 180f, 0f);
 
         prevZLab = LocalZ(labFrame, false);
@@ -205,11 +234,12 @@ public class PortalPair : MonoBehaviour
     {
         var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
         quad.name = name;
+        float s = Mathf.Max(0.1f, frame.lossyScale.y); // 门洞尺寸随门的实际缩放
         float recess = normalTowardMinusZ ? 0.04f : -0.04f;
-        quad.transform.position = frame.position + frame.up * portalCenterHeight + frame.forward * recess;
+        quad.transform.position = frame.position + frame.up * (portalCenterHeight * s) + frame.forward * recess;
         // Quad 法线实测朝 local -Z：normalTowardMinusZ=true → 不翻转（法线朝 frame -Z）
         quad.transform.rotation = frame.rotation * (normalTowardMinusZ ? Quaternion.identity : Quaternion.Euler(0f, 180f, 0f));
-        quad.transform.localScale = new Vector3(Mathf.Max(portalSize.x, 1.3f), Mathf.Max(portalSize.y, 2.1f), 1f);
+        quad.transform.localScale = new Vector3(portalSize.x * s, portalSize.y * s, 1f);
         var col = quad.GetComponent<Collider>();
         if (col != null) Destroy(col);
         var r = quad.GetComponent<MeshRenderer>();
@@ -235,6 +265,13 @@ public class PortalPair : MonoBehaviour
 
     private static readonly Matrix4x4 FlipY180 = Matrix4x4.Rotate(Quaternion.Euler(0f, 180f, 0f));
 
+    // 门洞屏宽高比（按门的实际缩放）
+    private float QuadAspect(Transform frame)
+    {
+        float s = Mathf.Max(0.1f, frame.lossyScale.y);
+        return (portalSize.x * s) / Mathf.Max(0.3f, portalSize.y * s);
+    }
+
     // 虚拟相机摆到玩家眼位的镜像位姿；视场角按"相机到门洞屏的垂直距离"动态算——
     // 让取景锥体在门洞平面上的截面恰好等于门洞屏（窗户光学：近看视野大、远看视野窄），
     // 否则玩家 60° 广角被压进小门洞，门里世界看起来像缩小模型
@@ -244,9 +281,9 @@ public class PortalPair : MonoBehaviour
             portalTransform.MultiplyPoint3x4(playerCam.transform.position),
             portalTransform.rotation * playerCam.transform.rotation);
         float perpDist = Mathf.Abs(Vector3.Dot(cam.transform.position - screen.position, screen.forward));
-        float quadH = Mathf.Max(portalSize.y, 2.1f);
+        float quadH = Mathf.Max(0.3f, screen.lossyScale.y); // 屏的实际世界高度（含门缩放）
         cam.fieldOfView = 2f * Mathf.Atan(quadH * 0.5f / Mathf.Max(0.3f, perpDist)) * Mathf.Rad2Deg;
-        cam.aspect = Mathf.Max(portalSize.x, 1.3f) / quadH;
+        cam.aspect = screen.lossyScale.x / quadH;
     }
 
     // demo 门的"有效朝向"：内容侧定义到 raw +Z（即 raw 转半圈）
@@ -259,6 +296,24 @@ public class PortalPair : MonoBehaviour
     {
         if (!ready || playerCam == null) return;
         if (cooldown > 0f) cooldown -= Time.deltaTime;
+
+        // 开关同步：任一侧状态翻转（E 交互或自动关）立即镜像到另一侧。
+        // 镜像用 SetOpen(x, false) 不排自动关——计时器只挂在被交互的那扇门上
+        if (labDoor != null && demoDoor != null)
+        {
+            bool lo = labDoor.IsOpen;
+            bool dmo = demoDoor.IsOpen;
+            if (lo != lastLabOpen)
+            {
+                lastLabOpen = lo; lastDemoOpen = lo;
+                demoDoor.SetOpen(lo, false);
+            }
+            else if (dmo != lastDemoOpen)
+            {
+                lastDemoOpen = dmo; lastLabOpen = dmo;
+                labDoor.SetOpen(dmo, false);
+            }
+        }
 
         Quaternion demoEff = DemoEff();
 
@@ -297,6 +352,11 @@ public class PortalPair : MonoBehaviour
         bool crossed = inOpening && prevZ < 0f && local.z >= 0f && local.z < 0.8f && prevZ > -0.8f;
         prevZ = local.z;
         if (!crossed) return;
+
+        // 门关着不许穿（物理上门板碰撞体也该挡住，这里是判定层兜底——
+        // 贴门框边缘挤过门洞平面也不会被传送）。两侧门状态已同步，查本侧即可
+        AnywhereDoor gate = isLab ? labDoor : demoDoor;
+        if (gate != null && !gate.IsOpen) return;
 
         cooldown = 0.6f;
         // 落点：本门 local 原样映射到对方 eff 系（z 已是"内容侧为负"语义）
