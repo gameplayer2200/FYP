@@ -330,6 +330,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1975320253}
     m_Modifications:
+    - target: {fileID: 2172186758618143526, guid: e63fcfcf33e8d4a4f930572e88cc8a30, type: 3}
+      propertyPath: m_IsTrigger
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2172186758618143526, guid: e63fcfcf33e8d4a4f930572e88cc8a30, type: 3}
+      propertyPath: m_ProvidesContacts
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4637577157199694839, guid: e63fcfcf33e8d4a4f930572e88cc8a30, type: 3}
       propertyPath: m_Name
       value: anywhere-door
@@ -374,7 +382,9 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 7043128640335330260, guid: e63fcfcf33e8d4a4f930572e88cc8a30, type: 3}
+    - {fileID: 9139109379980889466, guid: e63fcfcf33e8d4a4f930572e88cc8a30, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
