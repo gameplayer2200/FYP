@@ -1910,6 +1910,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6925283661344727470, guid: e946c281352632447ab3e847e09679c1, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8813405922535873960, guid: e946c281352632447ab3e847e09679c1, type: 3}
       propertyPath: m_Name
       value: PAEA01_Arch_staircase_01a
@@ -54014,6 +54018,10 @@ PrefabInstance:
     - target: {fileID: 3001115592944338404, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_Name
       value: anywhere-door-Metro
+      objectReference: {fileID: 0}
+    - target: {fileID: 7719161850220040875, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
