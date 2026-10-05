@@ -184,7 +184,8 @@ public class PortalPair : MonoBehaviour
         return frame.InverseTransformPoint(playerT.position).z;
     }
 
-    // 把门 Cube.001（含子物体）渲染器上的深色材质槽换成全透明（_Color 最亮分量<0.15 判定）
+    // 把门 Cube.001（含子物体）上的"背板"材质槽换成全透明——背板颜色不定（有黑有白），
+    // 判定取"中性色"（RGB 三通道接近且极亮或极暗），品红门框（饱和色）不受影响
     private void MakeFrameBlackInvisible(Transform doorRoot)
     {
         Transform framePart = FindCube001(doorRoot);
@@ -198,7 +199,19 @@ public class PortalPair : MonoBehaviour
             for (int i = 0; i < mats.Length; i++)
             {
                 var m = mats[i];
-                if (m != null && m.HasProperty("_Color") && m.color.maxColorComponent < 0.15f)
+                if (m == null) continue;
+                if (!m.HasProperty("_Color"))
+                {
+                    // URP 系材质（主色属性叫 _BaseColor）在内置管线下读不到颜色——
+                    // Cube.001 上的这类槽就是背板，直接透明
+                    mats[i] = invisible;
+                    changed = true;
+                    continue;
+                }
+                Color c = m.color;
+                bool neutral = Mathf.Abs(c.r - c.g) < 0.12f && Mathf.Abs(c.g - c.b) < 0.12f
+                               && (c.maxColorComponent < 0.18f || c.maxColorComponent > 0.82f);
+                if (neutral)
                 {
                     mats[i] = invisible;
                     changed = true;
@@ -206,7 +219,7 @@ public class PortalPair : MonoBehaviour
             }
             if (changed) r.sharedMaterials = mats;
         }
-        Debug.Log("[PortalPair] 门框黑色背板已透明：" + framePart.name);
+        Debug.Log("[PortalPair] 门框背板已透明（中性色规则）：" + framePart.name);
     }
 
     private Transform FindCube001(Transform root)

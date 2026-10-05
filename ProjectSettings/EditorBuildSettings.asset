@@ -11,4 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/country house.unity
     guid: e9ccad99b7b8f6043a28102861b33611
+  - enabled: 1
+    path: Assets/Scenes/Metro.unity
+    guid: e01bbb2c450fc9341a8c5681b9068b94
   m_configObjects: {}
