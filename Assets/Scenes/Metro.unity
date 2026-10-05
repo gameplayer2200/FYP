@@ -1169,7 +1169,6 @@ GameObject:
   m_Component:
   - component: {fileID: 27642660}
   - component: {fileID: 27642659}
-  - component: {fileID: 27642658}
   m_Layer: 0
   m_Name: Spot Light (2)
   m_TagString: Untagged
@@ -1177,18 +1176,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &27642658
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 27642657}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &27642659
 Light:
   m_ObjectHideFlags: 0
@@ -1704,7 +1691,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -2768,7 +2757,6 @@ GameObject:
   m_Component:
   - component: {fileID: 87598271}
   - component: {fileID: 87598273}
-  - component: {fileID: 87598272}
   m_Layer: 0
   m_Name: Area Light - start game (7)
   m_TagString: Untagged
@@ -2791,18 +2779,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 216379455}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!114 &87598272
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 87598270}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!108 &87598273
 Light:
   m_ObjectHideFlags: 0
@@ -3249,7 +3225,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -6299,7 +6277,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -10021,7 +10001,6 @@ GameObject:
   m_Component:
   - component: {fileID: 365029064}
   - component: {fileID: 365029066}
-  - component: {fileID: 365029065}
   m_Layer: 0
   m_Name: Area Light - start game (6)
   m_TagString: Untagged
@@ -10044,18 +10023,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 216379455}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!114 &365029065
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 365029063}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!108 &365029066
 Light:
   m_ObjectHideFlags: 0
@@ -10606,7 +10573,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -12234,7 +12203,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -12514,7 +12485,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: PAEA01_Arch_Wall_Column_Nexus_01a_PRE
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5671592982786761522, guid: 707260bd7aa40d343b4431201b2a537c, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -13233,7 +13205,6 @@ GameObject:
   m_Component:
   - component: {fileID: 513962192}
   - component: {fileID: 513962194}
-  - component: {fileID: 513962193}
   m_Layer: 0
   m_Name: Area Light - start game (5)
   m_TagString: Untagged
@@ -13256,18 +13227,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 216379455}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!114 &513962193
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 513962191}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!108 &513962194
 Light:
   m_ObjectHideFlags: 0
@@ -13969,7 +13928,6 @@ GameObject:
   m_Component:
   - component: {fileID: 530031005}
   - component: {fileID: 530031004}
-  - component: {fileID: 530031003}
   m_Layer: 0
   m_Name: Spot Light (5)
   m_TagString: Untagged
@@ -13977,18 +13935,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &530031003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 530031002}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &530031004
 Light:
   m_ObjectHideFlags: 0
@@ -16283,7 +16229,6 @@ GameObject:
   m_Component:
   - component: {fileID: 613084779}
   - component: {fileID: 613084778}
-  - component: {fileID: 613084777}
   m_Layer: 0
   m_Name: Showcase_DirectionalLight
   m_TagString: Untagged
@@ -16291,18 +16236,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &613084777
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 613084776}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!108 &613084778
 Light:
   m_ObjectHideFlags: 0
@@ -17098,7 +17031,6 @@ GameObject:
   m_Component:
   - component: {fileID: 645582878}
   - component: {fileID: 645582877}
-  - component: {fileID: 645582876}
   m_Layer: 0
   m_Name: Spot Light (7)
   m_TagString: Untagged
@@ -17106,18 +17038,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &645582876
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 645582875}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &645582877
 Light:
   m_ObjectHideFlags: 0
@@ -17731,7 +17651,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -18035,7 +17957,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -18735,7 +18659,6 @@ GameObject:
   m_Component:
   - component: {fileID: 710722227}
   - component: {fileID: 710722226}
-  - component: {fileID: 710722225}
   m_Layer: 0
   m_Name: Spot Light (6)
   m_TagString: Untagged
@@ -18743,18 +18666,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &710722225
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 710722224}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &710722226
 Light:
   m_ObjectHideFlags: 0
@@ -22099,7 +22010,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -22695,7 +22608,6 @@ GameObject:
   m_Component:
   - component: {fileID: 871714212}
   - component: {fileID: 871714214}
-  - component: {fileID: 871714213}
   m_Layer: 0
   m_Name: Area Light - start game (1)
   m_TagString: Untagged
@@ -22718,18 +22630,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 216379455}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!114 &871714213
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 871714211}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!108 &871714214
 Light:
   m_ObjectHideFlags: 0
@@ -23004,7 +22904,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -23905,7 +23807,6 @@ GameObject:
   m_Component:
   - component: {fileID: 912562696}
   - component: {fileID: 912562695}
-  - component: {fileID: 912562694}
   m_Layer: 0
   m_Name: Spot Light (10)
   m_TagString: Untagged
@@ -23913,18 +23814,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &912562694
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 912562693}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &912562695
 Light:
   m_ObjectHideFlags: 0
@@ -26421,7 +26310,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -27947,7 +27838,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1087594152}
   - component: {fileID: 1087594153}
-  - component: {fileID: 1087594154}
   m_Layer: 0
   m_Name: Area Light - start game
   m_TagString: Untagged
@@ -28032,18 +27922,6 @@ Light:
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
   m_ShadowAngle: 0
---- !u!114 &1087594154
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1087594151}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &1090380306
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -28774,7 +28652,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -29580,7 +29460,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1160449039}
   - component: {fileID: 1160449038}
-  - component: {fileID: 1160449037}
   m_Layer: 0
   m_Name: Spot Light (4)
   m_TagString: Untagged
@@ -29588,18 +29467,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1160449037
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1160449036}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1160449038
 Light:
   m_ObjectHideFlags: 0
@@ -29753,7 +29620,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1167621082}
   - component: {fileID: 1167621081}
-  - component: {fileID: 1167621080}
   m_Layer: 0
   m_Name: Spot Light (5)
   m_TagString: Untagged
@@ -29761,18 +29627,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1167621080
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1167621079}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1167621081
 Light:
   m_ObjectHideFlags: 0
@@ -31402,7 +31256,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -31730,7 +31586,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1256035020}
   - component: {fileID: 1256035019}
-  - component: {fileID: 1256035018}
   m_Layer: 0
   m_Name: Spot Light (4)
   m_TagString: Untagged
@@ -31738,18 +31593,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1256035018
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1256035017}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1256035019
 Light:
   m_ObjectHideFlags: 0
@@ -32123,7 +31966,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -34267,7 +34112,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1342915974}
   - component: {fileID: 1342915973}
-  - component: {fileID: 1342915972}
   m_Layer: 0
   m_Name: Spot Light (2)
   m_TagString: Untagged
@@ -34275,18 +34119,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1342915972
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1342915971}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1342915973
 Light:
   m_ObjectHideFlags: 0
@@ -34374,7 +34206,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1345789258}
   - component: {fileID: 1345789257}
-  - component: {fileID: 1345789256}
   m_Layer: 0
   m_Name: Spot Light (3)
   m_TagString: Untagged
@@ -34382,18 +34213,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1345789256
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1345789255}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1345789257
 Light:
   m_ObjectHideFlags: 0
@@ -36953,7 +36772,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1459061336}
   - component: {fileID: 1459061335}
-  - component: {fileID: 1459061334}
   m_Layer: 0
   m_Name: Spot Light
   m_TagString: Untagged
@@ -36961,18 +36779,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1459061334
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1459061333}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1459061335
 Light:
   m_ObjectHideFlags: 0
@@ -37805,7 +37611,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -37825,7 +37633,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1507339223}
   - component: {fileID: 1507339222}
-  - component: {fileID: 1507339221}
   m_Layer: 0
   m_Name: Spot Light
   m_TagString: Untagged
@@ -37833,18 +37640,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1507339221
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1507339220}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1507339222
 Light:
   m_ObjectHideFlags: 0
@@ -37932,7 +37727,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1511685341}
   - component: {fileID: 1511685340}
-  - component: {fileID: 1511685339}
   m_Layer: 0
   m_Name: Spot Light (1)
   m_TagString: Untagged
@@ -37940,18 +37734,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1511685339
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1511685338}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1511685340
 Light:
   m_ObjectHideFlags: 0
@@ -39946,7 +39728,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1610158486}
   - component: {fileID: 1610158485}
-  - component: {fileID: 1610158484}
   m_Layer: 0
   m_Name: Spot Light (3)
   m_TagString: Untagged
@@ -39954,18 +39735,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1610158484
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1610158483}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1610158485
 Light:
   m_ObjectHideFlags: 0
@@ -41096,7 +40865,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: PAEA01_Arch_Wall_Column_Nexus_01a_PRE
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5671592982786761522, guid: 707260bd7aa40d343b4431201b2a537c, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -42856,7 +42626,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: PAEA01_Arch_Wall_Column_Nexus_01a_PRE
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5671592982786761522, guid: 707260bd7aa40d343b4431201b2a537c, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -42908,7 +42679,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1707823923}
   - component: {fileID: 1707823925}
-  - component: {fileID: 1707823924}
   m_Layer: 0
   m_Name: Area Light - start game (2)
   m_TagString: Untagged
@@ -42931,18 +42701,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 216379455}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!114 &1707823924
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1707823922}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!108 &1707823925
 Light:
   m_ObjectHideFlags: 0
@@ -45319,7 +45077,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -45339,7 +45099,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1801969425}
   - component: {fileID: 1801969424}
-  - component: {fileID: 1801969423}
   m_Layer: 0
   m_Name: Spot Light (8)
   m_TagString: Untagged
@@ -45347,18 +45106,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1801969423
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1801969422}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1801969424
 Light:
   m_ObjectHideFlags: 0
@@ -48447,7 +48194,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1956876048}
   - component: {fileID: 1956876047}
-  - component: {fileID: 1956876046}
   m_Layer: 0
   m_Name: Spot Light (9)
   m_TagString: Untagged
@@ -48455,18 +48201,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1956876046
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1956876045}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1956876047
 Light:
   m_ObjectHideFlags: 0
@@ -48628,7 +48362,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1959753572}
   - component: {fileID: 1959753571}
-  - component: {fileID: 1959753570}
   m_Layer: 0
   m_Name: Spot Light (1)
   m_TagString: Untagged
@@ -48636,18 +48369,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1959753570
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1959753569}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
 --- !u!108 &1959753571
 Light:
   m_ObjectHideFlags: 0
@@ -49700,7 +49421,6 @@ GameObject:
   - component: {fileID: 2002609212}
   - component: {fileID: 2002609211}
   - component: {fileID: 2002609210}
-  - component: {fileID: 2002609209}
   m_Layer: 0
   m_Name: Camera
   m_TagString: Untagged
@@ -49708,18 +49428,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2002609209
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2002609208}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
 --- !u!81 &2002609210
 AudioListener:
   m_ObjectHideFlags: 0
@@ -53446,7 +53154,9 @@ PrefabInstance:
       propertyPath: m_Intensity
       value: 1.8889999
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 83440922529994972, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
+    - {fileID: 9145189483710854761, guid: 844e97e06b23ee5478fbb4fa96361a02, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -53979,7 +53689,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: PAEA01_Arch_Wall_Column_Nexus_01a_PRE
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5671592982786761522, guid: 707260bd7aa40d343b4431201b2a537c, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
