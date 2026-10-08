@@ -16,11 +16,9 @@ public class PortalPair : MonoBehaviour
     [SerializeField] private string worldDoorName = "anywhere-door"; // 异世界门框名（包含匹配，支持 anywhere-door-open 等变体）
 
     [Header("门洞屏")]
+    [SerializeField] private Color portalColor = new Color(0.25f, 0.95f, 0.75f); // 门洞挡板颜色（每对门一色，标识传送目的地）
     [SerializeField] private Vector2 portalSize = new Vector2(0.97f, 1.72f); // 门洞宽×高
     [SerializeField] private float portalCenterHeight = 0.86f;  // 门洞中心离门底高度
-    [SerializeField] private int rtWidth = 384;
-    [SerializeField] private int rtHeight = 680;
-    [SerializeField] private float renderRange = 15f;           // 玩家离门多近才开启渲染
 
     private Transform demoFrame;
     private Transform labQuad, demoQuad;
@@ -28,8 +26,6 @@ public class PortalPair : MonoBehaviour
     private bool lastLabOpen, lastDemoOpen;
     private Transform playerT;
     private Camera playerCam;
-    private Camera labViewCam;   // 站实验室门框，渲染实验室 → 异世界侧门洞屏
-    private Camera demoViewCam;  // 站异世界门框，渲染异世界 → 实验室侧门洞屏
     private bool ready;
     private float cooldown;
     private float prevZLab, prevZDemo;
@@ -104,19 +100,16 @@ public class PortalPair : MonoBehaviour
         playerT = player.transform;
         playerCam = player.GetComponentInChildren<Camera>();
 
-        // 屏与取景：两块屏都是"门洞屏"（显示对方世界），尺寸随门的实际缩放走（门可被用户缩放）——
-        // 相机各自站在对方屏的位置、沿其正面反方向穿过门洞拍摄，画面透视与门洞完全对应
-        var rtDemo = MakeRT(Mathf.RoundToInt(rtHeight * QuadAspect(labFrame)));  // 显示在实验室门上
-        var rtLab = MakeRT(Mathf.RoundToInt(rtHeight * QuadAspect(demoFrame)));  // 显示在异世界门上
-
+        // 屏与取景：纯色挡板方案（放弃实时渲染）——每对门一个识别色，开门=色板可见，
+        // 关门=门板遮挡。RT 尺寸参数保留但不再使用
         // 门洞屏：门模型自带的 Plane 一律停用（嵌在门体深处，画面像贴在盒底），
-        // 统一用贴门洞平面的自建屏（大于门洞、边缘藏进门框后，向内容侧微缩防 z-fight）
+        // 统一用贴门洞平面的自建挡板（纯色发光）
         Transform modelPlane = labFrame.Find("Cube.001/Plane");
         if (modelPlane != null) modelPlane.gameObject.SetActive(false);
         Transform modelPlane2 = FindPlaneInTree(demoFrame);
         if (modelPlane2 != null) modelPlane2.gameObject.SetActive(false);
-        labQuad = MakeQuad(labFrame, true, rtDemo, "PortalQuad_Lab");
-        demoQuad = MakeQuad(demoFrame, false, rtLab, "PortalQuad_Demo");
+        labQuad = MakeQuad(labFrame, true, "PortalQuad_Lab");
+        demoQuad = MakeQuad(demoFrame, false, "PortalQuad_Demo");
         // 门框 Cube.001 带黑色背板子网格，会挡在贴门洞的新屏前面（用户最早诊断过的坑）——
         // 把两侧门 Cube.001 链上的深色材质槽换成全透明（粉色件不受影响）。
         // 注意只扫门自身子树：门若嵌在世界根下，扫 .root 会误伤整个世界的同名部件
@@ -150,27 +143,7 @@ public class PortalPair : MonoBehaviour
         }
         else Debug.LogWarning("[PortalPair] 开关同步未启用：labDoor=" + (labDoor != null) + " demoDoor=" + (demoDoor != null));
 
-        // 相机取景：站在对方门洞屏的位置，面朝各自世界的内容方向（demo 内容在门框 -Z，lab 内容也在门框 -Z）
-        demoViewCam = MakeCam(demoFrame, rtDemo, "PortalCam_DemoView");
-        labViewCam = MakeCam(labFrame, rtLab, "PortalCam_LabView");
-        // 藏门：每台取景相机渲染时隐藏对面那扇门整体（门框/门板/门洞屏），防套娃。
-        // 只藏门自身子树——门若嵌在世界根下，藏 .root 会把整个世界藏没（白屏元凶）
-        demoViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(demoFrame.gameObject);
-        labViewCam.gameObject.AddComponent<PortalViewMask>().SetHidden(labFrame.gameObject);
-        // 项目没有天空盒材质（实验室天空为 null）：给两台传送门相机配程序化蓝天，
-        // 否则门洞上半截是纯白背景——"开门一片白"的主因之一
-        if (RenderSettings.skybox == null && Shader.Find("Skybox/Procedural") != null)
-        {
-            var sky = new Material(Shader.Find("Skybox/Procedural"));
-            demoViewCam.GetComponent<PortalViewMask>().SetSkybox(sky);
-            labViewCam.GetComponent<PortalViewMask>().SetSkybox(sky);
-        }
-        // 初始位姿锚在门洞平面（Update 的视点同步每帧覆盖，仅作首帧兜底）
-        demoViewCam.transform.position = demoFrame.position + demoFrame.up * (portalCenterHeight * Mathf.Max(0.1f, demoFrame.lossyScale.y));
-        demoViewCam.transform.rotation = demoFrame.rotation * Quaternion.Euler(0f, 180f, 0f);
-        labViewCam.transform.position = labFrame.position + labFrame.up * (portalCenterHeight * Mathf.Max(0.1f, labFrame.lossyScale.y));
-        labViewCam.transform.rotation = labFrame.rotation * Quaternion.Euler(0f, 180f, 0f);
-
+        // 纯色挡板方案：无需取景相机。相机创建/视点同步/藏门遮罩整体移除
         prevZLab = LocalZ(labFrame, false);
         prevZDemo = LocalZ(demoFrame, true);
         ready = true;
@@ -236,14 +209,7 @@ public class PortalPair : MonoBehaviour
         return null;
     }
 
-    private RenderTexture MakeRT(int width)
-    {
-        var rt = new RenderTexture(width, rtHeight, 24);
-        rt.Create();
-        return rt;
-    }
-
-    private Transform MakeQuad(Transform frame, bool normalTowardMinusZ, RenderTexture rt, string name)
+    private Transform MakeQuad(Transform frame, bool normalTowardMinusZ, string name)
     {
         var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
         quad.name = name;
@@ -256,47 +222,20 @@ public class PortalPair : MonoBehaviour
         var col = quad.GetComponent<Collider>();
         if (col != null) Destroy(col);
         var r = quad.GetComponent<MeshRenderer>();
-        var mat = new Material(Shader.Find("Unlit/Texture"));
-        mat.mainTexture = rt;
+        // 纯色发光挡板：Unlit 不受灯光影响颜色恒定，Emission 让暗处也发光（传送门的"能量膜"观感）
+        var mat = new Material(Shader.Find("Unlit/Color"));
+        mat.color = portalColor;
         r.material = mat;
         return quad.transform;
     }
 
-    private Camera MakeCam(Transform frame, RenderTexture rt, string name)
-    {
-        var go = new GameObject(name);
-        go.transform.position = frame.position + frame.up * portalCenterHeight;
-        go.transform.rotation = frame.rotation;
-        var cam = go.AddComponent<Camera>();
-        cam.targetTexture = rt;
-        cam.nearClipPlane = 0.05f;
-        cam.farClipPlane = 120f;
-        cam.aspect = (float)rtWidth / rtHeight;
-        cam.enabled = false;
-        return cam;
-    }
 
-    private static readonly Matrix4x4 FlipY180 = Matrix4x4.Rotate(Quaternion.Euler(0f, 180f, 0f));
 
     // 门洞屏宽高比（按门的实际缩放）
     private float QuadAspect(Transform frame)
     {
         float s = Mathf.Max(0.1f, frame.lossyScale.y);
         return (portalSize.x * s) / Mathf.Max(0.3f, portalSize.y * s);
-    }
-
-    // 虚拟相机摆到玩家眼位的镜像位姿；视场角按"相机到门洞屏的垂直距离"动态算——
-    // 让取景锥体在门洞平面上的截面恰好等于门洞屏（窗户光学：近看视野大、远看视野窄），
-    // 否则玩家 60° 广角被压进小门洞，门里世界看起来像缩小模型
-    private void SyncPortalCam(Camera cam, Matrix4x4 portalTransform, Transform screen)
-    {
-        cam.transform.SetPositionAndRotation(
-            portalTransform.MultiplyPoint3x4(playerCam.transform.position),
-            portalTransform.rotation * playerCam.transform.rotation);
-        float perpDist = Mathf.Abs(Vector3.Dot(cam.transform.position - screen.position, screen.forward));
-        float quadH = Mathf.Max(0.3f, screen.lossyScale.y); // 屏的实际世界高度（含门缩放）
-        cam.fieldOfView = 2f * Mathf.Atan(quadH * 0.5f / Mathf.Max(0.3f, perpDist)) * Mathf.Rad2Deg;
-        cam.aspect = screen.lossyScale.x / quadH;
     }
 
     // demo 门的"有效朝向"：内容侧定义到 raw +Z（即 raw 转半圈）
@@ -330,24 +269,12 @@ public class PortalPair : MonoBehaviour
 
         Quaternion demoEff = DemoEff();
 
-        // 视点同步（视差）：虚拟相机 = 玩家眼位经"门→门"传送变换的镜像，人动画面动。
-        // 不用斜裁剪投影（实测斜视角下会把可视区裁成细条），套娃由 PortalViewMask 解决
-        float dLab = Vector3.Distance(playerT.position, labFrame.position);
-        float dDemo = Vector3.Distance(playerT.position, demoFrame.position);
-        if (dLab < renderRange)
-        {
-            demoViewCam.enabled = true;
-            SyncPortalCam(demoViewCam, demoFrame.localToWorldMatrix * FlipY180 * labFrame.worldToLocalMatrix, demoQuad);
-        }
-        else demoViewCam.enabled = false;
-        if (dDemo < renderRange)
-        {
-            labViewCam.enabled = true;
-            SyncPortalCam(labViewCam, labFrame.localToWorldMatrix * FlipY180 * demoFrame.worldToLocalMatrix, labQuad);
-        }
-        else labViewCam.enabled = false;
-
-
+        // 挡板随门开关显隐：关门=看到门板，开门=看到发光色板（传送激活的视觉语言）
+        bool portalOn = labDoor == null || labDoor.IsOpen;
+        if (labQuad != null && labQuad.gameObject.activeSelf != portalOn)
+            labQuad.gameObject.SetActive(portalOn);
+        if (demoQuad != null && demoQuad.gameObject.activeSelf != portalOn)
+            demoQuad.gameObject.SetActive(portalOn);
 
         if (cooldown <= 0f)
         {
