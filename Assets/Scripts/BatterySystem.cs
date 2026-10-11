@@ -26,6 +26,7 @@ public class BatterySystem : MonoBehaviour
     [SerializeField] private Vector3 restartOffset = new Vector3(1.5f, 0.2f, 0f);
 
     public float Battery { get; private set; }
+    public float MaxBattery { get { return maxBattery; } } // 供 UI / 充电桩判定满电，避免各处硬编码 100
     public bool SprintEnabled { get { return !IsDead && Battery > sprintLockThreshold; } }
     public bool JumpEnabled { get { return !IsDead && Battery > jumpLockThreshold; } }
     public bool IsDead { get; private set; }
@@ -122,6 +123,7 @@ public class BatterySystem : MonoBehaviour
     private void OnGUI()
     {
         if (IsDead) return;
+
         GUI.color = Battery > sprintLockThreshold ? new Color(0.22f, 0.86f, 0.95f) : new Color(0.95f, 0.4f, 0.2f);
         GUI.Box(new Rect(20f, Screen.height - 46f, 170f, 22f), "");
         GUI.Box(new Rect(22f, Screen.height - 44f, 166f * (Battery / maxBattery), 18f), "");

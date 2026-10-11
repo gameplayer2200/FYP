@@ -1,0 +1,7 @@
+labPath=Assets/Scenes/SpecimenLab.unity metroPath=Assets/Scenes/Metro.unity
+labDoor=anywhere-door-Metro-Lab metroDoor=anywhere-door-Metro
+P0(orig)=(4.011, 1.016, 5.417)
+after Lab->Metro tgtM=(-48.120, 1.131, 132.410) relDemo(local in metro)=(-0.200, 1.000, -0.300) (z<0 => content side OK)
+METRO->LAB OLD backLocal=(-0.200, 1.000, -0.300) distToP0=0.7211
+METRO->LAB NEW backLocal=(0.200, 1.000, 0.300) distToP0=0.0000
+RESULT: NEW formula round-trips EXACTLY (FIXED)

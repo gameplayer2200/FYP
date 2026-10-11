@@ -1,0 +1,2 @@
+player world=(3.812, 1.016, 5.438)
+dist to labDoor=1.04

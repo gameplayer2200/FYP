@@ -20,6 +20,10 @@ public class PortalPair : MonoBehaviour
     [SerializeField] private Vector2 portalSize = new Vector2(0.97f, 1.72f); // 门洞宽×高
     [SerializeField] private float portalCenterHeight = 0.86f;  // 门洞中心离门底高度
 
+    [Header("加载策略")]
+    [Tooltip("玩家距实验室门框多近时开始异步加载异世界场景（米）。设 ≤0 则退回旧行为：Start 时立即加载")]
+    [SerializeField] private float preloadRadius = 12f;
+
     private Transform demoFrame;
     private Transform labQuad, demoQuad;
     private AnywhereDoor labDoor, demoDoor;   // 开关同步用：两侧门的开关组件
@@ -27,16 +31,28 @@ public class PortalPair : MonoBehaviour
     private Transform playerT;
     private Camera playerCam;
     private bool ready;
+    private bool worldLoading;                // 异世界场景是否已开始异步加载
     private float cooldown;
     private float prevZLab, prevZDemo;
+    // 运行时创建的材质实例（门洞挡板 / 透明背板）——留引用以便 OnDestroy 统一释放，否则反复加载场景会泄漏
+    private readonly System.Collections.Generic.List<Material> runtimeMats = new System.Collections.Generic.List<Material>();
 
 #if UNITY_EDITOR
     private void Awake()
     {
-        bool found = false;
-        foreach (var s in UnityEditor.EditorBuildSettings.scenes)
+        // 注意：不能只比文件名。本项目 Build Settings 里 country house 的条目路径是失效的
+        // （指向 Assets/Scenes/country house.unity，真实文件在 Material_Scence 下），
+        // 只比名字会把它当成"已注册"，运行时 LoadSceneAsync 就会失败。
+        // 这里改为校验路径能解析出真实场景资产，并顺手清掉失效旧条目。
+        var list = new System.Collections.Generic.List<UnityEditor.EditorBuildSettingsScene>(UnityEditor.EditorBuildSettings.scenes);
+        bool found = false, removedStale = false;
+        for (int i = list.Count - 1; i >= 0; i--)
         {
-            if (s.path.Replace('\\', '/').EndsWith(worldSceneName + ".unity") && s.enabled) { found = true; break; }
+            var s = list[i];
+            if (!s.path.Replace('\\', '/').EndsWith(worldSceneName + ".unity")) continue;
+            bool pathValid = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.SceneAsset>(s.path) != null;
+            if (pathValid && s.enabled) { found = true; break; }
+            if (!pathValid) { list.RemoveAt(i); removedStale = true; }
         }
         if (!found)
         {
@@ -44,24 +60,51 @@ public class PortalPair : MonoBehaviour
             if (guids.Length > 0)
             {
                 string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
-                var list = new System.Collections.Generic.List<UnityEditor.EditorBuildSettingsScene>(UnityEditor.EditorBuildSettings.scenes);
                 list.Add(new UnityEditor.EditorBuildSettingsScene(path, true));
                 UnityEditor.EditorBuildSettings.scenes = list.ToArray();
-                Debug.Log("[PortalPair] 已自动注册场景到 Build Settings: " + path);
+                Debug.Log("[PortalPair] 已注册场景到 Build Settings: " + path + (removedStale ? "（并清掉失效旧条目）" : ""));
             }
+        }
+        else if (removedStale)
+        {
+            UnityEditor.EditorBuildSettings.scenes = list.ToArray();
         }
     }
 #endif
 
     private void Start()
     {
+        // 先一次性缓存玩家引用（供预加载距离判定用），避免每帧 Find
+        if (playerT == null)
+        {
+            var p = GameObject.Find("player");
+            if (p != null) playerT = p.transform;
+        }
+        // 旧行为兼容：preloadRadius ≤ 0 时退回"开局立即加载"
+        if (preloadRadius <= 0f) BeginLoadWorld();
+    }
+
+    // 异步加载异世界场景（幂等：重复调用只生效一次）
+    private void BeginLoadWorld()
+    {
+        if (worldLoading) return;
+        worldLoading = true;
         var op = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(worldSceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
         if (op == null)
         {
             Debug.LogError("[PortalPair] LoadSceneAsync 返回 null：" + worldSceneName);
+            worldLoading = false;
             return;
         }
         op.completed += OnWorldLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        // 释放运行时创建的材质实例（门洞挡板 / 透明背板），避免场景反复加载导致材质泄漏
+        for (int i = 0; i < runtimeMats.Count; i++)
+            if (runtimeMats[i] != null) Destroy(runtimeMats[i]);
+        runtimeMats.Clear();
     }
 
     private void OnWorldLoaded(AsyncOperation op)
@@ -95,10 +138,13 @@ public class PortalPair : MonoBehaviour
             foreach (var cam in rootObj.GetComponentsInChildren<Camera>(true))
                 cam.gameObject.SetActive(false);
 
-        var player = GameObject.Find("player");
-        if (player == null) { Debug.LogError("[PortalPair] 找不到 player"); return; }
-        playerT = player.transform;
-        playerCam = player.GetComponentInChildren<Camera>();
+        if (playerT == null)
+        {
+            var player = GameObject.Find("player");
+            if (player == null) { Debug.LogError("[PortalPair] 找不到 player"); return; }
+            playerT = player.transform;
+        }
+        playerCam = playerT.GetComponentInChildren<Camera>();
 
         // 屏与取景：纯色挡板方案（放弃实时渲染）——每对门一个识别色，开门=色板可见，
         // 关门=门板遮挡。RT 尺寸参数保留但不再使用
@@ -165,6 +211,7 @@ public class PortalPair : MonoBehaviour
         if (framePart == null) return;
         var invisible = new Material(Shader.Find("Unlit/Transparent"));
         invisible.color = new Color(1f, 1f, 1f, 0f);
+        runtimeMats.Add(invisible); // 留引用，OnDestroy 释放
         foreach (var r in framePart.GetComponentsInChildren<Renderer>(true))
         {
             var mats = r.sharedMaterials;
@@ -225,18 +272,12 @@ public class PortalPair : MonoBehaviour
         // 纯色发光挡板：Unlit 不受灯光影响颜色恒定，Emission 让暗处也发光（传送门的"能量膜"观感）
         var mat = new Material(Shader.Find("Unlit/Color"));
         mat.color = portalColor;
+        runtimeMats.Add(mat); // 留引用，OnDestroy 释放
         r.material = mat;
         return quad.transform;
     }
 
 
-
-    // 门洞屏宽高比（按门的实际缩放）
-    private float QuadAspect(Transform frame)
-    {
-        float s = Mathf.Max(0.1f, frame.lossyScale.y);
-        return (portalSize.x * s) / Mathf.Max(0.3f, portalSize.y * s);
-    }
 
     // demo 门的"有效朝向"：内容侧定义到 raw +Z（即 raw 转半圈）
     private Quaternion DemoEff()
@@ -246,7 +287,17 @@ public class PortalPair : MonoBehaviour
 
     private void Update()
     {
-        if (!ready || playerCam == null) return;
+        // 未就绪：只负责"走近门才开始加载异世界"，加载完成前不参与穿门判定（TryCross 天然被 ready 挡住）
+        if (!ready)
+        {
+            if (!worldLoading && preloadRadius > 0f && playerT != null && labFrame != null)
+            {
+                if ((playerT.position - labFrame.position).sqrMagnitude <= preloadRadius * preloadRadius)
+                    BeginLoadWorld();
+            }
+            return;
+        }
+        if (playerCam == null) return;
         if (cooldown > 0f) cooldown -= Time.deltaTime;
 
         // 开关同步：任一侧状态翻转（E 交互或自动关）立即镜像到另一侧。
@@ -279,7 +330,11 @@ public class PortalPair : MonoBehaviour
         if (cooldown <= 0f)
         {
             TryCross(labFrame, true, ref prevZLab, demoFrame, demoEff);
-            TryCross(demoFrame, false, ref prevZDemo, labFrame, labFrame.rotation);
+            // 回程落点必须带 180° 翻转：与 Lab→Metro 的 demoEff 对称。
+            // 原先这里只用了 labFrame.rotation（缺 ×180），导致从 Metro 穿回实验室时落点镜像错位，
+            // 玩家被传错位置（落在实验室门的错误一侧 / 卡住 / 立刻被弹回 Metro）。
+            // 加上 ×180 后，往返落点精确回到原点。
+            TryCross(demoFrame, false, ref prevZDemo, labFrame, labFrame.rotation * Quaternion.Euler(0f, 180f, 0f));
         }
     }
 

@@ -1,0 +1,22 @@
+Time.time=34.62
+activeScene=SpecimenLab  loadedScenes=2
+  scene[0]=SpecimenLab
+  scene[1]=Metro
+
+labDoor=anywhere-door-Metro-Lab
+labDoor pos=(3.78, 0.02, 5.14) active=True
+  anywhere-door-Metro-Lab NOREND activeInHierarchy=True
+    Cube R.enabled=False [Material.001|Material.002|] activeInHierarchy=True
+      door knob R.enabled=True [Material.003|Material.002|] activeInHierarchy=True
+    Cube.001 R.enabled=False [Unlit/Transparent|Material.001|] activeInHierarchy=True
+      Plane R.enabled=False [Unlit/Transparent|] activeInHierarchy=False
+    Cube.002 R.enabled=True [Material.001|] activeInHierarchy=True
+    Cube.003 R.enabled=True [Material.001|] activeInHierarchy=True
+    Cylinder R.enabled=True [Material.001|] activeInHierarchy=True
+    Cylinder.003 R.enabled=True [Material.001|] activeInHierarchy=True
+    PortalWindow_Quad R.enabled=True [Unlit/Texture|] activeInHierarchy=True
+    PortalWindow_Cam NOREND activeInHierarchy=True
+
+labDoor AnywhereDoor: IsOpen=False on Cube
+
+player=pos=(1.87, 0.27, 2.83)

@@ -1,0 +1,7 @@
+Cube mesh=Cube subMeshCount=2 verts=120
+material slots=2
+  slot[0]=Material.001
+  slot[1]=Material.002
+UV range U=[0.31,0.93] V=[0.21,0.80]
+  subMesh[0] tris=68
+  subMesh[1] tris=8
