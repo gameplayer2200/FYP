@@ -56,17 +56,17 @@ public class PortalWindow : MonoBehaviour
     private Transform destPlane;         // 目标门门洞平面
     private Camera portalCam;
     private RenderTexture rt;
-    private Transform quad;              // 贴在门洞上的取景屏
     private MeshRenderer quadMr;
     private Material quadMat;
     private Camera playerCam;
+    private Renderer leafRenderer;        // 门板（Cube）渲染器：开门时收进门框（隐藏），关门时恢复
+    private AnywhereDoor door;            // 本门的开关组件（开关状态驱动门板显隐）
+    private bool leafShown = true;        // 门板当前显示状态（防重复 SetRenderer）
     private bool ready;
     private bool loading;
     private float waitStart = -1f;       // 进入预加载半径的时刻（用于给 PortalPair 让路）
     private readonly Vector3[] srcCorners = new Vector3[4];
     private readonly Vector3[] destCorners = new Vector3[4];
-    private int[] uOrder = new int[4];   // 角点 → u 归属
-    private int[] vOrder = new int[4];
     private Transform[] legacyQuads;     // PortalPair 生成的纯色挡板（需压制）
     private int quadScanFrame = -1;
 
@@ -156,6 +156,7 @@ public class PortalWindow : MonoBehaviour
         SuppressLegacyQuads();
 
         if (!ready) return;
+        ApplyLeafVisibility(false);
         if ((playerCam.transform.position - srcFrame.position).sqrMagnitude > preloadRadius * preloadRadius * 4f)
             return; // 离得远就不渲染取景，省性能
 
@@ -231,36 +232,44 @@ public class PortalWindow : MonoBehaviour
 
         ReadCorners(srcPlane, srcCorners);
         ReadCorners(destPlane, destCorners);
-        BuildQuad();
+        CreateRt();
         BuildCamera();
-        ComputeUvOrder();
-        ApplyUvs();
+        ApplyPortalToBackPanel();
 
         // 关掉旧的纯色挡板（PortalPair 生成的 PortalQuad_*），免得盖住取景
         foreach (var t in srcFrame.GetComponentsInChildren<Transform>(true))
             if (t.name.StartsWith("PortalQuad_")) t.gameObject.SetActive(false);
 
-        // 隐藏「门洞内的实体门板」：panelName 支持逗号分隔多个节点名。
-        // 这个任意门预制件用 Cube（门板本体，1.22×2.18×0.36）+ Cube.001（外框，1.41×2.39×0.37）
-        // 把门洞堵死，不隐藏它们的话取景屏永远看不到。门框立柱（Cube.002/003/Cylinder…）保留，门才不散架。
-        if (!string.IsNullOrEmpty(panelName))
-        {
-            foreach (var nm in panelName.Split(','))
-            {
-                var nodeName = nm.Trim();
-                if (nodeName.Length == 0) continue;
-                var panel = srcFrame.Find(nodeName);
-                if (panel == null) { Debug.LogWarning("[PortalWindow] 门板节点不存在：" + nodeName); continue; }
-                foreach (var r in panel.GetComponentsInChildren<Renderer>(true))
-                    // 排除门把手：door knob 是 Cube（前门板）的子物体，
-                    // GetComponentsInChildren 会把它一起捞出来，必须显式跳过，否则把手也被藏掉。
-                    if (r != null && r.name != "door knob") r.enabled = false;
-            }
-        }
+        // 门体保持完整：门板（Cube）、背板（Cube.001）、门框立柱、门把手全部可见。
+        // 投影显示在 Cube.001 的黑板材质槽上——关门时门板自然挡住它（合理），
+        // 开门时 AnywhereDoor 把门板转开、黑板投影露出。不再隐藏任何门体部件。
+
+        // 门板显隐联动：开门=门板收进门框（黑板投影露出），关门=门板恢复挡住门洞。
+        // 门板转轴在面板中心，开关动画只是原地翻转、始终盖着门洞，必须靠渲染器显隐"让位"
+        var leaf = srcFrame.Find("Cube");
+        if (leaf != null) leafRenderer = leaf.GetComponent<Renderer>();
+        door = srcFrame.GetComponentInChildren<AnywhereDoor>(true);
+        ApplyLeafVisibility(true);
 
         ready = true;
         Debug.Log("[PortalWindow] 取景已建立：源=" + srcFrame.name + " 目标=" + destFrame.name
                   + " RT=" + rt.width + "x" + rt.height);
+    }
+
+    // 门板显隐：门开着（IsOpen）= 隐藏门板露出黑板投影；门关着 = 恢复门板。
+    // force=true 时无视状态直接按当前门状态刷新（初始化用）
+    private void ApplyLeafVisibility(bool force)
+    {
+        if (leafRenderer == null || door == null) return;
+        bool want = door == null || !door.IsOpen;   // 想显示门板 = 门是关的
+        if (!force && want == leafShown) return;    // 状态没变就不碰
+        // 门把手是门板的子物体，单独保留可见（跟随门板一起被 GetComponentsInChildren 误伤前先摘出）
+        var knob = leafRenderer.transform.Find("door knob");
+        Renderer knobR = knob != null ? knob.GetComponent<Renderer>() : null;
+        bool knobWas = knobR != null && knobR.enabled;
+        leafRenderer.enabled = want;
+        if (knobR != null && knobR.enabled != knobWas) knobR.enabled = knobWas; // 把手状态不动
+        leafShown = want;
     }
 
     // 门洞四角（世界坐标）：c0=-r-u  c1=+r-u  c2=+r+u  c3=-r+u
@@ -287,43 +296,67 @@ public class PortalWindow : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 取景屏：自己建 quad，UV 由 ComputeUvOrder 决定，不依赖预制件 UV
+    // 取景 RT：尺寸按门洞宽高比，保证画面不变形
     // ─────────────────────────────────────────────────────────────
-    private void BuildQuad()
+    private void CreateRt()
     {
-        var go = new GameObject("PortalWindow_Quad");
-        // 注意：不能挂在门洞 Plane 下——PortalPair 会主动禁用那个 Plane（modelPlane.SetActive(false)），
-        // 连带把取景屏一起禁掉（曾导致门洞一片空白）。挂到门根上最安全。
-        go.transform.SetParent(srcFrame, false);
-        quad = go.transform;
-        go.transform.localPosition = Vector3.zero;
-        go.transform.localRotation = Quaternion.identity;
-        go.transform.localScale = Vector3.one;
-
-        // 顶点直接用世界四角换算到门根本地
-        var mesh = new Mesh { name = "PortalWindowMesh" };
-        var verts = new Vector3[4];
-        for (int i = 0; i < 4; i++) verts[i] = srcFrame.InverseTransformPoint(srcCorners[i]);
-        mesh.vertices = verts;
-        mesh.uv = new Vector2[4];
-        mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-
-        var mf = go.AddComponent<MeshFilter>();
-        mf.sharedMesh = mesh;
-        quadMr = go.AddComponent<MeshRenderer>();
-
-        // RT 尺寸按门洞宽高比，保证贴上去不变形
         float aspect = Mathf.Max(0.1f, (srcCorners[1] - srcCorners[0]).magnitude / Mathf.Max(0.05f, (srcCorners[3] - srcCorners[0]).magnitude));
         rt = new RenderTexture(Mathf.RoundToInt(rtHeight * aspect), rtHeight, 24, RenderTextureFormat.Default);
         rt.Create();
+    }
 
-        quadMat = quadMaterialOverride != null
-            ? new Material(quadMaterialOverride)
-            : new Material(Shader.Find("Unlit/Texture"));
+    // ─────────────────────────────────────────────────────────────
+    // 黑板变投影屏：Cube.001 的黑色材质槽直接显示对面世界。
+    // 门保持完整（门框/背板/把手全可见），只替换黑板材质并重算该子网格的 UV——
+    // 黑板自带的 UV 是图集子区域且网格不可读——改用 Custom/PortalPanelProj 着色器
+    // 在 GPU 上按世界坐标投影采样（与取景视锥同一套数学，方向天然一致）。
+    // ─────────────────────────────────────────────────────────────
+    private void ApplyPortalToBackPanel()
+    {
+        var back = srcFrame.Find("Cube.001");
+        if (back == null) { Debug.LogWarning("[PortalWindow] 找不到 Cube.001，黑板投影未生效"); return; }
+        var mr = back.GetComponent<MeshRenderer>();
+        if (mr == null) { Debug.LogWarning("[PortalWindow] Cube.001 无网格渲染器"); return; }
+
+        // 找黑色材质槽：Material.002（黑板）优先；PortalPair 可能已把它换成
+        // Unlit/Transparent（透明化），那种槽同样是对应原黑板的位置，一并认领
+        var mats = mr.sharedMaterials;
+        int slot = -1;
+        for (int i = 0; i < mats.Length; i++)
+        {
+            var m = mats[i];
+            if (m == null) continue;
+            if (m.name.Contains("002")) { slot = i; break; }
+            if (m.name.Contains("Unlit/Transparent")) { slot = i; break; }
+            if (m.HasProperty("_Color") && m.color.maxColorComponent < 0.2f) { slot = i; break; }
+        }
+        if (slot < 0)
+        { Debug.LogWarning("[PortalWindow] Cube.001 上没找到黑板材质槽（槽位=" + mats.Length + "）"); return; }
+
+        // 不碰网格（FBX 未开 Read/Write，任何顶点/UV 访问都会被拒绝）——
+        // 用自定义着色器在 GPU 上按世界坐标投影采样：门洞四角向量传进材质即可
+        var shader = Shader.Find("Custom/PortalPanelProj");
+        if (shader == null) { Debug.LogError("[PortalWindow] 找不到 Custom/PortalPanelProj 着色器"); return; }
+        quadMat = new Material(shader);
+        quadMat.name = "PortalScreen";   // 无 _Color 属性：PortalPair 的中性色透明化规则天然跳过
         quadMat.mainTexture = rt;
-        quadMr.sharedMaterial = quadMat;
+
+        Vector3 uDir = srcCorners[1] - srcCorners[0]; float uLen = Mathf.Max(0.01f, uDir.magnitude);
+        Vector3 vDir = srcCorners[3] - srcCorners[0]; float vLen = Mathf.Max(0.01f, vDir.magnitude);
+        quadMat.SetVector("_Origin", srcCorners[0]);
+        quadMat.SetVector("_UDir", new Vector4(uDir.x, uDir.y, uDir.z, uLen));
+        quadMat.SetVector("_VDir", new Vector4(vDir.x, vDir.y, vDir.z, vLen));
+        quadMat.SetFloat("_MirrorU", mirrorU ? 1f : 0f);
+
+        mats[slot] = quadMat;
+        mr.sharedMaterials = mats;
+        quadMr = mr;                     // 取景屏渲染器 = 背板本身（渲染期互藏、防递归用）
+
+        // 门体内置的 Plane（旧屏位）必须藏掉，别盖住新投影
+        var planeR = srcPlane != null ? srcPlane.GetComponent<Renderer>() : null;
+        if (planeR != null) planeR.enabled = false;
+
+        Debug.Log("[PortalWindow] 黑板已变投影屏：" + srcFrame.name + "/Cube.001 槽位 " + slot);
     }
 
     private void BuildCamera()
@@ -339,51 +372,6 @@ public class PortalWindow : MonoBehaviour
         portalCam.allowMSAA = false;
         portalCam.clearFlags = CameraClearFlags.SolidColor;
         portalCam.backgroundColor = Color.black;
-    }
-
-    // 目标门洞四角在「垂直于门洞平面」的相机空间里，定出 u/v 归属
-    private void ComputeUvOrder()
-    {
-        Vector3 n = Vector3.Cross(destCorners[1] - destCorners[0], destCorners[3] - destCorners[0]).normalized;
-        Vector3 u = (destCorners[3] - destCorners[0]).normalized;
-        Vector3 r = (destCorners[1] - destCorners[0]).normalized;
-
-        var cx = new float[4];
-        var cy = new float[4];
-        for (int i = 0; i < 4; i++)
-        {
-            Vector3 d = destCorners[i] - destCorners[0];
-            cx[i] = Vector3.Dot(d, r);
-            cy[i] = Vector3.Dot(d, u);
-        }
-        // 按 x 排序：前两个 u=0，后两个 u=1
-        var idx = new[] { 0, 1, 2, 3 };
-        System.Array.Sort(idx, (a, b) => cx[a].CompareTo(cx[b]));
-        uOrder = new[] { idx[0], idx[1], idx[2], idx[3] };
-        vOrder = new[] { idx[0], idx[1], idx[2], idx[3] };
-        System.Array.Sort(idx, (a, b) => cy[a].CompareTo(cy[b]));
-        vOrder = new[] { idx[0], idx[1], idx[2], idx[3] };
-        _ = n;
-    }
-
-    private void ApplyUvs()
-    {
-        var mf = quad.GetComponent<MeshFilter>();
-        var mesh = mf.sharedMesh;
-        var uv = new Vector2[4];
-        for (int rank = 0; rank < 4; rank++)
-        {
-            int i = uOrder[rank];
-            uv[i].x = rank < 2 ? 0f : 1f;
-        }
-        for (int rank = 0; rank < 4; rank++)
-        {
-            int i = vOrder[rank];
-            uv[i].y = rank < 2 ? 0f : 1f;
-        }
-        if (mirrorU) for (int i = 0; i < 4; i++) uv[i].x = 1f - uv[i].x;
-        mesh.uv = uv;
-        mesh.UploadMeshData(false);
     }
 
     // ─────────────────────────────────────────────────────────────
