@@ -33,7 +33,7 @@ public class PortalPair : MonoBehaviour
     private bool ready;
     private bool worldLoading;                // 异世界场景是否已开始异步加载
     private float cooldown;
-    private float prevZLab, prevZDemo;
+    private float prevDotLab, prevDotDemo;
     // 运行时创建的材质实例（门洞挡板 / 透明背板）——留引用以便 OnDestroy 统一释放，否则反复加载场景会泄漏
     private readonly System.Collections.Generic.List<Material> runtimeMats = new System.Collections.Generic.List<Material>();
 
@@ -190,8 +190,8 @@ public class PortalPair : MonoBehaviour
         else Debug.LogWarning("[PortalPair] 开关同步未启用：labDoor=" + (labDoor != null) + " demoDoor=" + (demoDoor != null));
 
         // 纯色挡板方案：无需取景相机。相机创建/视点同步/藏门遮罩整体移除
-        prevZLab = LocalZ(labFrame, false);
-        prevZDemo = LocalZ(demoFrame, true);
+        prevDotLab = Vector3.Dot(playerT.position - labFrame.position, labFrame.forward);
+        prevDotDemo = Vector3.Dot(playerT.position - demoFrame.position, demoFrame.forward);
         ready = true;
         Debug.Log("[PortalPair] 传送门已建立 labFrame=" + labFrame.position.ToString("F1") +
                   " demoFrame=" + demoFrame.position.ToString("F1"));
@@ -329,40 +329,43 @@ public class PortalPair : MonoBehaviour
 
         if (cooldown <= 0f)
         {
-            TryCross(labFrame, true, ref prevZLab, demoFrame, demoEff);
-            // 回程落点必须带 180° 翻转：与 Lab→Metro 的 demoEff 对称。
-            // 原先这里只用了 labFrame.rotation（缺 ×180），导致从 Metro 穿回实验室时落点镜像错位，
-            // 玩家被传错位置（落在实验室门的错误一侧 / 卡住 / 立刻被弹回 Metro）。
-            // 加上 ×180 后，往返落点精确回到原点。
-            TryCross(demoFrame, false, ref prevZDemo, labFrame, labFrame.rotation * Quaternion.Euler(0f, 180f, 0f));
+            TryCross(labFrame, true, ref prevDotLab, demoFrame);
+            TryCross(demoFrame, false, ref prevDotDemo, labFrame);
         }
     }
 
     // 穿行触发：raw local z 从 -（内容侧）穿到 +（门外侧）
     // lab：-→+ 进异世界；demo：-→+ 回实验室。落点=对方门框内容侧，朝向+180°
-    private void TryCross(Transform frame, bool isLab, ref float prevZ, Transform otherFrame, Quaternion otherEff)
+    // 穿行判定（方向无关版）：记录玩家在本门 forward 轴上的带符号投影距离，
+    // 符号翻转 = 穿过了门平面。不管门朝哪摆、玩家从哪边走近，真实走过去都能触发。
+    // 落点 = 玩家在本门的 local 坐标镜像到对门（x,y 不变，z 取反），落点自然在对门另一侧。
+    private void TryCross(Transform frame, bool isLab, ref float prevDot, Transform otherFrame)
     {
-        Vector3 local = frame.InverseTransformPoint(playerT.position);
-        bool inOpening = Mathf.Abs(local.x) < 1.1f && local.y > -0.3f && local.y < 2.4f;
-        bool crossed = inOpening && prevZ < 0f && local.z >= 0f && local.z < 0.8f && prevZ > -0.8f;
-        prevZ = local.z;
+        float dotNow = Vector3.Dot(playerT.position - frame.position, frame.forward);
+        bool crossed = prevDot != 0f                                  // 首帧哨兵：还没建立基准不判定
+                       && Mathf.Sign(dotNow) != Mathf.Sign(prevDot)   // 符号翻转 = 穿过门平面
+                       && Mathf.Abs(dotNow) < 1.5f;                   // 且确实在门洞附近（防止远处穿平面误传送）
+        prevDot = dotNow;
         if (!crossed) return;
 
-        // 门关着不许穿（物理上门板碰撞体也该挡住，这里是判定层兜底——
-        // 贴门框边缘挤过门洞平面也不会被传送）。两侧门状态已同步，查本侧即可
+        Vector3 local = frame.InverseTransformPoint(playerT.position);
+        bool inOpening = Mathf.Abs(local.x) < 1.1f && local.y > -0.3f && local.y < 2.4f;
+        if (!inOpening) return;
+
+        // 门关着不许穿（物理上门板碰撞体也该挡住，这里是判定层兜底）
         AnywhereDoor gate = isLab ? labDoor : demoDoor;
         if (gate != null && !gate.IsOpen) return;
 
         cooldown = 0.6f;
-        // 落点：本门 local 原样映射到对方 eff 系（z 已是"内容侧为负"语义）
-        Vector3 target = otherFrame.position + otherEff * local;
+        // 落点：本门 local 坐标镜像到对门（z 取反=落在对门另一侧），朝向转 180° 面向新世界
+        Vector3 target = otherFrame.TransformPoint(new Vector3(local.x, local.y, -local.z));
         var cc = playerT.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
         playerT.position = target;
         if (cc != null) cc.enabled = true;
         playerT.rotation = Quaternion.Euler(0f, playerT.eulerAngles.y + 180f, 0f);
-        prevZLab = labFrame.InverseTransformPoint(playerT.position).z;
-        prevZDemo = demoFrame.InverseTransformPoint(playerT.position).z;
+        prevDotLab = Vector3.Dot(playerT.position - labFrame.position, labFrame.forward);
+        prevDotDemo = Vector3.Dot(playerT.position - demoFrame.position, demoFrame.forward);
         Debug.Log("[PortalPair] 穿门瞬移 -> " + otherFrame.name + " @ " + target.ToString("F1"));
     }
 }
