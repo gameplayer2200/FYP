@@ -256,20 +256,29 @@ public class PortalWindow : MonoBehaviour
                   + " RT=" + rt.width + "x" + rt.height);
     }
 
-    // 门板显隐：门开着（IsOpen）= 隐藏门板露出黑板投影；门关着 = 恢复门板。
-    // force=true 时无视状态直接按当前门状态刷新（初始化用）
+    // 门板显隐 + 碰撞联动：门开着（IsOpen）= 门板收起（渲染器和碰撞体全关，
+    // 黑板投影露出、玩家可穿行）；门关着 = 门板恢复（挡住门洞）。
+    // 碰撞体必须跟渲染器同开同关——只隐渲染器的话，门板上那面实体碰撞体会变成
+    // 「看不见的墙」，把玩家挡在穿越平面前（传送判定永远不触发）。
+    // force=true 时无视状态直接按当前门状态刷新（初始化用）。门把手保持可见（用户要求）。
     private void ApplyLeafVisibility(bool force)
     {
         if (leafRenderer == null || door == null) return;
-        bool want = door == null || !door.IsOpen;   // 想显示门板 = 门是关的
-        if (!force && want == leafShown) return;    // 状态没变就不碰
-        // 门把手是门板的子物体，单独保留可见（跟随门板一起被 GetComponentsInChildren 误伤前先摘出）
+        bool doorOpen = door.IsOpen;
+        bool wantLeaf = !doorOpen;
+        if (!force && wantLeaf == leafShown) return;
+        leafRenderer.enabled = wantLeaf;
+        foreach (var col in leafRenderer.GetComponents<Collider>())
+            col.enabled = wantLeaf;
         var knob = leafRenderer.transform.Find("door knob");
-        Renderer knobR = knob != null ? knob.GetComponent<Renderer>() : null;
-        bool knobWas = knobR != null && knobR.enabled;
-        leafRenderer.enabled = want;
-        if (knobR != null && knobR.enabled != knobWas) knobR.enabled = knobWas; // 把手状态不动
-        leafShown = want;
+        if (knob != null)
+        {
+            var kr = knob.GetComponent<MeshRenderer>();
+            if (kr != null) kr.enabled = wantLeaf;
+            foreach (var col in knob.GetComponents<Collider>())
+                col.enabled = wantLeaf;
+        }
+        leafShown = wantLeaf;
     }
 
     // 门洞四角（世界坐标）：c0=-r-u  c1=+r-u  c2=+r+u  c3=-r+u
