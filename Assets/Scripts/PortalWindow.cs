@@ -62,6 +62,8 @@ public class PortalWindow : MonoBehaviour
     private Renderer leafRenderer;        // 门板（Cube）渲染器：开门时收进门框（隐藏），关门时恢复
     private AnywhereDoor door;            // 本门的开关组件（开关状态驱动门板显隐）
     private bool leafShown = true;        // 门板当前显示状态（防重复 SetRenderer）
+    private Renderer backMr;              // 背板（Cube.001）渲染器：黑板槽随门开关在 暗/投影 间切换
+    private Material darkMat;             // 关门时的暗板材质（收容原黑板材质）
     private bool ready;
     private bool loading;
     private float waitStart = -1f;       // 进入预加载半径的时刻（用于给 PortalPair 让路）
@@ -278,6 +280,15 @@ public class PortalWindow : MonoBehaviour
             foreach (var col in knob.GetComponents<Collider>())
                 col.enabled = wantLeaf;
         }
+        // 背板黑板槽同步：关门=暗板（不透门），开门=投影
+        if (backMr != null && darkMat != null)
+        {
+            var mats2 = backMr.sharedMaterials;
+            for (int i = 0; i < mats2.Length; i++)
+                if (mats2[i] != null && mats2[i].name == "PortalScreen")
+                { mats2[i] = wantLeaf ? darkMat : quadMat; break; }
+            backMr.sharedMaterials = mats2;
+        }
         leafShown = wantLeaf;
     }
 
@@ -357,9 +368,12 @@ public class PortalWindow : MonoBehaviour
         quadMat.SetVector("_VDir", new Vector4(vDir.x, vDir.y, vDir.z, vLen));
         quadMat.SetFloat("_MirrorU", mirrorU ? 1f : 0f);
 
+        // 关门暗板：不透明深色（原黑板槽是透明化材质，直接换回会透视=「门消失」观感）
+        darkMat = new Material(Shader.Find("Standard"));
+        darkMat.color = new Color(0.06f, 0.06f, 0.08f);
         mats[slot] = quadMat;
         mr.sharedMaterials = mats;
-        quadMr = mr;                     // 取景屏渲染器 = 背板本身（渲染期互藏、防递归用）
+        backMr = mr;                     // 背板渲染器：随门开关切暗/投影
 
         // 门体内置的 Plane（旧屏位）必须藏掉，别盖住新投影
         var planeR = srcPlane != null ? srcPlane.GetComponent<Renderer>() : null;
