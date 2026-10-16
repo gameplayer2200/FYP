@@ -27,6 +27,10 @@ public class BatterySystem : MonoBehaviour
     [SerializeField] private float restartDelay = 3f;
     [SerializeField] private Vector3 restartOffset = new Vector3(1.5f, 0.2f, 0f);
 
+    // 环境耗电速率（电/秒）。由世界规则（如 Metro 停电）经 SetAmbientDrain 设定；
+    // 实验室没有世界规则会调它，天然保持 0。
+    private float ambientDrain;
+
     [Header("调试")]
     [Tooltip("F 键模拟受创。怪物 AI 接入后关掉。")]
     [SerializeField] private bool allowDebugHit = true;
@@ -97,10 +101,24 @@ public class BatterySystem : MonoBehaviour
         if (anim != null) anim.SetCharging(on); // 开关都要同步动画：取消充电也要放下手
     }
 
+    /// <summary>世界规则调用：设置环境耗电速率（电/秒）。0 = 无环境消耗（实验室常态）。</summary>
+    public void SetAmbientDrain(float ratePerSecond)
+    {
+        ambientDrain = Mathf.Max(0f, ratePerSecond);
+    }
+
     private void Update()
     {
         // F 键测试受创（怪物 AI 接入后把 allowDebugHit 关掉）
         if (allowDebugHit && !IsDead && Input.GetKeyDown(KeyCode.F)) TakeHit();
+
+        // 环境耗电：停电/黑暗等世界规则造成的缓慢掉电。充电与瘫倒期间不耗。
+        if (!IsDead && !IsCharging && ambientDrain > 0f)
+        {
+            Battery = Mathf.Max(0f, Battery - ambientDrain * Time.deltaTime);
+            if (Battery <= 0f) Die();
+            else Notify();
+        }
 
         if (IsCharging && !IsDead)
         {

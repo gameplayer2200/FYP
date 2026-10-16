@@ -1,6 +1,8 @@
 {
     "name": "FYP.Content",
-    "references": [],
+    "references": [
+        "FYP.Interaction"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

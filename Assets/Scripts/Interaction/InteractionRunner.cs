@@ -16,6 +16,17 @@ public class InteractionRunner : MonoBehaviour
     private readonly List<IInteractable> nearby = new List<IInteractable>();
     private float nextScan;
     private IInteractable current;
+    private string currentLabel = "交互";
+
+    /// <summary>当前选中的交互物（供提示 UI 读取；可能为 null）。</summary>
+    public IInteractable Current { get { return current; } }
+
+    private void OnGUI()
+    {
+        if (current == null) return;
+        GUI.Label(new Rect(Screen.width * 0.5f - 120f, Screen.height * 0.62f, 240f, 24f),
+            "[E] " + currentLabel);
+    }
 
     private void Update()
     {
@@ -55,6 +66,17 @@ public class InteractionRunner : MonoBehaviour
             if (d < bestDist) { bestDist = d; best = it; }
         }
         current = best;
+        currentLabel = "交互";
+        if (best != null)
+        {
+            // 挂了 InteractionLabel 的交互物用自定义提示文案
+            var c = best as Component;
+            if (!ReferenceEquals(c, null))
+            {
+                var label = c.GetComponent<InteractionLabel>();
+                if (label != null) currentLabel = label.Text;
+            }
+        }
     }
 
     /// <summary>

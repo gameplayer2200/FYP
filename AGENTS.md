@@ -18,7 +18,7 @@
 | Unity | **2022.3.62f3c1**（Windows；用 Unity Hub 打开仓库根目录） |
 | 分支 | `main` |
 | 场景（Build Settings 顺序） | `Assets/Scenes/SpecimenLab.unity`（起始/实验室）→ 第三方样例 `country house` → `Assets/Scenes/Metro.unity`（异世界） |
-| 编辑器自动化 | 已装 **Unity MCP (mcpforunity)**；`.agents/skills/`（及 `.claude/skills/`）内有每个工具的技能说明，用前先读 |
+| 编辑器自动化 | 已装 **MCP for Unity**（v10.3.1-beta.7，本地包 `Packages/com.coplaydev.unity-mcp`，经 `file:` 引用——**勿改回 git URL**，UPM 在本机解析 git 包会报 `not in a git directory`）。服务端口 **8080**（日志 `Library/MCPForUnity/Logs/`）；`unity-mcp-cli` 的 `/api/tools/...` 路径与本服务不匹配，**用 MCP JSON-RPC（POST /mcp）调用**，用法见 §6 |
 
 关键提交（新→旧）：`31185c2` 门收尾（判定提前/门同步/出向修正/SelfTest）→ `151f3b6` 关门态暗板 → `abadeae` 开门后门板碰撞体 → `501c95e` 穿门判定符号翻转 → `71a77bb` 黑板投影。
 
@@ -108,36 +108,25 @@ return ok + " :: " + (string)args[0];
 
 ## 6. Unity MCP 工作流（agent 专用）
 
+> 2026-10-17 更新：经 8080 端口的 MCP JSON-RPC 直连（curl）是唯一验证可用的通道；`manage_editor`/`execute_code`/`read_console`/`refresh_unity`/`manage_camera`/`manage_scene` 等工具名不变。
+
+- **调用方式**（每次调用 = initialize → notifications/initialized → tools/call；响应可能是 SSE `data:` 行或纯 JSON，两者都要兼容）：
+  ```bash
+  # 长代码先落盘成 .cs（工程根 snippets/ 目录），再用 python json.dumps 包成 args.json，杜绝转义问题
+  curl -s -X POST http://localhost:8080/mcp -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" -H "Mcp-Session-Id: <id>" -d @args.json
+  ```
+  首次握手 initialize 取 `Mcp-Session-Id` 响应头。`snippets/` 已有可复用片段（`pos_check`/`reregister`/`repair_singletons`/`blackdrive`/`drive_lateupdate`/`farlight`）。
 - 工具速查：
-  - `manage_editor {action:"play"|"stop"}`；进 Play 触发域重载，偶发「Suppressed duplicate command resent…」提示属正常。
-  - `execute_code {action:"execute", code:"..."}`：C# 片段（已引用运行时程序集，`typeof(PortalWindow)` 可用；**`PlayerRef` 在 FYP.Core，片段里直接写 `typeof(PlayerRef)` 会失败** → 用 `AppDomain.CurrentDomain.GetAssemblies()` 扫 `GetType("PlayerRef")`）。
+  - `manage_editor {action:"play"|"stop"}`；进 Play 触发域重载。
+  - `execute_code {action:"execute", code:"..."}`：一行式调用 `MetroSceneDev` 的静态方法；**`PlayerRef` 在 FYP.Core，片段里直接写 `typeof(PlayerRef)` 会失败** → 用 `MetroSceneDev.PlayerRoot()`。
   - `read_console {action:"get", types:["error","warning"], count:50, format:"plain"}`。
-  - `refresh_unity {mode:"force", scope:"scripts", compile:"request", wait_for_ready:true}`（改脚本后）。
-  - `manage_camera {action:"screenshot", capture_source:"game_view", screenshot_file_name:"名字", include_image:false}` → `Assets/Screenshots/<名字>.png`（重名自动 -1；**仅 Play 模式有效**）。
-  - GameObject / 组件 / 资产操作走 `gameobject-*` / `assets-*` 系列——**用前先读 `.agents/skills/<工具名>/SKILL.md`**。
-  - 多实例：同时开多个 Unity 工程时先 `set_active_instance`（`Name@hash` 或端口）。
-- Play 就绪轮询（轮询到 `True|True` 再开始验证；某扇门为 null = 其世界未加载，先靠近/等待）：
-
-```csharp
-var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
-var rf = typeof(PortalWindow).GetField("ready", bf);
-var a = GameObject.Find("anywhere-door-Metro-Lab").GetComponentInChildren<PortalWindow>(true);
-var b = GameObject.Find("anywhere-door-Metro").GetComponentInChildren<PortalWindow>(true);
-return (bool)rf.GetValue(a) + "|" + (bool)rf.GetValue(b);
-```
-
-- 传送玩家做测试（AppDomain 扫描 + Teleport）：
-
-```csharp
-System.Type pr = null;
-foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
-{ try { var t = asm.GetType("PlayerRef"); if (t != null) { pr = t; break; } } catch { } }
-pr.GetMethod("Teleport").Invoke(null, new object[]{
-    new Vector3(-47.89f, 1.0f, 135.19f),                // 例：Metro 门前 2.5m
-    Quaternion.LookRotation(new Vector3(0f, 0f, -1f)) });
-```
-
-  ⚠️ 手动跨世界传送后：**落点离门 >1.5m**，并调用 `ResetCrossBaseline()`（两窗），否则会被穿行判定误触发。
+  - `refresh_unity {mode:"force", scope:"scripts", compile:"request", wait_for_ready:true}`（改脚本后；**Play 中改脚本 → 域重载 → 静态注册表全灭**，修法见下）。
+  - `manage_camera {action:"screenshot", capture_source:"game_view", ...}` → `Assets/Screenshots/`（**仅 Play 模式有效**；编辑器失焦可能截到旧帧）。
+  - 复杂搭建/验证走 `Assets/Editor/MetroSceneDev.cs`（分阶段幂等：`Stage0_Env/Stage0b_Seal/Stage0c_Floors/Stage1_Items/Stage1_Lab/Stage2_Blackout/Stage2_Cabinet/Stage2_Anomalies/Stage3_Carriage/FixPass1/2/Finalize2` + `PT_*` Play 测试驱动 + `Screenshot/FloorMap/ColliderDump` 勘察）。
+- **编辑器失焦时 Play 不推进**（`runInBackground=true` 也一样）：计时类逻辑（渐熄、耗电、穿行 LateUpdate）后台测试须反射手动调 `Update`/`LateUpdate`（`snippets/blackdrive.cs`、`drive_lateupdate.cs`）。
+- **域重载陷阱**：静态注册表（`PlayerRef`、`BatterySystem.Instance`、`Inventory.Instance`）清空且组件 `Awake` 不重跑 → 跑 `snippets/repair_singletons.cs`；组件内缓存初始化放 `OnEnable`（LightGroup/UnreachableLightAnomaly/PoweredLight 已照此实现）。
+- Play 就绪轮询：`MetroSceneDev.PT_Pos()`；Metro 窗要玩家进 15m 预载半径后才就绪（穿行测试范式：`PT_StageAtLabDoor` → 等 1s → `PT_PushThrough` → `drive_lateupdate.cs`）。
 - 纪律：MCP 调用短平快、失败就重试；**不要塞永不 resolve 的长 await**；**不要在 Play 运行时在 Assets/ 里增删文件**（原因见 §7.1）。
 
 ## 7. 已踩过的坑与排查
@@ -155,11 +144,20 @@ pr.GetMethod("Teleport").Invoke(null, new object[]{
 ## 8. 当前状态 / 待办 / 仓库卫生
 
 - ✅ 已修并实测（2026-10-16，`31185c2`）：判定提前 `crossPlaneLead=0.25`（≈面板前 0.2m，只认朝门里走 + 落点补偿）；两世界门开关同步（双向 1~2 帧）；穿门出向/落点（dot=+1.000、raw=−0.020）；双窗 `SelfTest` 全 PASS；控制台 0 报错。证据截图在 `PortalDumps/`（如 `portal_metro_lookback4.png`、`portal_lab_open3.png`）。
+- ✅ Metro「渐渐熄灭」完整闭环（2026-10-17，待玩家实测）：
+  - **场景整备**：雾 15~170 青绿减淡、隧道/上层 36 盏灯提亮、门区常亮灯塔；展示假人/展示相机/无效 Volume 全部禁用；封壳（顶盖+四周围墙，`MetroGameplay/Sealing`）+ 两块补地板（L1 6.9 / 大厅 14.9）封掉所有露背景缺口与地板空洞（空洞清零）。
+  - **渐熄规则**：5 个灯组按「上层远厅→上层中段→对面隧道→隧道A远段→门区与楼梯」每 90s 熄一组（`MetroBlackout`，灯组 GO 摆在各组灯泡质心）；停电期间玩家 1 电/秒、所在区段已熄 ×1.5（`BatterySystem.SetAmbientDrain`，实验室恒 0）；世界判定为盒形（z≥29.5，避开实验室 z≤28.4）。
+  - **配电室谜题**（-Z 死端）：检修平台+配电箱+红黄蓝三线（每局随机 1 根带电）+电闸；持万用表 E 线=测线+接入；合闸接对→全站复明并广播 `MetroBlackout.OnPowerRestored`，接错→火花弹回可重试。
+  - **奖励级联**：尾节车厢端门解锁（`PowerLockedDoor`）+ 车厢灯点亮（`PoweredLight`）+ 门区充电桩恢复供电（`RequiresPower` 门控，停电期间提示断电）。
+  - **异常物回收**：软盘 ×2（门区箱上 + 车厢内，程序化拼装——`items/RandomObjects/floppydisk` 的 fbx/glb 资产损坏无法导入）+ 实验室收容台（case 模型，`SpecimenDeposit`）+ 右上角 HUD（`SpecimenHud`）；拾取/收容经 `Inventory` 扩展（knob 逻辑不动）。
+  - **异常「对面的灯」**：对面隧道死端高处，玩家 <14m 熄、>22m 亮（滞回）；门区充电桩旁常亮、隧道深处 DeepRattle/WindHowl/Taps 三处 3D 环境音。
+  - **回归结论**：实验室窗 SelfTest PASS；穿门落点 (-47.89, 1.12, 132.71) 精确门槽；控制台仅 6 条历史 missing-script 警告（基线）。⚠️ **Metro 侧窗 SelfTest 的镜像判据 dot=−1 属已知表现**（自检只补偿 mirrorU 不补偿 mapYaw180 的 180° 映射；门系统代码与 WorldLink 零改动，以实验室窗 + 实际穿行朝向为准）。
+  - 新增交互提示：`InteractionRunner` 显示 `[E] + InteractionLabel 文案`；`HintToast`（Interaction 程序集）为全玩法反馈出口。
 - ⏳ 待办（按优先级）：
-  1. 定稿前关 `showDebugOsd`（见 §4）；
-  2. 内容按 `FYP_Game_Proposal.md` 推进——**世界数量要到 4~5 个时，必须把「常驻/加载」收敛到可替换的 WorldStreamer**（ADR-0003 的复查条件）；
-  3. `mirrorU` 的可视复验（SelfTest 已间接证明，可选）；
-  4. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略。
+  1. ~~定稿前关 `showDebugOsd`~~ ✅ 两门均已设 0（2026-10-17）；
+  2. 玩家实测 Metro 闭环（重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线）；
+  3. 内容按 `FYP_Game_Proposal.md` 推进——**世界数量要到 4~5 个时，必须把「常驻/加载」收敛到可替换的 WorldStreamer**（ADR-0003 的复查条件）；
+  4. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）、`snippets/`（MCP 测试片段，建议保留并入库）与 `Packages/com.coplaydev.unity-mcp`（本地 vendor，**必须入库**否则他人拉库后包解析失败）的跟踪策略。
 
 ## 9. 术语速查（完整见 GLOSSARY.md）
 
