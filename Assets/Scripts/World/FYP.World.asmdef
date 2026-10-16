@@ -1,0 +1,17 @@
+{
+    "name": "FYP.World",
+    "references": [
+        "FYP.Core",
+        "FYP.Interaction",
+        "FYP.Player"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

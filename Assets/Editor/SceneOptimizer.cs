@@ -27,7 +27,7 @@ public static class SceneOptimizer
     /// </summary>
     private static readonly string[] MovableTypeNames =
     {
-        "AnywhereDoor", "PortalPair", "ChargeStation", "Inventory", "InventoryUI",
+        "AnywhereDoor", "PortalWindow", "ChargeStation", "Inventory", "InventoryUI",
         "InteractionRunner", "BatterySystem", "PlayerMovement", "PlayerAnimatorProxy"
     };
 

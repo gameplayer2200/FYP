@@ -1,0 +1,21 @@
+{
+    "name": "FYP.Editor",
+    "references": [
+        "FYP.Core",
+        "FYP.Interaction",
+        "FYP.Player",
+        "FYP.World",
+        "FYP.Content"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

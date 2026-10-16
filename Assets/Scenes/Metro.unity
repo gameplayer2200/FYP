@@ -53989,15 +53989,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.9985756
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.05335539
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_LocalRotation.z
@@ -54009,7 +54009,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 366.117
+      value: 180
       objectReference: {fileID: 0}
     - target: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -54018,6 +54018,10 @@ PrefabInstance:
     - target: {fileID: 3001115592944338404, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_Name
       value: anywhere-door-Metro
+      objectReference: {fileID: 0}
+    - target: {fileID: 6895049299941361684, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
+      propertyPath: openAngle
+      value: 95
       objectReference: {fileID: 0}
     - target: {fileID: 7719161850220040875, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
       propertyPath: m_IsActive
@@ -54048,16 +54052,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec60f90da6e943e4cbf403a349a371a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldSceneName: SpecimenLab
-  worldDoorName: anywhere-door-Metro-Lab
-  openingPath: Cube.001/Plane
-  rtHeight: 720
-  farClip: 200
-  nearClip: 0.05
-  preloadRadius: 15
-  mapYaw180: 0
-  mirrorU: 0
-  quadMaterialOverride: {fileID: 0}
+  link: {fileID: 11400000, guid: 4925046f01c24974faae6be94ecda650, type: 2}
+  srcFrame: {fileID: 6021382920545383842}
+  backSlot: 0
+  crossCooldown: 0.6
+  crossPlaneTolerance: 1.5
+  showDebugOsd: 1
+--- !u!4 &6021382920545383842 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2516889969954725726, guid: e731c7d0253f7344bbbd5162a1b646f9, type: 3}
+  m_PrefabInstance: {fileID: 6021382920545383839}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &6142406889011569645
 PrefabInstance:
   m_ObjectHideFlags: 0

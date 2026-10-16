@@ -1,6 +1,8 @@
 // 传送门黑板投影着色器：不依赖网格 UV（黑板自带 UV 是图集子区域，且 FBX 未开 Read/Write），
-// 而是把每个像素的世界坐标投影到门洞四角定义的平面上，直接算出 0~1 的采样坐标——
-// 与取景相机的偏心视锥同一套数学，画面方向天然一致。
+// 而是把每个像素的世界坐标投影到门洞四角定义的平面上，直接算出 0~1 的采样坐标。
+// 采样轴必须与取景相机的 basis 对齐，画面方向才一致：U 轴 = 相机右方向、V 轴 = 相机 up 的反向。
+// 注意 U 轴**不是** c0→c1：取景相机的 up 取的是门洞 V 轴方向（见 PortalWindow.UpdatePortalCamera，
+// 相机是倒架的），其右方向恰好与 c0→c1 相反。搞反就是画面左右镜像（门把手那侧的东西会跑到另一边）。
 // 门洞几何由 PortalWindow 在运行时通过 _Origin/_UDir/_VDir 传入（门是静态的，设一次即可）。
 Shader "Custom/PortalPanelProj"
 {
@@ -19,8 +21,8 @@ Shader "Custom/PortalPanelProj"
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
-            float4 _Origin;  // xyz = 门洞左下角（世界坐标）
-            float4 _UDir;    // xyz = 门洞水平轴（单位向量），w = 轴长
+            float4 _Origin;  // xyz = u=0 的那个角（世界坐标）；本约定取门局部 +X 侧（见 U 轴说明）
+            float4 _UDir;    // xyz = 采样水平轴（指向 u 增大的方向），w = 轴长
             float4 _VDir;    // xyz = 门洞竖直轴（单位向量），w = 轴长
             float  _MirrorU; // 1 = 画面左右镜像
 

@@ -10670,14 +10670,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 567214446}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.5, y: -0.5, z: -0.5, w: 0.5}
+  m_LocalRotation: {x: -0.49991274, y: -0.49991274, z: -0.50008726, w: 0.50008726}
   m_LocalPosition: {x: -1.000072, y: 2.3224957, z: 0.053614706}
   m_LocalScale: {x: 18.975973, y: 100, z: 180}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 722978629}
   m_Father: {fileID: 817820272}
-  m_LocalEulerAnglesHint: {x: -90, y: 0, z: -90}
+  m_LocalEulerAnglesHint: {x: -89.98, y: 0, z: -90}
 --- !u!65 &567214448
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -10711,7 +10711,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9e2962907ee90d42ab1902186d76837, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  openAngle: -180
+  openAngle: 95
   duration: 0.8
   autoCloseDelay: 10
   respondToKey: 1
@@ -15737,7 +15737,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 817820270}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.05335539, z: 0, w: -0.9985756}
+  m_LocalRotation: {x: 0, y: 0, z: -0, w: -1}
   m_LocalPosition: {x: 3.78, y: 0.016, z: 5.14}
   m_LocalScale: {x: 0.6048403, y: 0.60484004, z: 0.6048403}
   m_ConstrainProportionsScale: 0
@@ -15749,7 +15749,7 @@ Transform:
   - {fileID: 372208187}
   - {fileID: 763851700}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 366.117, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 360, z: 0}
 --- !u!114 &817820273
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15762,18 +15762,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec60f90da6e943e4cbf403a349a371a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldSceneName: Metro
-  worldDoorName: anywhere-door-Metro
-  openingPath: Cube.001/Plane
-  panelName: Cube,Cube.001
-  rtHeight: 720
-  farClip: 200
-  nearClip: 0.05
-  preloadRadius: 15
-  mapYaw180: 0
-  mirrorU: 0
+  link: {fileID: 11400000, guid: 19388aba63c173b4f980d639396f9f55, type: 2}
+  srcFrame: {fileID: 817820272}
+  backSlot: 0
+  crossCooldown: 0.6
+  crossPlaneTolerance: 1.5
   showDebugOsd: 0
-  quadMaterialOverride: {fileID: 0}
 --- !u!1 &821447230 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 9b43301f1c2d41e4ca6246e753e25b3e, type: 3}
@@ -35778,10 +35772,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1632163694}
-  - component: {fileID: 1632163695}
   - component: {fileID: 1632163697}
   - component: {fileID: 1632163696}
-  - component: {fileID: 1632163698}
   m_Layer: 0
   m_Name: WorldManager
   m_TagString: Untagged
@@ -35804,25 +35796,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1632163695
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1632163692}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 278c2498fbac5fd42a5837d54d1ae77e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  worldSceneName: country house
-  labFrame: {fileID: 0}
-  worldDoorName: anywhere-door
-  portalColor: {r: 0.25, g: 0.95, b: 0.75, a: 1}
-  portalSize: {x: 0.97, y: 1.72}
-  portalCenterHeight: 0.86
-  preloadRadius: 12
 --- !u!114 &1632163696
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35849,25 +35822,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   knobCapacity: 3
---- !u!114 &1632163698
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1632163692}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 278c2498fbac5fd42a5837d54d1ae77e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  worldSceneName: Metro
-  labFrame: {fileID: 817820272}
-  worldDoorName: anywhere-door-Metro
-  portalColor: {r: 0.25, g: 0.95, b: 0.75, a: 1}
-  portalSize: {x: 0.97, y: 1.72}
-  portalCenterHeight: 0.86
-  preloadRadius: 12
 --- !u!1001 &1637545830
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -50730,7 +50684,7 @@ Animator:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6907290050411908705}
   m_Enabled: 1
-  m_Avatar: {fileID: 9000000, guid: 1f7e153bc45c36444b74b188b91cc5d1, type: 3}
+  m_Avatar: {fileID: 9000000, guid: 384219eb8fb868c43bd29adc7439ebfe, type: 3}
   m_Controller: {fileID: 9100000, guid: a4060175499963b49926566a9c5b2622, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
@@ -51961,8 +51915,8 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 4918217319983852589, guid: 1f7e153bc45c36444b74b188b91cc5d1, type: 3}
-  - {fileID: -2234167714382903791, guid: 1f7e153bc45c36444b74b188b91cc5d1, type: 3}
+  - {fileID: 4918217319983852589, guid: 384219eb8fb868c43bd29adc7439ebfe, type: 3}
+  - {fileID: -2234167714382903791, guid: 384219eb8fb868c43bd29adc7439ebfe, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -51987,7 +51941,7 @@ SkinnedMeshRenderer:
   m_Quality: 0
   m_UpdateWhenOffscreen: 0
   m_SkinnedMotionVectors: 1
-  m_Mesh: {fileID: 2675634661614555112, guid: 1f7e153bc45c36444b74b188b91cc5d1, type: 3}
+  m_Mesh: {fileID: 2675634661614555112, guid: 384219eb8fb868c43bd29adc7439ebfe, type: 3}
   m_Bones:
   - {fileID: 7100496504003714951}
   - {fileID: 8993046871509996431}
@@ -52434,7 +52388,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6907290050411908705}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.053355392, z: 0, w: 0.9985756}
+  m_LocalRotation: {x: -0, y: -0.9555606, z: -0, w: 0.2947949}
   m_LocalPosition: {x: 1.87, y: 0.27, z: 2.83}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -52443,7 +52397,7 @@ Transform:
   - {fileID: 5718794756670033737}
   - {fileID: 332907720}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 178.336, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -145.71, z: 0}
 --- !u!4 &6128748168975858030
 Transform:
   m_ObjectHideFlags: 0
@@ -52637,10 +52591,15 @@ MonoBehaviour:
   acceleration: 25
   deceleration: 20
   jumpHeight: 1.5
+  rollSpeed: 2.5
+  rollDuration: 1.4
+  rollCooldown: 0.3
+  doubleTapWindow: 0.25
   crouchHeight: 1.2
   mouseSensitivity: 3
   pitchMin: -40
   pitchMax: 60
+  camTransform: {fileID: 332907720}
   gravity: -15
 --- !u!114 &6907290050411908709
 MonoBehaviour:
@@ -52660,8 +52619,10 @@ MonoBehaviour:
   chargeRate: 5
   sprintLockThreshold: 50
   jumpLockThreshold: 25
+  restartAnchor: {fileID: 817820272}
   restartDelay: 3
   restartOffset: {x: 1.5, y: 0.2, z: 0}
+  allowDebugHit: 1
 --- !u!114 &6907290050411908710
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52688,6 +52649,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   interactKey: 101
   scanInterval: 0.2
+  verbose: 0
 --- !u!4 &6969491412198487147
 Transform:
   m_ObjectHideFlags: 0
@@ -52712,7 +52674,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8225901706835689231}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.016702084, y: 0.70691216, z: -0.016702836, w: 0.7069068}
+  m_LocalRotation: {x: -0.016702086, y: 0.70691216, z: -0.016702838, w: 0.7069068}
   m_LocalPosition: {x: -0.00040010118, y: 0.12159998, z: 0.0051999944}
   m_LocalScale: {x: 1.0000001, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -53124,7 +53086,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7189910086891605502}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.01670213, y: -0.70691216, z: 0.01670279, w: 0.7069068}
+  m_LocalRotation: {x: -0.016702132, y: -0.70691216, z: 0.016702792, w: 0.7069068}
   m_LocalPosition: {x: 0.00040008457, y: 0.12159999, z: 0.0051999944}
   m_LocalScale: {x: 1.0000001, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
