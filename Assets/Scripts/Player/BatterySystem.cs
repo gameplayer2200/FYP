@@ -151,6 +151,6 @@ public class BatterySystem : MonoBehaviour
         GUI.Box(new Rect(22f, Screen.height - 44f, 166f * (Battery / maxBattery), 18f), "");
         GUI.color = Color.white;
         GUI.Label(new Rect(24f, Screen.height - 44f, 320f, 20f),
-            "BATTERY " + (int)Battery + (SprintEnabled ? "" : "  [冲刺已关闭]") + (JumpEnabled ? "" : " [跳跃已关闭]"));
+            EmfStorm.Scramble("BATTERY " + (int)Battery + (SprintEnabled ? "" : "  [冲刺已关闭]") + (JumpEnabled ? "" : " [跳跃已关闭]")));
     }
 }

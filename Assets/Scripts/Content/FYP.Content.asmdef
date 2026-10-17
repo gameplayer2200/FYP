@@ -1,6 +1,7 @@
 {
     "name": "FYP.Content",
     "references": [
+        "FYP.Core",
         "FYP.Interaction"
     ],
     "includePlatforms": [],

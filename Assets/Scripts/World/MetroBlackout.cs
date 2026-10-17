@@ -15,6 +15,12 @@ public class MetroBlackout : MonoBehaviour
     /// <summary>静态快照：电已恢复则为真（供后订阅/后加载的对象对齐状态）。</summary>
     public static bool PowerRestored { get; private set; }
 
+    /// <summary>玩家当前是否身处 Metro（每帧刷新；异常事件用它做触发门槛）。</summary>
+    public bool PlayerInZone { get; private set; }
+
+    /// <summary>已熄灭的灯组数（>0 = 停电进行中）。</summary>
+    public int KilledGroups { get { return killedCount; } }
+
     [Header("灯组（按熄灭顺序排列）")]
     [SerializeField] private LightGroup[] groups;
 
@@ -48,6 +54,7 @@ public class MetroBlackout : MonoBehaviour
 
         var player = PlayerRef.Root;
         bool inZone = player != null && InZone(player.position);
+        PlayerInZone = inZone;
 
         if (!inZone)
         {

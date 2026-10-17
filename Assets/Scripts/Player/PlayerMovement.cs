@@ -55,6 +55,13 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
+        // 双玩家守卫：双世界常驻、两侧场景都可摆玩家（从 Metro 直接开发/测试）。
+        // 先注册者存活；后加载场景里的玩家整组禁用——避免双 E 键、双电量、注册表被顶掉。
+        if (PlayerRef.IsReady && PlayerRef.Root != transform)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
         controller = GetComponent<CharacterController>();
         anim = GetComponent<PlayerAnimatorProxy>();
         // 相机优先取序列化引用；留空才回退到子物体名查找（局部查找，不是全场景 Find）

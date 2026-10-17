@@ -35366,6 +35366,7 @@ GameObject:
   - component: {fileID: 1632163697}
   - component: {fileID: 1632163696}
   - component: {fileID: 1632163698}
+  - component: {fileID: 1632163699}
   m_Layer: 0
   m_Name: WorldManager
   m_TagString: Untagged
@@ -35422,11 +35423,29 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1632163692}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2598c505509601c4caa0860257e1ac7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1632163699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1632163692}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b84b005857422f40a53c743de58a602, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  orderTitle: "\u8BA2\u5355\uFF1AMetro \u7AD9\u56DE\u6536"
+  targetCount: 2
+  rewardText: "\u62A5\u916C\uFF1A\u8BB0\u5FC6\u6838\u5FC3\u914D\u989D + \u7EED\u671F"
+  detailText: "\u76EE\u6807\u6563\u843D\u5728\u7AD9\u53F0\u4E0E\u8F66\u53A2\u6DF1\u5904\u3002\n\u5E26\u56DE\u5B9E\u9A8C\u5BA4\u6536\u5BB9\u53F0\u6309
+    E \u5165\u8D26\uFF0C\u624D\u7B97\u5B8C\u6210\u8BA2\u5355\u3002"
+  detailKey: 9
 --- !u!1001 &1637545830
 PrefabInstance:
   m_ObjectHideFlags: 0

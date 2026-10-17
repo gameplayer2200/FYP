@@ -1526,4 +1526,210 @@ public static class MetroSceneDev
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         return sb.ToString();
     }
+
+    // ================= 阶段 4：接单任务板 + 新异常（2026-10-17 第二轮） =================
+
+    /// <summary>阶段4a：修渐熄判定盒——Metro 世界抬高 +93.9 后 y 区间失效。</summary>
+    public static string Stage4_Fixes()
+    {
+        var mb = Object.FindObjectsOfType<MetroBlackout>(true);
+        if (mb.Length == 0) return "no blackout";
+        var so = new SerializedObject(mb[0]);
+        so.FindProperty("zoneCenter").vector3Value = new Vector3(-34f, 104.9f, 125.75f);
+        so.FindProperty("zoneSize").vector3Value = new Vector3(72f, 56f, 192.5f);
+        so.ApplyModifiedPropertiesWithoutUndo();
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return "zone fixed: y∈[76.9,132.9]（覆盖抬高后的车站与上层）";
+    }
+
+    /// <summary>阶段4b：实验室 WorldManager 挂 OrderBoard，旧 SpecimenHud 下岗；Metro 侧也挂一份（先到先得渲染）。</summary>
+    public static string Stage4_Orders()
+    {
+        var sb = new StringBuilder();
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SpecimenLab.unity", OpenSceneMode.Additive);
+        var wm = GameObject.Find("WorldManager");
+        if (wm == null)
+        {
+            EditorSceneManager.CloseScene(scene, true);
+            return "no WorldManager";
+        }
+        var hud = wm.GetComponent<SpecimenHud>();
+        if (hud != null) { hud.enabled = false; sb.AppendLine("SpecimenHud disabled（职能并入订单板）"); }
+        if (wm.GetComponent<OrderBoard>() == null)
+        {
+            wm.AddComponent<OrderBoard>();
+            sb.AppendLine("OrderBoard added (Lab)");
+        }
+        EditorSceneManager.SaveScene(scene);
+        EditorSceneManager.CloseScene(scene, true);
+
+        var mg = GameObject.Find("MetroGameplay");
+        if (mg != null && mg.GetComponent<OrderBoard>() == null)
+        {
+            mg.AddComponent<OrderBoard>();
+            sb.AppendLine("OrderBoard added (Metro)");
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>阶段4c：电磁风暴 + 幽灵进站 挂到 MetroGameplay/异常 并接线。</summary>
+    public static string Stage4_Anomalies()
+    {
+        var sb = new StringBuilder();
+        var anom = EnsureChild(GameRoot(), "异常");
+        var mb = Object.FindObjectsOfType<MetroBlackout>(true);
+        var groups = Object.FindObjectsOfType<LightGroup>(true);
+        if (mb.Length == 0 || groups.Length == 0) return "blackout/groups missing";
+        Object[] groupObjs = groups;
+
+        var stormGo = anom.Find("电磁风暴") != null ? anom.Find("电磁风暴").gameObject : new GameObject("电磁风暴");
+        stormGo.transform.SetParent(anom, false);
+        var storm = stormGo.GetComponent<EmfStormAnomaly>();
+        if (storm == null) storm = stormGo.AddComponent<EmfStormAnomaly>();
+        SetPrivate(storm, "blackout", mb[0]);
+        SetPrivateArray(storm, "groups", groupObjs);
+        sb.AppendLine("storm wired (" + groups.Length + " 组)");
+
+        var ghostGo = anom.Find("幽灵进站") != null ? anom.Find("幽灵进站").gameObject : new GameObject("幽灵进站");
+        ghostGo.transform.SetParent(anom, false);
+        var ghost = ghostGo.GetComponent<GhostArrivalEvent>();
+        if (ghost == null) ghost = ghostGo.AddComponent<GhostArrivalEvent>();
+        SetPrivate(ghost, "blackout", mb[0]);
+        SetPrivateArray(ghost, "groups", groupObjs);
+
+        var roarT = ghostGo.transform.Find("风压声");
+        AudioSource roar = roarT != null ? roarT.GetComponent<AudioSource>() : null;
+        if (roar == null)
+        {
+            var roarGo = new GameObject("风压声");
+            roarGo.transform.SetParent(ghostGo.transform, false);
+            roarGo.transform.localPosition = new Vector3(-41f, 1.6f, 55f); // 隧道A 中段深处（世界≈95.5 高）
+            roar = roarGo.AddComponent<AudioSource>();
+            roar.loop = true;
+            roar.playOnAwake = false;
+            roar.spatialBlend = 1f;
+            roar.minDistance = 8f;
+            roar.maxDistance = 90f;
+            roar.rolloffMode = AudioRolloffMode.Linear;
+            roar.volume = 0f;
+            AudioClip clip = null;
+            foreach (var g in AssetDatabase.FindAssets("Wind t:AudioClip"))
+            {
+                var p = AssetDatabase.GUIDToAssetPath(g);
+                if (p.Contains("Flooded_Grounds")) { clip = AssetDatabase.LoadAssetAtPath<AudioClip>(p); break; }
+            }
+            if (clip != null) roar.clip = clip;
+            sb.AppendLine("roar source: " + (clip != null ? clip.name : "无 Wind 声源（待生成）"));
+        }
+        SetPrivate(ghost, "roar", roar);
+        sb.AppendLine("ghost wired");
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return sb.ToString();
+    }
+
+    /// <summary>给电磁风暴接上生成的电流干扰声（音频生成成功后调用）。</summary>
+    public static string Stage4_StormSfx(string clipPath)
+    {
+        var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPath);
+        if (clip == null) return "clip NOT FOUND: " + clipPath;
+        var anom = EnsureChild(GameRoot(), "异常");
+        var stormGo = anom.Find("电磁风暴");
+        if (stormGo == null) return "电磁风暴 GO missing";
+        var sfxT = stormGo.transform.Find("干扰声");
+        AudioSource src = sfxT != null ? sfxT.GetComponent<AudioSource>() : null;
+        if (src == null)
+        {
+            var go = new GameObject("干扰声");
+            go.transform.SetParent(stormGo, false);
+            src = go.AddComponent<AudioSource>();
+            src.loop = true;
+            src.playOnAwake = false;
+            src.spatialBlend = 0f; // 风暴是全局现象，2D 直接呈现"仪器被干扰"
+            src.volume = 0.55f;
+        }
+        src.clip = clip;
+        SetPrivate(stormGo.GetComponent<EmfStormAnomaly>(), "sfx", src);
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return "storm sfx wired: " + clipPath;
+    }
+
+    /// <summary>程序合成两段音效 WAV（fal 无 key 的回退方案）：电流干扰 + 风压轰鸣。</summary>
+    public static string Stage4_MakeSfx()
+    {
+        const int sr = 44100;
+        string dir = "Assets/Audio/Metro";
+        if (!AssetDatabase.IsValidFolder("Assets/Audio")) AssetDatabase.CreateFolder("Assets", "Audio");
+        if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets/Audio", "Audio" == "Audio" ? "Metro" : "Metro");
+
+        // ① 电流干扰：50Hz 蜂鸣 + 白噪 + 随机爆点（10s）
+        int n1 = sr * 10;
+        var d1 = new float[n1];
+        var rng = new System.Random(42);
+        float spike = 0f; int spikeLeft = 0;
+        for (int i = 0; i < n1; i++)
+        {
+            float t = i / (float)sr;
+            float buzz = Mathf.Sin(2f * Mathf.PI * 50f * t) * 0.16f;
+            buzz += Mathf.Sin(2f * Mathf.PI * 150f * t) * 0.06f;
+            float noise = ((float)rng.NextDouble() * 2f - 1f) * 0.16f;
+            if (spikeLeft <= 0 && rng.NextDouble() < 0.0015) { spikeLeft = (int)(sr * rng.Next(3, 15) / 1000f * 10) + 40; spike = 1f; }
+            if (spikeLeft > 0) { spike *= 0.86f; spikeLeft--; }
+            d1[i] = Mathf.Clamp(buzz + noise + spike * ((float)rng.NextDouble() * 2f - 1f) * 0.7f, -1f, 1f);
+        }
+        WriteWav(dir + "/emf_storm.wav", d1, sr);
+
+        // ② 风压轰鸣：布朗噪声低通 + 慢起伏（20s，可循环）
+        int n2 = sr * 20;
+        var d2 = new float[n2];
+        float brown = 0f, lp = 0f;
+        for (int i = 0; i < n2; i++)
+        {
+            float t = i / (float)sr;
+            brown += ((float)rng.NextDouble() * 2f - 1f) * 0.02f;
+            brown = Mathf.Clamp(brown, -0.6f, 0.6f);
+            lp += (brown - lp) * 0.045f; // 单极低通 → 只剩低频隆隆
+            float pulse = 0.75f + 0.25f * Mathf.Sin(2f * Mathf.PI * 0.37f * t);
+            d2[i] = Mathf.Clamp(lp * 1.9f * pulse, -1f, 1f);
+        }
+        WriteWav(dir + "/arrival_pressure.wav", d2, sr);
+
+        AssetDatabase.Refresh();
+        return "sfx written: emf_storm.wav + arrival_pressure.wav";
+    }
+
+    /// <summary>给幽灵进站换上合成的风压轰鸣（比现成 Wind 更沉）。</summary>
+    public static string Stage4_RoarSfx()
+    {
+        var clip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Metro/arrival_pressure.wav");
+        if (clip == null) return "arrival_pressure.wav NOT FOUND";
+        var roarT = EnsureChild(GameRoot(), "异常").Find("幽灵进站");
+        if (roarT == null) return "幽灵进站 GO missing";
+        var src = roarT.Find("风压声");
+        if (src == null) return "风压声 source missing";
+        src.GetComponent<AudioSource>().clip = clip;
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return "roar = arrival_pressure";
+    }
+
+    private static void WriteAscii(System.IO.BinaryWriter w, string s)
+    {
+        foreach (var c in s) w.Write((byte)c);
+    }
+
+    private static void WriteWav(string path, float[] data, int sampleRate)
+    {
+        int n = data.Length;
+        var ms = new System.IO.MemoryStream(44 + n * 2);
+        var w = new System.IO.BinaryWriter(ms);
+        WriteAscii(w, "RIFF"); w.Write(36 + n * 2); WriteAscii(w, "WAVE");
+        WriteAscii(w, "fmt "); w.Write(16); w.Write((short)1); w.Write((short)1);
+        w.Write(sampleRate); w.Write(sampleRate * 2); w.Write((short)2); w.Write((short)16);
+        WriteAscii(w, "data"); w.Write(n * 2);
+        for (int i = 0; i < n; i++) w.Write((short)(Mathf.Clamp(data[i], -1f, 1f) * 32760f));
+        w.Flush();
+        System.IO.File.WriteAllBytes(path, ms.ToArray());
+        w.Close();
+    }
 }

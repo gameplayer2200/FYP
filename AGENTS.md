@@ -159,6 +159,13 @@ return ok + " :: " + (string)args[0];
   - **回归结论**：实验室窗 SelfTest PASS；穿门落点 (-47.89, 1.12, 132.71) 精确门槽（**抬高前**基线）。⚠️ **Metro 侧窗 SelfTest 的镜像判据 dot=−1 属已知表现**（自检只补偿 mirrorU 不补偿 mapYaw180 的 180° 映射；门系统代码与 WorldLink 零改动，以实验室窗 + 实际穿行朝向为准）。
   - **2026-10-17 抬高 +93.9（`bca6118`）后复验**：双向穿行通过——实验室→Metro 落点 (−47.89, 94.27, 132.71)、Metro→实验室落点 (3.78, 0.26, 5.12)，均精确门槽；实验室窗 SelfTest PASS；控制台 0 报错。
   - 新增交互提示：`InteractionRunner` 显示 `[E] + InteractionLabel 文案`；`HintToast`（Interaction 程序集）为全玩法反馈出口。
+- ✅ Metro 第二轮：接单任务板 + 两个新异常（2026-10-17，待玩家实测）：
+  - **修复**：渐熄世界判定盒抬高后失效（y∈[-10,32] 不含 94 高的玩家）→ 改 y∈[76.9,132.9]，复验 killed/掉电恢复生效；**双玩家守卫**（`PlayerMovement.Awake` 先到先得，后加载场景的玩家整组禁用）——Metro 场景现也常驻一个玩家供直接开发/测试，从实验室正常开局不受影响（复验 players=2 active=1）。
+  - **接单任务板 `OrderBoard`（Content）**：右上角 HUD——订单标题/异常物进度/下一步提示，Tab 展开详情与报酬；收容入账即完成（绿色提示）。吸收旧 `SpecimenHud` 职能（Lab 侧已禁用）；Lab 与 Metro 各挂一份，静态 renderOwner 先到先得避免双画。程序集注意：`FYP.Content` 现引用 `FYP.Core`（EmfStorm 所在）。
+  - **异常「电磁风暴」`EmfStormAnomaly`（World）**：停电进行中（KilledGroups>0）随机触发（首延 45s+，间隔 120~240s，持续 10s）——灯组乱闪 + HUD 全线乱码抖动（`EmfStorm.Scramble/Jitter`，Core 静态；OrderBoard/电量条已接）+ 2D 电流干扰声；结束恢复风暴前灯态。
+  - **异常「幽灵进站」`GhostArrivalEvent`（World）**：玩家在站随机触发（首延 60s+，间隔 180~300s）——风压轰鸣渐强 9s（3D 声源在隧道深处）+ 灯管异常波动 + 已熄死灯自己亮起闪 → 最响 5s → **骤停死寂 2.2s** → 恢复。「有进站的全部征兆、车永远不来」。
+  - **程序合成音效**（fal 无 key 的回退，`MetroSceneDev.Stage4_MakeSfx`）：`Assets/Audio/Metro/emf_storm.wav`（50Hz 蜂鸣+白噪+爆点）与 `arrival_pressure.wav`（布朗噪声低通轰鸣）；`generate_audio` 工具需先在 Unity 的 MCP Asset Generation 页配置 fal key。
+  - 复验：风暴/进站协程启动即生效（IsStorming/running/roar 死灯闪亮 ✓）；订单流转「0/2→携带 2→完成 ✓」全通；从 Metro 直接 Play 时订单板即时可见（v3 截图验收）。
 - ✅ 三世界传送门（2026-10-17）：FactoryDay / FactoryNight / Flooded_Grounds 各一对（实验室侧中庭一排 z=−3.5、`preloadRadius` 4.5/15、统一 `anywhere-door-portal.prefab` 实例 + 六条 WorldLink）。三对双向穿行实测全通过（落点均在对门门槽 raw≈−0.02、朝向保持行进方向）；实验室窗 `SelfTest` 全 PASS；修复「世界侧看门洞全绿」（排门后墙太近 → 挪至中庭）；Metro 门误删的 Variant 已恢复并复验。证据截图在 `PortalDumps/`（`v_labrow4.png`、`p_fix_labview2.png` 等）。
 - ⏳ 待办（按优先级）：
   1. ~~定稿前关 `showDebugOsd`~~ ✅ 两门均已设 0（2026-10-17）；
