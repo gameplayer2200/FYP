@@ -31,7 +31,7 @@ Assets/Scripts/              按程序集分层（Docs/adr/0004，依赖单向�
   Interaction/ FYP.Interaction  IInteractable / InteractionRegistry / InteractionRunner（唯一 E 键）
   World/       FYP.World     AnywhereDoor / PortalWindow / WorldLink / ChargeStation
   Content/     FYP.Content   Inventory / InventoryUI
-Assets/Editor/                AnywhereDoorBuilder / FixHingeTool / PortalDiagnostics / SceneOptimizer
+Assets/Editor/                FixHingeTool / PortalDiagnostics / SceneOptimizer
 Assets/Prefab/                anywhere-door.prefab（基座）+ anywhere-door-Metro Variant.prefab + ChargeStation/Wall
 Assets/WorldLinks/            LabToMetro.asset / MetroToLab.asset（门配对数据资产）
 Assets/Shaders/               PortalPanelProj.shader（投影屏：世界坐标投影采样，不走网格 UV）
