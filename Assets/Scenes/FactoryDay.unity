@@ -18086,6 +18086,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5950964293761735183, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: link
+      value: 
+      objectReference: {fileID: 11400000, guid: c1d363330d9aa1e42957e416c88f847e, type: 2}
     - target: {fileID: 8063968408835953565, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
       propertyPath: m_Name
       value: anywhere-door-FactoryNight-Lab

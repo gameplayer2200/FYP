@@ -26,6 +26,8 @@ public class BatterySystem : MonoBehaviour
     [SerializeField] private Transform restartAnchor;
     [SerializeField] private float restartDelay = 3f;
     [SerializeField] private Vector3 restartOffset = new Vector3(1.5f, 0.2f, 0f);
+    [Tooltip("重生后起身动画时长（秒）。UAL2_LayToIdle ≈ 1.53s；此期间锁移动。")]
+    [SerializeField] private float getUpDuration = 1.5f;
 
     // 环境耗电速率（电/秒）。由世界规则（如 Metro 停电）经 SetAmbientDrain 设定；
     // 实验室没有世界规则会调它，天然保持 0。
@@ -45,8 +47,15 @@ public class BatterySystem : MonoBehaviour
     public bool IsDead { get; private set; }
     public bool IsCharging { get; private set; }
 
+    /// <summary>
+    /// 重生起身中（死亡动画 → 传送 → 爬起来）。期间 PlayerMovement 锁移动输入，
+    /// 否则角色会边爬起边滑走。
+    /// </summary>
+    public bool IsRecovering { get; private set; }
+
     private PlayerAnimatorProxy anim;
     private bool lastSprint, lastJump;
+    private float recoverUntil;   // 起身结束时刻（Time.time 基准）
 
     private void Awake()
     {
@@ -91,10 +100,27 @@ public class BatterySystem : MonoBehaviour
         }
         Battery = restartBattery;
         IsDead = false;
+
+        // 起身：Dead 状态没有任何自动出口（控制器里它是死胡同），必须显式发 GetUp trigger
+        // 才能把角色从倒地姿势拉起来。播的是 UAL2_LayToIdle——死亡动画 UAL1_Death01 的逆过程
+        //（根骨骼 Y：Death 0.947→0.125，LayToIdle 0.079→0.946，首尾正好接上）。
+        if (anim != null) anim.PlayGetUp();
+        IsRecovering = true;
+        // 用 Update 计时而不是 Invoke：实测 Invoke 的延时在这里不可靠（会立刻触发）
+        recoverUntil = Time.time + getUpDuration;
+
         Notify();
         // 瘫倒 = 撤离失败：背包侧惩罚（携带异常物减半）经 Core 钩子解耦触发
         CollapsePenalty.Notify();
-        Debug.Log("[Battery] 重启完成，电量 " + (int)Battery);
+        Debug.Log("[Battery] 重启完成，电量 " + (int)Battery + "（起身中，时长 " + getUpDuration + "s，至 t=" + recoverUntil.ToString("F2") + "）");
+    }
+
+    /// <summary>起身动画结束：放行动画出口并恢复移动。</summary>
+    private void EndRecover()
+    {
+        IsRecovering = false;
+        if (anim != null) anim.SetGetUpDone(true);   // 条件转移 GetUp → Idle
+        Debug.Log("[Battery] 起身结束，恢复移动（t=" + Time.time.ToString("F2") + " until=" + recoverUntil.ToString("F2") + "）");
     }
 
     /// <summary>充电桩调用：true=持续充电（满电自动停止并恢复全部功能）。</summary>
@@ -120,6 +146,9 @@ public class BatterySystem : MonoBehaviour
 
     private void Update()
     {
+        // 起身计时到点 → 放行动画出口 + 恢复移动
+        if (IsRecovering && Time.time >= recoverUntil) EndRecover();
+
         // F 键测试受创（怪物 AI 接入后把 allowDebugHit 关掉）
         if (allowDebugHit && !IsDead && Input.GetKeyDown(KeyCode.F)) TakeHit();
 

@@ -120,22 +120,26 @@ public class PlayerMovement : MonoBehaviour
             verticalVelocity = -1f;
         verticalVelocity += gravity * Time.deltaTime;
 
-        // 蹲伏（按住 Ctrl，仅地面生效；站起前检测头顶是否有遮挡）；翻滚中禁止切换蹲姿
-        bool wantCrouch = Input.GetKey(KeyCode.LeftControl) && controller.isGrounded && !rolling;
+        // 重生起身中：锁移动 / 跳跃 / 翻滚 / 蹲伏。
+        // 起身动画（UAL2_LayToIdle）要 1.5s，不锁的话角色会边爬起边滑走。
+        bool recovering = BatterySystem.Instance != null && BatterySystem.Instance.IsRecovering;
+
+        // 蹲伏（按住 Ctrl，仅地面生效；站起前检测头顶是否有遮挡）；翻滚/起身中禁止切换蹲姿
+        bool wantCrouch = Input.GetKey(KeyCode.LeftControl) && controller.isGrounded && !rolling && !recovering;
         if (wantCrouch && !crouching)
             SetCrouch(true);
         else if (!wantCrouch && crouching && CanStandUp())
             SetCrouch(false);
 
-        // 跳跃（蹲下时不可跳；翻滚中不可跳；电量≤25 时功能已被系统关闭）
+        // 跳跃（蹲下时不可跳；翻滚/起身中不可跳；电量≤25 时功能已被系统关闭）
         bool jumpAllowed = BatterySystem.Instance == null || BatterySystem.Instance.JumpEnabled;
-        if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded && !crouching && !rolling && jumpAllowed)
+        if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded && !crouching && !rolling && !recovering && jumpAllowed)
             verticalVelocity = Mathf.Sqrt(2f * -gravity * jumpHeight);
 
-        // 翻滚：Shift 双击（0.25s 内两次轻点）触发，与按住冲刺不冲突
+        // 翻滚：Shift 双击（0.25s 内两次轻点）触发，与按住冲刺不冲突；起身中不可翻滚
         if (Input.GetKeyDown(KeyCode.LeftShift))
         {
-            if (Time.time - lastShiftTapTime <= doubleTapWindow) TryStartRoll();
+            if (!recovering && Time.time - lastShiftTapTime <= doubleTapWindow) TryStartRoll();
             lastShiftTapTime = Time.time;
         }
         if (rolling) RollTick();
@@ -161,7 +165,8 @@ public class PlayerMovement : MonoBehaviour
         float v = Input.GetAxisRaw("Vertical");
         float h = Input.GetAxisRaw("Horizontal");
         // 充电时不许移动（可中断：按 E 或走开即停，由 ChargeStation 处理）
-        if (BatterySystem.Instance != null && BatterySystem.Instance.IsCharging) { v = 0f; h = 0f; }
+        // 重生起身时同样锁移动：否则角色会边爬起边滑走
+        if (BatterySystem.Instance != null && (BatterySystem.Instance.IsCharging || recovering)) { v = 0f; h = 0f; }
 
         if (rolling)
         {

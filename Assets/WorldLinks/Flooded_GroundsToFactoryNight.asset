@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 210f73c69f57bd247ba8b5b3edf9f0e1, type: 3}
-  m_Name: FactoryNightToLab
+  m_Name: Flooded_GroundsToFactoryNight
   m_EditorClassIdentifier: 
-  worldSceneName: SpecimenLab
-  worldDoorName: anywhere-door-FactoryNight-Lab
+  worldSceneName: FactoryNight
+  worldDoorName: anywhere-door-Flooded-Grounds-Lab
   openingPath: Cube.001/Plane
   rtHeight: 720
   farClip: 200

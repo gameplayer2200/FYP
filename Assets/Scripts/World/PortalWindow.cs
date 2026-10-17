@@ -69,6 +69,18 @@ public class PortalWindow : MonoBehaviour
     private bool lastDoorOpen;           // 上一帧本门开合态：只在"本门变化"时才向对门下发
     private bool backPanelDark = true;   // 背板当前是不是暗板（防重复 SetRenderer）
     private bool ready;
+    /// <summary>
+    /// 初始化已判定失败（目标世界里找不到配对门 / 找不到门洞平面）。
+    /// 一旦置位就彻底放弃：否则 ready 永远为 false，Update 会每帧重试并刷屏报错。
+    /// 典型场景：对面那扇门被删掉或挪到了别的场景，但本门的 WorldLink 还指着旧位置。
+    /// </summary>
+    private bool failed;
+
+    /// <summary>
+    /// 常驻世界（preloadRadius ≤0，开局即加载）的取景渲染距离兜底值（米）。
+    /// 这类世界的 preloadRadius 是 0，乘 2 也是 0，会让门洞永远不渲染。
+    /// </summary>
+    private const float ResidentRenderRadius = 30f;
     private float prevDot;               // 上一帧玩家在门平面法线上的带符号距离（穿行判定基准）
     private float cooldown;              // 穿行冷却
     private readonly Vector3[] srcCorners = new Vector3[4];
@@ -133,7 +145,7 @@ public class PortalWindow : MonoBehaviour
 
         WorldStreamer.Tick();   // 每帧一次装载/卸载裁决（幂等：多扇门重复调用无副作用）
 
-        if (ready) return;
+        if (ready || failed) return;
 
         // 玩家还远就不建立取景。半径由门配对配置；≤0 表示开局立即建立
         float radius = link.PreloadRadius;
@@ -150,11 +162,26 @@ public class PortalWindow : MonoBehaviour
         var scene = SceneManager.GetSceneByName(link.WorldSceneName);
         if (!scene.isLoaded) { Debug.LogError("[PortalWindow] 目标场景未加载：" + link.WorldSceneName, this); return; }
 
+        // 找不到配对门 / 门洞平面属于**配置错误**（对面那扇门被删了或挪走了），
+        // 不是暂时的：置 failed 彻底放弃，否则 ready 永远为 false，Update 会每帧重试刷屏。
+        // 修好配对后重进 Play 即可（或点菜单 FYP/门配对/扫描并自动重配）。
         destFrame = FindDoor(scene, link.WorldDoorName);
-        if (destFrame == null) { Debug.LogError("[PortalWindow] 目标世界里找不到门：" + link.WorldDoorName, this); return; }
+        if (destFrame == null)
+        {
+            Debug.LogError("[PortalWindow] 目标世界里找不到门：" + link.WorldDoorName
+                           + "（" + link.WorldSceneName + "）。配对已失效，本门停用。"
+                           + "请用 FYP/门配对/扫描并自动重配 修复。", this);
+            failed = true;
+            return;
+        }
 
         destPlane = destFrame.Find(link.OpeningPath);
-        if (destPlane == null) { Debug.LogError("[PortalWindow] 目标门找不到门洞平面：" + link.OpeningPath, this); return; }
+        if (destPlane == null)
+        {
+            Debug.LogError("[PortalWindow] 目标门找不到门洞平面：" + link.OpeningPath, this);
+            failed = true;
+            return;
+        }
 
         // 停掉目标世界自带的相机，避免抢画面。
         // 但绝不能停玩家自己的相机——如果目标就是当前活动场景（从异世界回头取景实验室），
@@ -347,7 +374,12 @@ public class PortalWindow : MonoBehaviour
 
         var playerCam = PlayerRef.Camera;
         if (playerCam == null) return;
-        float renderRadius = link.PreloadRadius * 2f;
+        // 取景渲染距离 = preloadRadius × 2。
+        // 但 preloadRadius ≤0 表示"开局即加载的常驻世界"，乘出来是 0 会让门洞**永远不渲染**，
+        // 所以这种情况用一个够大的固定值兜底（常驻世界的取景本来就该一直可见）。
+        float renderRadius = link.PreloadRadius > 0f
+            ? link.PreloadRadius * 2f
+            : ResidentRenderRadius;
         if ((playerCam.transform.position - srcFrame.position).sqrMagnitude > renderRadius * renderRadius)
             return; // 离得远就不渲染取景，省性能
 

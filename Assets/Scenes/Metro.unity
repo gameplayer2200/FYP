@@ -31508,7 +31508,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b84b005857422f40a53c743de58a602, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  orderTitle: "\u8BA2\u5355\uFF1AMetro \u7AD9\u56DE\u6536"
   targetCount: 2
   rewardText: "\u62A5\u916C\uFF1A\u8BB0\u5FC6\u6838\u5FC3\u914D\u989D + \u7EED\u671F"
   detailText: "\u76EE\u6807\u6563\u843D\u5728\u7AD9\u53F0\u4E0E\u8F66\u53A2\u6DF1\u5904\u3002\n\u5E26\u56DE\u5B9E\u9A8C\u5BA4\u6536\u5BB9\u53F0\u6309

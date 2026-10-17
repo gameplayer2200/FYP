@@ -20,6 +20,8 @@ public class PlayerAnimatorProxy : MonoBehaviour
     private readonly int pickUp = Animator.StringToHash("PickUp");
     private readonly int interact = Animator.StringToHash("Interact");
     private readonly int roll = Animator.StringToHash("Roll");
+    private readonly int getUp = Animator.StringToHash("GetUp");
+    private readonly int getUpDone = Animator.StringToHash("GetUpDone");
 
     private void Awake()
     {
@@ -51,4 +53,24 @@ public class PlayerAnimatorProxy : MonoBehaviour
 
     /// <summary>前滚翻（Shift 双击触发），播完自动回 Idle。</summary>
     public void PlayRoll() { if (animator != null) animator.SetTrigger(roll); }
+
+    /// <summary>
+    /// 从倒地状态爬起来（UAL2_LayToIdle，1.53s）。重生时调用。
+    /// Dead 状态没有任何自动出口，必须靠这个 trigger 把它拉出来，否则会一直保持倒地姿势。
+    ///
+    /// 出口不用 hasExitTime：实测该转移会在进入的同一帧就判定完成（状态时间未复位），
+    /// 导致起身动画被整个跳过。改为由代码在动画播完后置 GetUpDone。
+    /// </summary>
+    public void PlayGetUp()
+    {
+        if (animator == null) return;
+        animator.SetBool(getUpDone, false);   // 复位出口条件
+        animator.SetTrigger(getUp);
+    }
+
+    /// <summary>起身动画播完（BatterySystem 按 getUpDuration 计时后调用），放行 GetUp → Idle。</summary>
+    public void SetGetUpDone(bool done)
+    {
+        if (animator != null) animator.SetBool(getUpDone, done);
+    }
 }

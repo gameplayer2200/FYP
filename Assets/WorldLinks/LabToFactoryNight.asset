@@ -19,5 +19,5 @@ MonoBehaviour:
   farClip: 200
   nearClip: 0.05
   preloadRadius: 4.5
-  mapYaw180: 1
+  mapYaw180: 0
   mirrorU: 0
