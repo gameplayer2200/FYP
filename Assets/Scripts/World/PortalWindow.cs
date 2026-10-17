@@ -17,7 +17,8 @@ using UnityEngine.SceneManagement;
 /// 与"黑板 UV 是图集子区域"这两个坑。
 ///
 /// ── 职责边界 ─────────────────────────────────────────────────────────
-/// 本类独占"加载对面世界"的职责（见 docs/adr/0001-single-portal-implementation.md），
+/// 传送门实现仅此一处（docs/adr/0001）；世界场景的装载/卸载由 WorldStreamer
+/// 按需求统一裁决（docs/adr/0003 复查后的收敛点），本类只管取景、穿行与开合同步。
 /// 配置全部来自门配对资产 WorldLink，代码里不再有场景名/门名的魔法字符串。
 /// </summary>
 [DisallowMultipleComponent]
@@ -68,7 +69,6 @@ public class PortalWindow : MonoBehaviour
     private bool lastDoorOpen;           // 上一帧本门开合态：只在"本门变化"时才向对门下发
     private bool backPanelDark = true;   // 背板当前是不是暗板（防重复 SetRenderer）
     private bool ready;
-    private bool loading;
     private float prevDot;               // 上一帧玩家在门平面法线上的带符号距离（穿行判定基准）
     private float cooldown;              // 穿行冷却
     private readonly Vector3[] srcCorners = new Vector3[4];
@@ -87,6 +87,16 @@ public class PortalWindow : MonoBehaviour
             Debug.LogError("[PortalWindow] 找不到门洞平面 " + link.OpeningPath + "（挂在 " + srcFrame.name + " 下）", this);
     }
 
+    private void OnEnable()
+    {
+        WorldStreamer.Register(this);     // 世界流送器：登记本门，参与装载/卸载裁决
+    }
+
+    private void OnDisable()
+    {
+        WorldStreamer.Unregister(this);
+    }
+
     // 先按配置路径找，找不到就退化为「子树里名字含 plane 的节点」
     private Transform FindOpening(Transform doorRoot)
     {
@@ -98,35 +108,40 @@ public class PortalWindow : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 加载目标世界
+    // 供世界流送器（WorldStreamer）查询
+    // ─────────────────────────────────────────────────────────────
+    /// <summary>本门通往的世界（场景名）。</summary>
+    public string TargetWorldName { get { return link != null ? link.WorldSceneName : null; } }
+
+    /// <summary>本门的预载半径（米）：世界流送器据此决定何时装载目标世界。</summary>
+    public float PreloadRadius { get { return link != null ? link.PreloadRadius : 0f; } }
+
+    /// <summary>本门根节点：世界流送器用它量"玩家离本门多远"。</summary>
+    public Transform SrcFrame { get { return srcFrame; } }
+
+    /// <summary>本门门板是否开着（世界流送器据此保住"开着的门洞背后"的世界）。</summary>
+    public bool IsDoorOpen { get { return door != null && door.IsOpen; } }
+
+    // ─────────────────────────────────────────────────────────────
+    // 等待目标世界：装载/卸载由 WorldStreamer 按需求裁决（见其类注释），
+    // 本窗只负责"世界就绪后把取景建起来"。
     // ─────────────────────────────────────────────────────────────
     private void Update()
     {
-        if (ready || link == null || srcFrame == null) return;
+        if (link == null || srcFrame == null) return;
         if (!PlayerRef.IsReady) return;
 
-        // 玩家还远就不加载。半径由门配对配置；≤0 表示开局立即加载
+        WorldStreamer.Tick();   // 每帧一次装载/卸载裁决（幂等：多扇门重复调用无副作用）
+
+        if (ready) return;
+
+        // 玩家还远就不建立取景。半径由门配对配置；≤0 表示开局立即建立
         float radius = link.PreloadRadius;
         if (radius > 0f && (PlayerRef.Root.position - srcFrame.position).sqrMagnitude > radius * radius) return;
 
-        // 目标世界可能已由对面那扇门的 PortalWindow 加载好了——优先复用，绝不重复加载
-        if (SceneManager.GetSceneByName(link.WorldSceneName).isLoaded) { OnWorldLoaded(null); return; }
-        if (loading) return;
-        BeginLoad();
-    }
-
-    private void BeginLoad()
-    {
-        loading = true;
-        var op = SceneManager.LoadSceneAsync(link.WorldSceneName, LoadSceneMode.Additive);
-        if (op == null)
-        {
-            Debug.LogError("[PortalWindow] LoadSceneAsync 返回 null：" + link.WorldSceneName
-                           + "（场景是否已加入 Build Settings？）", this);
-            loading = false;
-            return;
-        }
-        op.completed += OnWorldLoaded;
+        // 目标世界可能已由其它门装好——优先复用，绝不重复加载
+        if (!WorldStreamer.IsWorldReady(link.WorldSceneName)) return;
+        OnWorldLoaded(null);
     }
 
     private void OnWorldLoaded(AsyncOperation op)
@@ -166,6 +181,7 @@ public class PortalWindow : MonoBehaviour
         lastDoorOpen = door != null && door.IsOpen;
         SyncPairedDoor(true);        // 先对齐一次历史状态差
         SyncBackPanel(true);
+        ResetCrossBaseline();        // 清穿行基准：装载期间玩家可能已换过世界，陈旧基准会误判
 
         ready = true;
         Debug.Log("[PortalWindow] 取景已建立：源=" + srcFrame.name + " 目标=" + destFrame.name
@@ -249,6 +265,7 @@ public class PortalWindow : MonoBehaviour
 
         cooldown = crossCooldown;
         PlayerRef.Teleport(target, facing);
+        WorldStreamer.NotifyCrossed(link.WorldSceneName);   // 登记"玩家已在对面世界"：脚下的世界不许被流送器卸掉
 
         // 重置两侧的穿行基准：对面那扇门若沿用上一帧的陈旧值，会把玩家立刻弹回来
         var other = destFrame.GetComponentInChildren<PortalWindow>(true);
@@ -573,9 +590,34 @@ public class PortalWindow : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (rt != null) { rt.Release(); Destroy(rt); }
-        if (quadMat != null) Destroy(quadMat);
-        if (darkMat != null) Destroy(darkMat);
+        ReleaseView();
+        if (darkMat != null) { Destroy(darkMat); darkMat = null; }
+    }
+
+    /// <summary>
+    /// 目标世界被 WorldStreamer 卸下后的收尾：本门留在原世界，但取景的目标全没了——
+    /// 必须把缓存引用与取景资源全部放掉，并把背板换回门自己的材质。
+    /// 不做这一步，LateUpdate 会继续使用已销毁的目标门（MissingReference），
+    /// 面板还会"冻结"在最后一帧画面上。
+    /// </summary>
+    public void OnTargetWorldUnloaded()
+    {
+        if (!ready) return;
+        ReleaseView();
+        ApplyBackSlotMaterial(originalBackMat != null ? originalBackMat : darkMat);
+        backPanelDark = true;        // 视作非投影状态：门再开合也不会去碰已销毁的投影材质
+        destFrame = null;
+        destPlane = null;
+        pairedDoor = null;
+        ready = false;
+    }
+
+    /// <summary>放掉取景相机 / RT / 投影屏材质（OnDestroy 与"世界被卸下"共用）。</summary>
+    private void ReleaseView()
+    {
+        if (portalCam != null) { Destroy(portalCam.gameObject); portalCam = null; }
+        if (rt != null) { rt.Release(); Destroy(rt); rt = null; }
+        if (quadMat != null) { Destroy(quadMat); quadMat = null; }
     }
 
     // ─────────────────────────────────────────────────────────────

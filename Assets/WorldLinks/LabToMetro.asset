@@ -18,6 +18,6 @@ MonoBehaviour:
   rtHeight: 720
   farClip: 200
   nearClip: 0.05
-  preloadRadius: 15
+  preloadRadius: 6
   mapYaw180: 1
   mirrorU: 0

@@ -12,11 +12,11 @@ TagManager:
   - Water
   - UI
   - FirstPersonBody
-  - 
-  - 
-  - 
-  - 
-  - 
+  - World_Metro
+  - World_FactoryDay
+  - World_FactoryNight
+  - World_Flooded
+  - World_Other
   - 
   - 
   - 
