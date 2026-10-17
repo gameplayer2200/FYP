@@ -1,7 +1,8 @@
 {
     "name": "FYP.Player",
     "references": [
-        "FYP.Core"
+        "FYP.Core",
+        "FYP.Interaction"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

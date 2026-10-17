@@ -26,6 +26,20 @@ public class Inventory : MonoBehaviour
         Instance = this;
     }
 
+    private void OnEnable() { CollapsePenalty.OnCollapseRestart += HalveCarrying; }
+    private void OnDisable() { CollapsePenalty.OnCollapseRestart -= HalveCarrying; }
+
+    /// <summary>瘫倒 = 撤离失败：随身异常物散失一半（向下取整）；已收容的不动。</summary>
+    private void HalveCarrying()
+    {
+        if (SpecimenCount <= 0) return;
+        int lost = SpecimenCount / 2;
+        if (lost <= 0) return;
+        SpecimenCount -= lost;
+        NotifySpecimen();
+        HintToast.Show("瘫倒重启——随身异常物散失 " + lost + " 件");
+    }
+
     private void OnDestroy()
     {
         if (Instance == this) Instance = null;

@@ -12,13 +12,35 @@ public static class PlayerGear
     /// <summary>是否持有万用表（电力检测仪）。</summary>
     public static bool HasMultimeter { get; private set; }
 
+    /// <summary>是否持有手电筒（探索道具）。</summary>
+    public static bool HasFlashlight { get; private set; }
+
+    /// <summary>手电筒是否开着（世界规则据它判定"照明中"，如黑暗加成失效）。</summary>
+    public static bool FlashlightOn { get; private set; }
+
     /// <summary>获得万用表时触发一次（UI / 演出订阅）。重复获得不触发。</summary>
     public static event Action OnMultimeterAcquired;
+
+    /// <summary>手电筒开关切换时触发。</summary>
+    public static event Action OnFlashlightChanged;
 
     public static void AcquireMultimeter()
     {
         if (HasMultimeter) return;
         HasMultimeter = true;
         if (OnMultimeterAcquired != null) OnMultimeterAcquired();
+    }
+
+    public static void AcquireFlashlight()
+    {
+        if (HasFlashlight) return;
+        HasFlashlight = true;
+    }
+
+    public static void SetFlashlight(bool on)
+    {
+        if (!HasFlashlight || FlashlightOn == on) return;
+        FlashlightOn = on;
+        if (OnFlashlightChanged != null) OnFlashlightChanged();
     }
 }

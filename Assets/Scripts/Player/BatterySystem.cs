@@ -31,6 +31,9 @@ public class BatterySystem : MonoBehaviour
     // 实验室没有世界规则会调它，天然保持 0。
     private float ambientDrain;
 
+    // 手电筒耗电通道（电/秒）。Flashlight 组件设定；与环境耗电独立、叠加扣减。
+    private float flashlightDrain;
+
     [Header("调试")]
     [Tooltip("F 键模拟受创。怪物 AI 接入后关掉。")]
     [SerializeField] private bool allowDebugHit = true;
@@ -89,6 +92,8 @@ public class BatterySystem : MonoBehaviour
         Battery = restartBattery;
         IsDead = false;
         Notify();
+        // 瘫倒 = 撤离失败：背包侧惩罚（携带异常物减半）经 Core 钩子解耦触发
+        CollapsePenalty.Notify();
         Debug.Log("[Battery] 重启完成，电量 " + (int)Battery);
     }
 
@@ -107,15 +112,22 @@ public class BatterySystem : MonoBehaviour
         ambientDrain = Mathf.Max(0f, ratePerSecond);
     }
 
+    /// <summary>手电筒组件调用：开灯耗电通道（电/秒），与环境耗电叠加。</summary>
+    public void SetFlashlightDrain(float ratePerSecond)
+    {
+        flashlightDrain = Mathf.Max(0f, ratePerSecond);
+    }
+
     private void Update()
     {
         // F 键测试受创（怪物 AI 接入后把 allowDebugHit 关掉）
         if (allowDebugHit && !IsDead && Input.GetKeyDown(KeyCode.F)) TakeHit();
 
-        // 环境耗电：停电/黑暗等世界规则造成的缓慢掉电。充电与瘫倒期间不耗。
-        if (!IsDead && !IsCharging && ambientDrain > 0f)
+        // 持续耗电：停电/黑暗等世界规则 + 手电筒。充电与瘫倒期间不耗。
+        float drain = ambientDrain + flashlightDrain;
+        if (!IsDead && !IsCharging && drain > 0f)
         {
-            Battery = Mathf.Max(0f, Battery - ambientDrain * Time.deltaTime);
+            Battery = Mathf.Max(0f, Battery - drain * Time.deltaTime);
             if (Battery <= 0f) Die();
             else Notify();
         }

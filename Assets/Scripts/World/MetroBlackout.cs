@@ -75,7 +75,8 @@ public class MetroBlackout : MonoBehaviour
 
         if (killedCount > 0)
         {
-            bool dark = IsPlayerInDarkSegment(player);
+            // 手电开着 = 照明中，不吃黑暗加成（两难：开灯耗电、关灯加倍）
+            bool dark = !PlayerGear.FlashlightOn && IsPlayerInDarkSegment(player);
             SetDrain(dark ? baseDrain * darknessMultiplier : baseDrain);
         }
         else SetDrain(0f);

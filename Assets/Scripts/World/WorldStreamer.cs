@@ -60,6 +60,7 @@ public static class WorldStreamer
     public static void NotifyCrossed(string arrivedWorld)
     {
         if (!string.IsNullOrEmpty(arrivedWorld)) currentWorld = arrivedWorld;
+        WorldPresence.SetCurrent(currentWorld);   // HUD 等按世界切换形态
     }
 
     /// <summary>目标世界是否可用（已装载且不在卸载中）——PortalWindow 据此决定"能不能建立取景"。</summary>
@@ -89,6 +90,8 @@ public static class WorldStreamer
             homeWorld = root != null ? root.gameObject.scene.name : SceneManager.GetActiveScene().name;
             if (currentWorld == null) currentWorld = homeWorld;   // 开局：玩家在起始世界
         }
+        WorldPresence.SetHome(homeWorld);        // HUD 等按世界切换形态（含开局初始化）
+        WorldPresence.SetCurrent(currentWorld);
 
         WorldLightIsolation.Sync(homeWorld);   // 世界装载后立即做光影隔离（实验室的明暗不随其它世界变化）
         Vector3 player = PlayerRef.Root.position;

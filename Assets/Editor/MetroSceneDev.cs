@@ -1718,6 +1718,100 @@ public static class MetroSceneDev
         foreach (var c in s) w.Write((byte)c);
     }
 
+    // ================= 阶段 5：撤离窗口 + 手电筒 + 粉笔箭头（2026-10-17 第三轮） =================
+
+    /// <summary>阶段5a（Metro）：ExtractionTimer 挂载 + 手电筒拾取物（前人遗留）+ 粉笔箭头。</summary>
+    public static string Stage5_Wiring()
+    {
+        var sb = new StringBuilder();
+        var root = GameRoot();
+        var mb = Object.FindObjectsOfType<MetroBlackout>(true);
+        var groups = Object.FindObjectsOfType<LightGroup>(true);
+        Object[] groupObjs = groups;
+        var doorGo = GameObject.Find("anywhere-door-Metro");
+        var exitDoor = doorGo != null ? doorGo.GetComponentInChildren<AnywhereDoor>(true) : null;
+        if (mb.Length == 0 || exitDoor == null) return "blackout/exitDoor missing";
+
+        // 撤离计时器
+        var timerT = root.Find("撤离计时器");
+        GameObject timerGo;
+        if (timerT == null) { timerGo = new GameObject("撤离计时器"); timerGo.transform.SetParent(root, false); }
+        else timerGo = timerT.gameObject;
+        var timer = timerGo.GetComponent<ExtractionTimer>();
+        if (timer == null) timer = timerGo.AddComponent<ExtractionTimer>();
+        SetPrivate(timer, "blackout", mb[0]);
+        SetPrivate(timer, "exitDoor", exitDoor);
+        sb.AppendLine("timer wired");
+
+        // 手电筒拾取物（Metro 门区，前人遗留）
+        var items = EnsureChild(root, "Items");
+        if (items.Find("道具_手电筒_Metro") == null)
+        {
+            var fl = InstantiateModel("Assets/items/Exploration objects/Flashlight/Flashlight.fbx", "道具_手电筒_Metro",
+                new Vector3(-46.2f, 94.85f, 130.6f), 0.3f, 120f);
+            if (fl != null)
+            {
+                fl.transform.SetParent(items, true);
+                fl.AddComponent<FlashlightPickup>();
+                SetText(fl.AddComponent<InteractionLabel>(), "text", "拾取手电筒");
+                sb.AppendLine("flashlight(Metro) ok");
+            }
+            else sb.AppendLine("flashlight model MISSING");
+        }
+
+        // 粉笔箭头：站台→死端沿线，逆行惊吓区在车厢端
+        var anom = EnsureChild(root, "异常");
+        var chalkT = anom.Find("粉笔箭头");
+        GameObject chalkGo;
+        if (chalkT == null) { chalkGo = new GameObject("粉笔箭头"); chalkGo.transform.SetParent(anom, false); }
+        else chalkGo = chalkT.gameObject;
+        chalkGo.transform.position = new Vector3(-41.5f, 94.12f, 125f);
+        var chalk = chalkGo.GetComponent<ChalkTrail>();
+        if (chalk == null) chalk = chalkGo.AddComponent<ChalkTrail>();
+        var so = new SerializedObject(chalk);
+        var pts = so.FindProperty("localPoints");
+        pts.arraySize = 6;
+        for (int i = 0; i < 6; i++)
+            pts.GetArrayElementAtIndex(i).vector3Value = new Vector3((i % 2 == 0 ? -0.6f : 0.6f), 0f, -12f - i * 14f);
+        so.FindProperty("scareCenter").vector3Value = new Vector3(0f, 2f, 50f);
+        so.FindProperty("scareSize").vector3Value = new Vector3(8f, 5f, 14f);
+        so.ApplyModifiedPropertiesWithoutUndo();
+        SetPrivate(chalk, "blackout", mb[0]);
+        SetPrivateArray(chalk, "groups", groupObjs);
+        sb.AppendLine("chalk wired (6 箭头, 惊吓区在车厢端)");
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return sb.ToString();
+    }
+
+    /// <summary>阶段5b（Lab）：实验室门旁放手电筒（出发前带上）。</summary>
+    public static string Stage5_Lab()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SpecimenLab.unity", OpenSceneMode.Additive);
+        var sb = new StringBuilder();
+        if (GameObject.Find("道具_手电筒_Lab") == null)
+        {
+            var prevActive = SceneManager.GetActiveScene();
+            SceneManager.SetActiveScene(scene);
+            var fl = InstantiateModel("Assets/items/Exploration objects/Flashlight/Flashlight.fbx", "道具_手电筒_Lab",
+                new Vector3(2.6f, 0.55f, 4.0f), 0.3f, 40f);
+            if (fl != null)
+            {
+                SceneManager.MoveGameObjectToScene(fl, scene);
+                fl.AddComponent<FlashlightPickup>();
+                SetText(fl.AddComponent<InteractionLabel>(), "text", "拾取手电筒");
+                sb.AppendLine("flashlight(Lab) ok");
+            }
+            else sb.AppendLine("flashlight model MISSING");
+            SceneManager.SetActiveScene(prevActive);
+        }
+        else sb.AppendLine("exists");
+        EditorSceneManager.SaveScene(scene);
+        EditorSceneManager.CloseScene(scene, true);
+        return sb.ToString();
+    }
+
+
     private static void WriteWav(string path, float[] data, int sampleRate)
     {
         int n = data.Length;
