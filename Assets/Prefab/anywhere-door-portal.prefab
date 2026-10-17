@@ -513,7 +513,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   link: {fileID: 0}
-  srcFrame: {fileID: 0}
+  autoPair: 1
+  rtHeight: 720
+  farClip: 200
+  nearClip: 0.05
+  preloadRadius: 15
+  mirrorU: 0
+  openingPath: Cube.001/Plane
+  srcFrame: {fileID: 1598137546593494761}
   backSlot: 0
   crossCooldown: 0.6
   crossPlaneTolerance: 1.5

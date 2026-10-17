@@ -29,8 +29,8 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class WorldStreamer
 {
-    /// <summary>同时存活的世界上限，含实验室（3 = 实验室 + 最多 2 个异世界）。</summary>
-    public static int MaxLoadedWorlds = 3;
+    /// <summary>同时存活的世界上限，含实验室（5 = 实验室 + 最多 4 个异世界）。</summary>
+    public static int MaxLoadedWorlds = 5;
 
     /// <summary>远离卸载余量（米）：最近的门超过 2×preloadRadius + 本值才卸。</summary>
     public const float ReleaseMargin = 2f;

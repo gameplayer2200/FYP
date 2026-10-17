@@ -2254,12 +2254,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3300903666545894743, guid: 776804b167f530f40a80b246090fe5b6, type: 3}
       propertyPath: m_Name
-      value: anywhere-door-FactoryDay
+      value: anywhere-door-FactoryDay-A
       objectReference: {fileID: 0}
     - target: {fileID: 7387530589384747513, guid: 776804b167f530f40a80b246090fe5b6, type: 3}
       propertyPath: link
       value: 
-      objectReference: {fileID: 11400000, guid: e296aad223f84c449bf7c64099535b76, type: 2}
+      objectReference: {fileID: 11400000, guid: c9db3b0a33eff7a4882af5e7ecad704a, type: 2}
     - target: {fileID: 7387530589384747513, guid: 776804b167f530f40a80b246090fe5b6, type: 3}
       propertyPath: srcFrame
       value: 
@@ -10954,6 +10954,67 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1a5f2b92e3d507a438173f443b67a160, type: 3}
+--- !u!1001 &893127528
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4324.362
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.024000168
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -77.923706
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.00000004371139
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 366.117
+      objectReference: {fileID: 0}
+    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5950964293761735183, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: link
+      value: 
+      objectReference: {fileID: 11400000, guid: 95d62fcc85bec5c48b655bc77e93ce5b, type: 2}
+    - target: {fileID: 8063968408835953565, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: m_Name
+      value: anywhere-door-FactoryNight
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
 --- !u!1001 &899590816
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18038,67 +18099,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 400000, guid: 1a5f2b92e3d507a438173f443b67a160, type: 3}
   m_PrefabInstance: {fileID: 1444533358}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1456907941
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -4324.31
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -0.024000168
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -78.01146
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: -0.00000004371139
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 366.117
-      objectReference: {fileID: 0}
-    - target: {fileID: 3527228544285320502, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5950964293761735183, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: link
-      value: 
-      objectReference: {fileID: 11400000, guid: c1d363330d9aa1e42957e416c88f847e, type: 2}
-    - target: {fileID: 8063968408835953565, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
-      propertyPath: m_Name
-      value: anywhere-door-FactoryNight-Lab
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
 --- !u!1 &1457806095
 GameObject:
   m_ObjectHideFlags: 0
@@ -27818,4 +27818,4 @@ SceneRoots:
   - {fileID: 10291026}
   - {fileID: 753181109}
   - {fileID: 158666017}
-  - {fileID: 1456907941}
+  - {fileID: 893127528}

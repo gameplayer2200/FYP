@@ -495,7 +495,7 @@ GameObject:
   - component: {fileID: 7000868155018049468}
   - component: {fileID: 7288320217826880440}
   m_Layer: 0
-  m_Name: anywhere-door-FactoryDay-Lab
+  m_Name: anywhere-door-FactoryDay
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -509,7 +509,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6816207181721232603}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
   m_LocalPosition: {x: -5, y: 0.016, z: -3.5}
   m_LocalScale: {x: 0.6048403, y: 0.60484004, z: 0.6048403}
   m_ConstrainProportionsScale: 0
@@ -521,7 +521,7 @@ Transform:
   - {fileID: 1571492055196976686}
   - {fileID: 8677042494381322180}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 366.117, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 540, z: 0}
 --- !u!65 &7000868155018049468
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -555,7 +555,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec60f90da6e943e4cbf403a349a371a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  link: {fileID: 11400000, guid: 31086ef5684d2f247b4037a9a631d2fa, type: 2}
+  link: {fileID: 0}
+  autoPair: 1
+  rtHeight: 720
+  farClip: 200
+  nearClip: 0.05
+  preloadRadius: 15
+  mirrorU: 0
+  openingPath: Cube.001/Plane
   srcFrame: {fileID: 1646910284153766226}
   backSlot: 0
   crossCooldown: 0.6

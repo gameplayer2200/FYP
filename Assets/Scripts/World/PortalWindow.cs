@@ -25,8 +25,21 @@ using UnityEngine.SceneManagement;
 public class PortalWindow : MonoBehaviour
 {
     [Header("门配对")]
-    [Tooltip("本门通往哪个世界、对面是哪扇门。")]
+    [Tooltip("本门通往哪个世界、对面是哪扇门。autoPair 开启时不需要指定。")]
     [SerializeField] private WorldLink link;
+
+    [Header("自动配对（方案 B：挪门后零操作）")]
+    [Tooltip("勾选后门配对信息（目标世界、目标门、朝向差）完全由门名运行时推导，" +
+             "不再需要 WorldLink 资产。挪门、改朝向后无需任何手动操作。")]
+    [SerializeField] private bool autoPair = true;
+
+    [Header("取景参数（Link 为空时的兜底值）")]
+    [SerializeField] private int rtHeight = 720;
+    [SerializeField] private float farClip = 200f;
+    [SerializeField] private float nearClip = 0.05f;
+    [SerializeField] private float preloadRadius = 15f;
+    [SerializeField] private bool mirrorU = false;
+    [SerializeField] private string openingPath = "Cube.001/Plane";
 
     [Header("本门")]
     [Tooltip("本门根节点（门框）。留空则取自身。")]
@@ -86,17 +99,20 @@ public class PortalWindow : MonoBehaviour
     private readonly Vector3[] srcCorners = new Vector3[4];
     private readonly Vector3[] destCorners = new Vector3[4];
 
+    // ── 方案 B：运行时推导的配对信息 ──
+    private bool derivedMapYaw180;       // 运行时根据两扇门朝向差计算
+
     private void Awake()
     {
         if (srcFrame == null) srcFrame = transform;
-        if (link == null)
+        if (!autoPair && link == null)
         {
-            Debug.LogError("[PortalWindow] 未指定门配对（WorldLink），本门不会工作。", this);
+            Debug.LogError("[PortalWindow] 未指定门配对（WorldLink）且 autoPair 关闭，本门不会工作。", this);
             return;
         }
         srcPlane = FindOpening(srcFrame);
         if (srcPlane == null)
-            Debug.LogError("[PortalWindow] 找不到门洞平面 " + link.OpeningPath + "（挂在 " + srcFrame.name + " 下）", this);
+            Debug.LogError("[PortalWindow] 找不到门洞平面 " + ResolvedOpeningPath + "（挂在 " + srcFrame.name + " 下）", this);
     }
 
     private void OnEnable()
@@ -112,7 +128,7 @@ public class PortalWindow : MonoBehaviour
     // 先按配置路径找，找不到就退化为「子树里名字含 plane 的节点」
     private Transform FindOpening(Transform doorRoot)
     {
-        var t = doorRoot.Find(link.OpeningPath);
+        var t = doorRoot.Find(ResolvedOpeningPath);
         if (t != null) return t;
         foreach (var c in doorRoot.GetComponentsInChildren<Transform>(true))
             if (c != doorRoot && c.name.ToLower().Contains("plane")) return c;
@@ -123,10 +139,10 @@ public class PortalWindow : MonoBehaviour
     // 供世界流送器（WorldStreamer）查询
     // ─────────────────────────────────────────────────────────────
     /// <summary>本门通往的世界（场景名）。</summary>
-    public string TargetWorldName { get { return link != null ? link.WorldSceneName : null; } }
+    public string TargetWorldName { get { return ResolvedWorldSceneName; } }
 
     /// <summary>本门的预载半径（米）：世界流送器据此决定何时装载目标世界。</summary>
-    public float PreloadRadius { get { return link != null ? link.PreloadRadius : 0f; } }
+    public float PreloadRadius { get { return ResolvedPreloadRadius; } }
 
     /// <summary>本门根节点：世界流送器用它量"玩家离本门多远"。</summary>
     public Transform SrcFrame { get { return srcFrame; } }
@@ -134,13 +150,25 @@ public class PortalWindow : MonoBehaviour
     /// <summary>本门门板是否开着（世界流送器据此保住"开着的门洞背后"的世界）。</summary>
     public bool IsDoorOpen { get { return door != null && door.IsOpen; } }
 
+    // ── 方案 B：统一解析（autoPair 时推导，否则用 Link） ──
+    private string ResolvedWorldSceneName { get { return autoPair ? DerivePartnerScene() : (link != null ? link.WorldSceneName : null); } }
+    private string ResolvedWorldDoorName { get { return autoPair ? DerivePartnerDoor() : (link != null ? link.WorldDoorName : null); } }
+    private bool ResolvedMapYaw180 { get { return autoPair ? derivedMapYaw180 : (link != null ? link.MapYaw180 : false); } }
+    private string ResolvedOpeningPath { get { return link != null && !string.IsNullOrEmpty(link.OpeningPath) ? link.OpeningPath : openingPath; } }
+    private int ResolvedRtHeight { get { return link != null ? link.RtHeight : rtHeight; } }
+    private float ResolvedFarClip { get { return link != null ? link.FarClip : farClip; } }
+    private float ResolvedNearClip { get { return link != null ? link.NearClip : nearClip; } }
+    private float ResolvedPreloadRadius { get { return link != null ? link.PreloadRadius : preloadRadius; } }
+    private bool ResolvedMirrorU { get { return link != null ? link.MirrorU : mirrorU; } }
+
     // ─────────────────────────────────────────────────────────────
     // 等待目标世界：装载/卸载由 WorldStreamer 按需求裁决（见其类注释），
     // 本窗只负责"世界就绪后把取景建起来"。
     // ─────────────────────────────────────────────────────────────
     private void Update()
     {
-        if (link == null || srcFrame == null) return;
+        if (srcFrame == null) return;
+        if (!autoPair && link == null) return;
         if (!PlayerRef.IsReady) return;
 
         WorldStreamer.Tick();   // 每帧一次装载/卸载裁决（幂等：多扇门重复调用无副作用）
@@ -148,37 +176,40 @@ public class PortalWindow : MonoBehaviour
         if (ready || failed) return;
 
         // 玩家还远就不建立取景。半径由门配对配置；≤0 表示开局立即建立
-        float radius = link.PreloadRadius;
+        float radius = ResolvedPreloadRadius;
         if (radius > 0f && (PlayerRef.Root.position - srcFrame.position).sqrMagnitude > radius * radius) return;
 
         // 目标世界可能已由其它门装好——优先复用，绝不重复加载
-        if (!WorldStreamer.IsWorldReady(link.WorldSceneName)) return;
+        if (!WorldStreamer.IsWorldReady(ResolvedWorldSceneName)) return;
         OnWorldLoaded(null);
     }
 
     private void OnWorldLoaded(AsyncOperation op)
     {
         if (ready) return;   // 幂等：只初始化一次，避免重复创建相机/取景屏
-        var scene = SceneManager.GetSceneByName(link.WorldSceneName);
-        if (!scene.isLoaded) { Debug.LogError("[PortalWindow] 目标场景未加载：" + link.WorldSceneName, this); return; }
+        var scene = SceneManager.GetSceneByName(ResolvedWorldSceneName);
+        if (!scene.isLoaded) { Debug.LogError("[PortalWindow] 目标场景未加载：" + ResolvedWorldSceneName, this); return; }
 
         // 找不到配对门 / 门洞平面属于**配置错误**（对面那扇门被删了或挪走了），
         // 不是暂时的：置 failed 彻底放弃，否则 ready 永远为 false，Update 会每帧重试刷屏。
         // 修好配对后重进 Play 即可（或点菜单 FYP/门配对/扫描并自动重配）。
-        destFrame = FindDoor(scene, link.WorldDoorName);
+        destFrame = FindDoor(scene, ResolvedWorldDoorName);
         if (destFrame == null)
         {
-            Debug.LogError("[PortalWindow] 目标世界里找不到门：" + link.WorldDoorName
-                           + "（" + link.WorldSceneName + "）。配对已失效，本门停用。"
+            Debug.LogError("[PortalWindow] 目标世界里找不到门：" + ResolvedWorldDoorName
+                           + "（" + ResolvedWorldSceneName + "）。配对已失效，本门停用。"
                            + "请用 FYP/门配对/扫描并自动重配 修复。", this);
             failed = true;
             return;
         }
 
-        destPlane = destFrame.Find(link.OpeningPath);
+        // 方案 B：运行时根据两扇门朝向差判定 mapYaw180
+        DeriveMapYaw180(destFrame);
+
+        destPlane = destFrame.Find(ResolvedOpeningPath);
         if (destPlane == null)
         {
-            Debug.LogError("[PortalWindow] 目标门找不到门洞平面：" + link.OpeningPath, this);
+            Debug.LogError("[PortalWindow] 目标门找不到门洞平面：" + ResolvedOpeningPath, this);
             failed = true;
             return;
         }
@@ -292,7 +323,7 @@ public class PortalWindow : MonoBehaviour
 
         cooldown = crossCooldown;
         PlayerRef.Teleport(target, facing);
-        WorldStreamer.NotifyCrossed(link.WorldSceneName);   // 登记"玩家已在对面世界"：脚下的世界不许被流送器卸掉
+        WorldStreamer.NotifyCrossed(ResolvedWorldSceneName);   // 登记"玩家已在对面世界"：脚下的世界不许被流送器卸掉
 
         // 重置两侧的穿行基准：对面那扇门若沿用上一帧的陈旧值，会把玩家立刻弹回来
         var other = destFrame.GetComponentInChildren<PortalWindow>(true);
@@ -348,14 +379,14 @@ public class PortalWindow : MonoBehaviour
     // ─────────────────────────────────────────────────────────────
     private Vector3 MapLocalPoint(Vector3 srcLocal)
     {
-        return link != null && link.MapYaw180
+        return ResolvedMapYaw180
             ? new Vector3(-srcLocal.x, srcLocal.y, -srcLocal.z)
             : srcLocal;
     }
 
     private Vector3 MapLocalDirection(Vector3 srcLocalDir)
     {
-        return link != null && link.MapYaw180
+        return ResolvedMapYaw180
             ? new Vector3(-srcLocalDir.x, srcLocalDir.y, -srcLocalDir.z)
             : srcLocalDir;
     }
@@ -377,8 +408,8 @@ public class PortalWindow : MonoBehaviour
         // 取景渲染距离 = preloadRadius × 2。
         // 但 preloadRadius ≤0 表示"开局即加载的常驻世界"，乘出来是 0 会让门洞**永远不渲染**，
         // 所以这种情况用一个够大的固定值兜底（常驻世界的取景本来就该一直可见）。
-        float renderRadius = link.PreloadRadius > 0f
-            ? link.PreloadRadius * 2f
+        float renderRadius = ResolvedPreloadRadius > 0f
+            ? ResolvedPreloadRadius * 2f
             : ResidentRenderRadius;
         if ((playerCam.transform.position - srcFrame.position).sqrMagnitude > renderRadius * renderRadius)
             return; // 离得远就不渲染取景，省性能
@@ -455,7 +486,8 @@ public class PortalWindow : MonoBehaviour
     {
         float aspect = Mathf.Max(0.1f,
             (srcCorners[1] - srcCorners[0]).magnitude / Mathf.Max(0.05f, (srcCorners[3] - srcCorners[0]).magnitude));
-        rt = new RenderTexture(Mathf.RoundToInt(link.RtHeight * aspect), link.RtHeight, 24, RenderTextureFormat.Default);
+        int h = ResolvedRtHeight;
+        rt = new RenderTexture(Mathf.RoundToInt(h * aspect), h, 24, RenderTextureFormat.Default);
         rt.Create();
     }
 
@@ -523,7 +555,7 @@ public class PortalWindow : MonoBehaviour
         quadMat.SetVector("_Origin", srcCorners[1]);   // u=0 的那个角（本约定下 = 门局部 +X 侧）
         quadMat.SetVector("_UDir", new Vector4(uDir.x, uDir.y, uDir.z, uLen));
         quadMat.SetVector("_VDir", new Vector4(vDir.x, vDir.y, vDir.z, vLen));
-        quadMat.SetFloat("_MirrorU", link.MirrorU ? 1f : 0f);
+        quadMat.SetFloat("_MirrorU", ResolvedMirrorU ? 1f : 0f);
 
         // 关门暗板：不透明深色（原黑板槽是透明化材质，直接换回会透视 =「门消失」观感）
         darkMat = new Material(Shader.Find("Standard"));
@@ -545,8 +577,8 @@ public class PortalWindow : MonoBehaviour
         go.transform.SetParent(transform, false);
         portalCam = go.AddComponent<Camera>();
         portalCam.targetTexture = rt;
-        portalCam.nearClipPlane = link.NearClip;
-        portalCam.farClipPlane = link.FarClip;
+        portalCam.nearClipPlane = ResolvedNearClip;
+        portalCam.farClipPlane = ResolvedFarClip;
         portalCam.enabled = false;      // 手动 Render，便于藏门
         portalCam.allowHDR = false;
         portalCam.allowMSAA = false;
@@ -584,9 +616,9 @@ public class PortalWindow : MonoBehaviour
             if (y > maxY) maxY = y;
             planeZ = z;
         }
-        float d2 = Mathf.Max(link.NearClip * 1.01f, Mathf.Abs(planeZ));
-        float s = link.NearClip / d2;
-        portalCam.projectionMatrix = Matrix4x4.Frustum(minX * s, maxX * s, minY * s, maxY * s, link.NearClip, link.FarClip);
+        float d2 = Mathf.Max(ResolvedNearClip * 1.01f, Mathf.Abs(planeZ));
+        float s = ResolvedNearClip / d2;
+        portalCam.projectionMatrix = Matrix4x4.Frustum(minX * s, maxX * s, minY * s, maxY * s, ResolvedNearClip, ResolvedFarClip);
         // 千万不要在设完 projectionMatrix 之后再碰 aspect / fieldOfView / orthographicSize——
         // 任何一个都会让 Unity 按 FOV 重算投影矩阵，把上面的偏心视锥整个覆盖掉
         //（宽高比已经包含在 Frustum 参数里）。
@@ -624,6 +656,58 @@ public class PortalWindow : MonoBehaviour
     {
         ReleaseView();
         if (darkMat != null) { Destroy(darkMat); darkMat = null; }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 方案 B：门名推导配对
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 从本门名推导目标场景名。
+    /// 规则：anywhere-door-X-A → X（"-" 替换为 "_"）；anywhere-door-X → SpecimenLab。
+    /// </summary>
+    private string DerivePartnerScene()
+    {
+        string name = gameObject.name;
+        const string prefix = "anywhere-door-";
+        if (!name.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) return null;
+        string key = name.Substring(prefix.Length);
+        bool hasA = key.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase);
+        if (hasA)
+        {
+            key = key.Substring(0, key.Length - 2);
+            return key.Replace("-", "_");
+        }
+        return "SpecimenLab";
+    }
+
+    /// <summary>
+    /// 从本门名推导配对门名。
+    /// 规则：anywhere-door-X-A ↔ anywhere-door-X。
+    /// </summary>
+    private string DerivePartnerDoor()
+    {
+        string name = gameObject.name;
+        const string prefix = "anywhere-door-";
+        if (!name.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) return null;
+        string key = name.Substring(prefix.Length);
+        bool hasA = key.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase);
+        if (hasA)
+        {
+            key = key.Substring(0, key.Length - 2);
+            return prefix + key;
+        }
+        return prefix + key + "-A";
+    }
+
+    /// <summary>
+    /// 方案 B：运行时根据两扇门实际朝向差计算 mapYaw180。
+    /// </summary>
+    private void DeriveMapYaw180(Transform partnerFrame)
+    {
+        if (!autoPair || partnerFrame == null || srcFrame == null) return;
+        float diff = Mathf.Abs(Mathf.DeltaAngle(srcFrame.eulerAngles.y, partnerFrame.eulerAngles.y));
+        derivedMapYaw180 = diff > 90f;
     }
 
     /// <summary>
@@ -682,7 +766,7 @@ public class PortalWindow : MonoBehaviour
             Vector3 uDir = new Vector3(ud.x, ud.y, ud.z);
             Vector3 vDir = new Vector3(vd.x, vd.y, vd.z);
             float align = Vector3.Dot(uDir, portalCam.transform.right);
-            if (link.MirrorU) align = -align;
+            if (ResolvedMirrorU) align = -align;
             float uLen = (srcCorners[0] - srcCorners[1]).magnitude;
             float vLen = (srcCorners[3] - srcCorners[0]).magnitude;
             bool scaleOk = Mathf.Abs(uDir.magnitude - 1f) < 0.001f && Mathf.Abs(vDir.magnitude - 1f) < 0.001f
@@ -705,7 +789,7 @@ public class PortalWindow : MonoBehaviour
         if (!ready || !showDebugOsd) return;
         GUI.color = Color.white;
         GUI.Label(new Rect(20f, Screen.height - 96f, 700f, 20f),
-            "PortalWindow  " + link.WorldSceneName + "  映射Y180=" + link.MapYaw180
-            + "  镜像U=" + link.MirrorU + "  RT=" + rt.width + "x" + rt.height);
+            "PortalWindow  " + ResolvedWorldSceneName + "  映射Y180=" + ResolvedMapYaw180
+            + "  镜像U=" + ResolvedMirrorU + "  RT=" + rt.width + "x" + rt.height);
     }
 }

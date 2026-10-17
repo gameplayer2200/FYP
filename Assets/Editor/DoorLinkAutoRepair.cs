@@ -13,7 +13,7 @@ using UnityEngine.SceneManagement;
 /// WorldLink 里硬编码了「目标场景名 + 目标门名」。把一扇门挪到别的场景后，
 /// 所有指向它的 link 就全错了，必须手工一条条改。
 ///
-/// 本工具把配对**回归到命名约定**：任意门名 `X` 与 `X-Lab` 互为配对。
+/// 本工具把配对**回归到命名约定**：任意门名 `X` 与 `X-A` 互为配对。
 /// 场景不靠配置，而是扫描 Build Settings 里所有场景现算——门挪到哪都自动跟上。
 ///
 /// ── 用法 ────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ using UnityEngine.SceneManagement;
 /// 它会：扫全部场景 → 按名字配对 → 复用或新建 WorldLink → 写回每扇门的 PortalWindow → 保存场景
 ///
 /// ── 判定规则 ────────────────────────────────────────────────────
-///   · 配对：`anywhere-door-FactoryNight-Lab` ↔ `anywhere-door-FactoryNight`
+///   · 配对：`anywhere-door-FactoryNight-A` ↔ `anywhere-door-FactoryNight`
 ///   · mapYaw180：两扇门世界朝向相差 > 90° 时置 true（门→门映射需绕 Y 转 180°）
 ///   · preloadRadius：复用已有资产的调参；新建时实验室侧 4.5、其余 15
 ///
@@ -30,7 +30,7 @@ using UnityEngine.SceneManagement;
 public static class DoorLinkAutoRepair
 {
     const string DoorPrefix = "anywhere-door";
-    const string LabSuffix = "-Lab";
+    const string LabSuffix = "-A";
     const string WorldLinkDir = "Assets/WorldLinks";
     const string HomeScene = "SpecimenLab";
 
@@ -60,7 +60,8 @@ public static class DoorLinkAutoRepair
 
             for (int i = 0; i < scenePaths.Count; i++)
             {
-                var sc = EditorSceneManager.OpenScene(scenePaths[i], OpenSceneMode.Single);
+                // Additive 加载：避免 Single 关闭玩家所在的原始场景
+                var sc = EditorSceneManager.OpenScene(scenePaths[i], OpenSceneMode.Additive);
                 int found = 0;
                 foreach (var root in sc.GetRootGameObjects())
                     foreach (var t in root.GetComponentsInChildren<Transform>(true))
@@ -78,6 +79,9 @@ public static class DoorLinkAutoRepair
                         found++;
                     }
                 report.AppendLine("  " + sc.name + "：" + found + " 扇");
+                // 扫描完关闭，避免编辑器里堆太多场景
+                if (sc.path != originalPath)
+                    EditorSceneManager.CloseScene(sc, true);
             }
 
             // ── 配对：按命名约定 ──
@@ -130,7 +134,8 @@ public static class DoorLinkAutoRepair
             {
                 string path = ScenePathOf(kv.Key);
                 if (path == null) continue;
-                var sc = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+                // Additive 加载：不关闭原始场景
+                var sc = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
                 int wrote = 0;
                 foreach (var pair in kv.Value)
                 {
@@ -155,6 +160,9 @@ public static class DoorLinkAutoRepair
                     EditorSceneManager.SaveScene(sc);
                     report.AppendLine("  已保存 " + sc.name + "（写入 " + wrote + " 个 link）");
                 }
+                // 写回完关闭，避免编辑器里堆太多场景
+                if (sc.path != originalPath)
+                    EditorSceneManager.CloseScene(sc, true);
             }
 
             AssetDatabase.SaveAssets();
@@ -173,12 +181,12 @@ public static class DoorLinkAutoRepair
 
     // ───────────── 规则 ─────────────
 
-    /// <summary>按命名约定推导配对门名：`X-Lab` → `X`，`X` → `X-Lab`。</summary>
+    /// <summary>按命名约定推导配对门名：`X-A` → `X`，`X` → `X-A`。</summary>
     public static string PartnerOf(string doorName)
     {
-        if (doorName.EndsWith(LabSuffix, StringComparison.OrdinalIgnoreCase))
-            return doorName.Substring(0, doorName.Length - LabSuffix.Length);
-        return doorName + LabSuffix;
+        if (doorName.EndsWith("-A", StringComparison.OrdinalIgnoreCase))
+            return doorName.Substring(0, doorName.Length - 2);
+        return doorName + "-A";
     }
 
     /// <summary>两扇门朝向相差是否接近 180°（用最短夹角，避免 359/1 这种绕圈误判）。</summary>

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: FactoryNightToFactoryDay
   m_EditorClassIdentifier: 
   worldSceneName: FactoryDay
-  worldDoorName: anywhere-door-FactoryNight-Lab
+  worldDoorName: anywhere-door-FactoryNight
   openingPath: Cube.001/Plane
   rtHeight: 720
   farClip: 200

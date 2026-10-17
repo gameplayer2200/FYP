@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Flooded_GroundsToFactoryNight
   m_EditorClassIdentifier: 
   worldSceneName: FactoryNight
-  worldDoorName: anywhere-door-Flooded-Grounds-Lab
+  worldDoorName: anywhere-door-Flooded-Grounds
   openingPath: Cube.001/Plane
   rtHeight: 720
   farClip: 200
   nearClip: 0.05
   preloadRadius: 15
-  mapYaw180: 1
+  mapYaw180: 0
   mirrorU: 0
