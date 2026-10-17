@@ -367,6 +367,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5408870938746474829}
   - component: {fileID: 8167490539608638456}
+  - component: {fileID: -5196167091972166619}
   m_Layer: 0
   m_Name: anywhere-door
   m_TagString: Untagged
@@ -416,6 +417,25 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.19, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &-5196167091972166619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4637577157199694839}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec60f90da6e943e4cbf403a349a371a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  link: {fileID: 0}
+  srcFrame: {fileID: 0}
+  backSlot: 0
+  crossCooldown: 0.6
+  crossPlaneTolerance: 1.5
+  crossPlaneLead: 0.25
+  showDebugOsd: 1
 --- !u!1 &5122547189928002754
 GameObject:
   m_ObjectHideFlags: 0

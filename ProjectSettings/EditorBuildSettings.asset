@@ -14,4 +14,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Metro.unity
     guid: e01bbb2c450fc9341a8c5681b9068b94
+  - enabled: 1
+    path: Assets/Scenes/FactoryDay.unity
+    guid: 3695dfa29624f624fab36780384e3387
+  - enabled: 1
+    path: Assets/Scenes/FactoryNight.unity
+    guid: 88b57fe4c076c5149bffb0a257a20ee1
+  - enabled: 1
+    path: Assets/Scenes/Flooded_Grounds.unity
+    guid: c0d944ca9defd20449bc336e50d75a08
   m_configObjects: {}
