@@ -41,6 +41,14 @@ public class PortalWindow : MonoBehaviour
     [SerializeField] private bool mirrorU = false;
     [SerializeField] private string openingPath = "Cube.001/Plane";
 
+    [Header("取景分辨率自适应")]
+    [Tooltip("勾选后取景 RT 的高度会跟着「门洞此刻在屏幕上占多高」自动升降档：\n" +
+             "玩家离得远时门洞只有几十像素，基准值就够；贴到门口时门洞铺满屏幕，\n" +
+             "固定 720 会被放大采样，画面糊成一团。关掉则永远用 rtHeight（旧行为）。")]
+    [SerializeField] private bool dynamicResolution = true;
+    [Tooltip("自适应上限（像素高度）。门洞在屏幕上再大也不会超过它，用来兜住性能。")]
+    [SerializeField] private int maxRtHeight = 1440;
+
     [Header("取景相机后撤钳制")]
     [Tooltip("取景相机离对门门洞中心的最大距离（米）。玩家离门越远，虚拟相机在对门后方撤得越深；" +
              "撤过头会钻进墙里/走出世界边界，门洞里只剩一片纯色（实测：远看整片绿色），" +
@@ -80,6 +88,8 @@ public class PortalWindow : MonoBehaviour
     private Transform destPlane;         // 目标门门洞平面
     private Camera portalCam;
     private RenderTexture rt;
+    private int currentRtHeight;         // 当前 RT 高度（自适应时用来判断是否需要改尺寸）
+    private float rtAspect = 0.58f;      // 门洞宽高比（CreateRt 时实测，改尺寸要沿用）
     private Material quadMat;            // 投影屏材质（Custom/PortalPanelProj）
     private Material originalBackMat;    // 背板原本的材质：关门时换回它
     private Material darkMat;            // 兜底暗板（原材质缺失时才用）
@@ -443,6 +453,7 @@ public class PortalWindow : MonoBehaviour
             return; // 离得远就不渲染取景，省性能
 
         UpdatePortalCamera(playerCam);
+        UpdateRtResolution(playerCam);
         RenderPortal();
     }
 
@@ -463,12 +474,23 @@ public class PortalWindow : MonoBehaviour
     private void SyncBackPanel(bool force)
     {
         if (door == null) return;
-        bool wantDark = !door.IsOpen;
+        // 判据必须是门板的**实际**角度，不是 IsOpen 意图值。
+        // IsOpen 在 SetOpen(false) 那一帧就翻成 false，而门板还要走完
+        // spellWindup(1.2s) + 旋转(0.8s) + spellOutro(0.6s) 才真的合上；
+        // 用 IsOpen 判定 → 门还在慢慢转回去，门洞先换回背板材质，观感就是「没关就黑了」。
+        bool wantDark = door.OpenFraction <= ClosedFraction;
         if (!force && wantDark == backPanelDark) return;
         // 原材质没捕获到（例如 Cube.001 结构不同）才退回暗板
         ApplyBackSlotMaterial(wantDark ? (originalBackMat != null ? originalBackMat : darkMat) : quadMat);
         backPanelDark = wantDark;
     }
+
+    /// <summary>
+    /// 门板开合进度低于此值才算「关上了」，背板才换回门自己的材质。
+    /// 取 0.02 = 门板还差 2% 的角度（95° 门约 2°）就完全合上——肉眼已看不出缝。
+    /// 不能取大值：那会变成「门还剩一条缝就先黑」，正是要修的毛病。
+    /// </summary>
+    private const float ClosedFraction = 0.02f;
 
     /// <summary>
     /// 配对门开合同步：两个世界是同一扇门，开合必须一致。
@@ -514,9 +536,68 @@ public class PortalWindow : MonoBehaviour
     {
         float aspect = Mathf.Max(0.1f,
             (srcCorners[1] - srcCorners[0]).magnitude / Mathf.Max(0.05f, (srcCorners[3] - srcCorners[0]).magnitude));
+        rtAspect = aspect;
         int h = ResolvedRtHeight;
         rt = new RenderTexture(Mathf.RoundToInt(h * aspect), h, 24, RenderTextureFormat.Default);
+        rt.filterMode = FilterMode.Bilinear;
         rt.Create();
+        currentRtHeight = h;
+    }
+
+    /// <summary>
+    /// 让取景 RT 的高度跟着「门洞在玩家屏幕上占多高」走。
+    ///
+    /// 为什么要这样：RT 是**贴图**，门洞在屏幕上占多少像素，它就得有多少像素，
+    /// 否则就是放大采样 → 糊。玩家离得远时门洞在屏幕上只有几十像素高，720 绰绰有余；
+    /// 贴到门口时门洞铺满整个屏幕（1080p 下 1000+ 像素），720 的图被拉大两倍多，
+    /// 糊得连门里是什么都看不清。
+    ///
+    /// 不能逐帧连续改：改尺寸要重建 RT（`RenderTexture.Release()` + `Create()`），
+    /// 每帧重建是纯浪费。所以只在实际需要量明显超出时升（≥1.15×）、明显富余时才降
+    /// （<1/1.6），正常走动几乎不会触发重建；且升档一次到位，贴脸瞬间就该清晰。
+    /// </summary>
+    private void UpdateRtResolution(Camera playerCam)
+    {
+        if (!dynamicResolution || rt == null || playerCam == null) return;
+
+        // 自愈：门洞角点被清成零向量时（编辑器刷新 / 场景重载后实测出现过 srcCorners 全 0），
+        // NDC 投影恒等、screenFraction 恒为 0，自适应会**静默失效**。发现退化就从门洞平面重读。
+        if (srcCorners[0] == srcCorners[2] && srcPlane != null)
+            ReadCorners(srcPlane, srcCorners);
+
+        // 门洞在屏幕上的高度占比：把门洞上下边中点投到 NDC，取 |Δy| / 2
+        float ndcTop = ProjectNdcY(playerCam, srcCorners[3], srcCorners[2]);
+        float ndcBottom = ProjectNdcY(playerCam, srcCorners[0], srcCorners[1]);
+        if (float.IsNaN(ndcTop) || float.IsNaN(ndcBottom)) return;
+        float screenFraction = Mathf.Abs(ndcTop - ndcBottom) * 0.5f;   // NDC 高度 2 = 铺满屏幕
+        if (screenFraction <= 0.0001f) return;
+
+        // 门洞在屏幕上实际占多少像素 → 这就是需要的 RT 高度
+        int wanted = Mathf.CeilToInt(screenFraction * playerCam.pixelHeight);
+        int minH = ResolvedRtHeight;
+        int maxH = Mathf.Max(minH, maxRtHeight);
+        wanted = Mathf.Clamp(wanted, minH, maxH);
+
+        // 滞回：升档要「明显不够」才升（1.15×），降档要「明显富余」才降（1.6×），
+        // 免得站在某个距离上反复重建 RT。
+        if (wanted <= currentRtHeight && wanted * 1.6f >= currentRtHeight) return;
+        if (wanted > currentRtHeight && wanted < currentRtHeight * 1.15f) return;
+        if (wanted == currentRtHeight) return;
+
+        currentRtHeight = wanted;
+        rt.Release();
+        rt.height = wanted;
+        rt.width = Mathf.Max(1, Mathf.RoundToInt(wanted * rtAspect));
+        rt.Create();
+    }
+
+    /// <summary>把世界坐标点投到玩家相机的 NDC y；在相机背后返回 NaN。</summary>
+    private static float ProjectNdcY(Camera cam, Vector3 a, Vector3 b)
+    {
+        Vector3 p = (a + b) * 0.5f;
+        Vector3 v = cam.WorldToViewportPoint(p);
+        if (v.z <= 0f) return float.NaN;
+        return (v.y - 0.5f) * 2f;
     }
 
     // 门洞四角（世界坐标）：c0=-r-u  c1=+r-u  c2=+r+u  c3=-r+u
@@ -762,13 +843,18 @@ public class PortalWindow : MonoBehaviour
     }
 
     /// <summary>
-    /// 方案 B：运行时根据两扇门实际朝向差计算 mapYaw180。
+    /// 门是同一个开口的两面：从 A 门穿到 B 门，玩家必须绕门轴转半圈，
+    /// 才会「背对着对门、面朝对门所在的世界」走出去。
+    /// 因此映射恒为 180°（(x,y,z) → (-x,y,-z)），与两扇门在世界里的朝向差无关。
+    ///
+    /// 旧实现按 |两门 eulerAngles.y 之差| > 90 推导：两门朝向相反时（实验室↔Metro、
+    /// 实验室↔工厂昼）恰好算对，而两门同朝向时（工厂昼↔工厂夜、工厂夜↔水淹区）
+    /// 会错算成 false —— 表现就是「从夜工厂/水淹区出来时方向是反的，要自己转身 180°」。
     /// </summary>
     private void DeriveMapYaw180(Transform partnerFrame)
     {
         if (!autoPair || partnerFrame == null || srcFrame == null) return;
-        float diff = Mathf.Abs(Mathf.DeltaAngle(srcFrame.eulerAngles.y, partnerFrame.eulerAngles.y));
-        derivedMapYaw180 = diff > 90f;
+        derivedMapYaw180 = true;
     }
 
     /// <summary>
@@ -795,6 +881,7 @@ public class PortalWindow : MonoBehaviour
         if (portalCam != null) { Destroy(portalCam.gameObject); portalCam = null; }
         if (rt != null) { rt.Release(); Destroy(rt); rt = null; }
         if (quadMat != null) { Destroy(quadMat); quadMat = null; }
+        currentRtHeight = 0;
     }
 
     // ─────────────────────────────────────────────────────────────

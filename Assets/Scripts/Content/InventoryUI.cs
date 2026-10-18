@@ -6,7 +6,8 @@ using UnityEngine.UI;
 ///   手电筒——拾取后亮起；开灯（F）时暖色高亮 + 呼吸描边。
 ///   万用表——拾取后亮起（配电箱测线用）。
 ///   异常物——软盘图标 + 携带数角标（×N）；收容台上交后归零。
-/// 未获得 = 低透明暗刻；获得瞬间一次弹跳动画。
+/// 鼠标滚轮 = 切换选中格（三格循环），选中格亮蓝环 + 弹跳反馈。
+/// 未获得 = 槽位留空（不画图标）；获得瞬间一次弹跳动画。
 ///
 /// 运行时自建：优先复用场景里的 InventoryCanvas（清掉旧 Slots），没有就自建——不依赖场景接线。
 /// 图标：Assets/Resources/UI/Icons/（ItemIconBaker 烘焙；缺图时静默降级只显框）。
@@ -14,12 +15,13 @@ using UnityEngine.UI;
 /// </summary>
 public class InventoryUI : MonoBehaviour
 {
-    private const float SlotSize = 100f;
-    private const float SlotGap = 12f;
-    private const float PadX = 20f;
-    private const float PadY = 16f;
-    private const float BarBottom = 30f;
-    private const float IconInner = 76f;
+    // 尺寸（画布单位；整体大小调这里——1280×720 参考分辨率）
+    private const float SlotSize = 86f;
+    private const float SlotGap = 10f;
+    private const float PadX = 17f;
+    private const float PadY = 14f;
+    private const float BarBottom = 26f;
+    private const float IconInner = 64f;
 
     // 主题色（与 OrderBoard 同一套深底青调）
     private static readonly Color PanelFill = new Color(0.043f, 0.055f, 0.067f, 0.82f);
@@ -30,13 +32,15 @@ public class InventoryUI : MonoBehaviour
     private static readonly Color SlotActiveLine = new Color(0.22f, 0.86f, 0.95f, 0.55f);
     private static readonly Color SlotWarmFill = new Color(1f, 0.82f, 0.55f, 0.10f);
     private static readonly Color SlotWarmLine = new Color(1f, 0.82f, 0.55f, 0.60f);
-    private static readonly Color IconDim = new Color(0.62f, 0.68f, 0.74f, 0.40f);
+    private static readonly Color FocusFill = new Color(0.22f, 0.86f, 0.95f, 0.06f);
+    private static readonly Color FocusLine = new Color(0.30f, 0.95f, 1f, 0.85f);
     private static readonly Color IconWarm = new Color(1f, 0.95f, 0.82f, 1f);
     private static readonly Color BadgeColor = new Color(0.55f, 0.92f, 1f, 1f);
 
     private class ItemSlot
     {
         public RectTransform root;
+        public Image focus;     // 选中环（最底层）
         public Image frame;
         public Image icon;
         public Text badge;      // 角标（异常物 ×N）
@@ -47,12 +51,13 @@ public class InventoryUI : MonoBehaviour
     private ItemSlot flashSlot, meterSlot, specimenSlot;
 
     private bool built;
-    private Sprite spPanel, spSlotIdle, spSlotActive, spSlotWarm, spKeycap;
+    private Sprite spPanel, spSlotIdle, spSlotActive, spSlotWarm, spKeycap, spFocus;
     private Sprite spriteFlash, spriteMeter, spriteFloppy;
     private Font font;
 
     private bool lastHasFlash, lastHasMeter, lastFlashOn;
     private int lastSpecimen = -1;
+    private int lastSelected = -1;
 
     private void OnEnable()
     {
@@ -60,16 +65,31 @@ public class InventoryUI : MonoBehaviour
         // 首帧就把状态推一遍（域重载后也靠它补正）
         lastHasFlash = lastHasMeter = lastFlashOn = false;
         lastSpecimen = -1;
+        lastSelected = -1;
     }
 
     private void Update()
     {
-        if (!built) return;
+        // 自愈：域重载/重建中断等边缘情况丢了引用时，整体重建而不是空引用报错
+        if (!built || flashSlot == null || meterSlot == null || specimenSlot == null)
+        {
+            built = false;
+            Build();
+            if (!built) return;
+            // 重建后下一帧全量刷新（角标/状态一次推齐）
+            lastHasFlash = lastHasMeter = lastFlashOn = false;
+            lastSpecimen = -1;
+        }
+
+        // 鼠标滚轮：切换选中格（三格快速栏循环；上滚=上一个，下滚=下一个）
+        float scroll = Input.mouseScrollDelta.y;
+        if (Mathf.Abs(scroll) > 0.01f) PlayerGear.CycleSelection(scroll > 0f ? -1 : 1);
 
         bool hasFlash = PlayerGear.HasFlashlight;
         bool hasMeter = PlayerGear.HasMultimeter;
         bool flashOn = PlayerGear.FlashlightOn;
         int specimens = Inventory.Instance != null ? Inventory.Instance.SpecimenCount : 0;
+        int selected = PlayerGear.SelectedIndex;
 
         if (hasFlash != lastHasFlash) { lastHasFlash = hasFlash; if (hasFlash) flashSlot.pop = 1f; }
         if (hasMeter != lastHasMeter) { lastHasMeter = hasMeter; if (hasMeter) meterSlot.pop = 1f; }
@@ -82,6 +102,11 @@ public class InventoryUI : MonoBehaviour
                 specimenSlot.badge.text = "×" + specimens;
                 specimenSlot.badge.enabled = specimens > 0;
             }
+        }
+        if (selected != lastSelected)
+        {
+            if (lastSelected != -1 && selected >= 0 && selected <= 2) SlotAt(selected).pop = 1f;
+            lastSelected = selected;
         }
         lastFlashOn = flashOn;
 
@@ -97,7 +122,12 @@ public class InventoryUI : MonoBehaviour
 
     private void RefreshAppearance()
     {
-        // 手电筒：未持有=暗刻；持有=青色点亮；开灯=暖色 + 呼吸
+        int selected = PlayerGear.SelectedIndex;
+        SetFocus(flashSlot, selected == 0);
+        SetFocus(meterSlot, selected == 1);
+        SetFocus(specimenSlot, selected == 2);
+
+        // 手电筒：未持有=槽位留空；持有=青色点亮；开灯=暖色 + 呼吸
         if (flashSlot.frame != null)
         {
             Sprite s = !lastHasFlash ? spSlotIdle : (lastFlashOn ? spSlotWarm : spSlotActive);
@@ -110,7 +140,7 @@ public class InventoryUI : MonoBehaviour
             }
             flashSlot.frame.color = c;
         }
-        SetIcon(flashSlot, spriteFlash, !lastHasFlash ? IconDim : (lastFlashOn ? IconWarm : Color.white));
+        SetIcon(flashSlot, lastHasFlash ? spriteFlash : null, lastFlashOn ? IconWarm : Color.white);
         if (flashSlot.keycap != null) flashSlot.keycap.SetActive(lastHasFlash);
 
         // 万用表
@@ -119,7 +149,7 @@ public class InventoryUI : MonoBehaviour
             meterSlot.frame.sprite = lastHasMeter ? spSlotActive : spSlotIdle;
             meterSlot.frame.color = Color.white;
         }
-        SetIcon(meterSlot, spriteMeter, lastHasMeter ? Color.white : IconDim);
+        SetIcon(meterSlot, lastHasMeter ? spriteMeter : null, Color.white);
 
         // 异常物：有携带就点亮
         bool hasSpec = lastSpecimen > 0;
@@ -128,14 +158,25 @@ public class InventoryUI : MonoBehaviour
             specimenSlot.frame.sprite = hasSpec ? spSlotActive : spSlotIdle;
             specimenSlot.frame.color = Color.white;
         }
-        SetIcon(specimenSlot, spriteFloppy, hasSpec ? Color.white : IconDim);
+        SetIcon(specimenSlot, hasSpec ? spriteFloppy : null, Color.white);
     }
 
+    /// <summary>sprite 为空 = 还没获得：不画图标（槽位留空）。</summary>
     private static void SetIcon(ItemSlot s, Sprite sprite, Color color)
     {
         if (s.icon == null) return;
         if (s.icon.sprite != sprite) s.icon.sprite = sprite;
-        s.icon.color = color;
+        s.icon.color = sprite != null ? color : new Color(1f, 1f, 1f, 0f);
+    }
+
+    private static void SetFocus(ItemSlot s, bool on)
+    {
+        if (s.focus != null && s.focus.enabled != on) s.focus.enabled = on;
+    }
+
+    private ItemSlot SlotAt(int index)
+    {
+        return index == 0 ? flashSlot : (index == 1 ? meterSlot : specimenSlot);
     }
 
     private static void Animate(ItemSlot s)
@@ -188,6 +229,7 @@ public class InventoryUI : MonoBehaviour
         spSlotIdle = Rounded(12, SlotFill, SlotLine, 1.5f);
         spSlotActive = Rounded(12, SlotActiveFill, SlotActiveLine, 1.5f);
         spSlotWarm = Rounded(12, SlotWarmFill, SlotWarmLine, 1.5f);
+        spFocus = Rounded(14, FocusFill, FocusLine, 2f);
         spKeycap = Rounded(5, new Color(0.07f, 0.09f, 0.11f, 0.92f), new Color(1f, 1f, 1f, 0.22f), 1.5f);
         spriteFlash = LoadIcon("flashlight");
         spriteMeter = LoadIcon("multimeter");
@@ -236,6 +278,16 @@ public class InventoryUI : MonoBehaviour
         rt.sizeDelta = new Vector2(SlotSize, SlotSize);
         rt.anchoredPosition = new Vector2((index - 1) * (SlotSize + SlotGap), 0f);
         slot.root = rt;
+
+        // 选中环（比槽位大一圈，垫在底层）
+        slot.focus = MakeImage(go.transform, "Focus", spFocus);
+        var frt = slot.focus.rectTransform;
+        frt.anchorMin = Vector2.zero;
+        frt.anchorMax = Vector2.one;
+        frt.pivot = new Vector2(0.5f, 0.5f);
+        frt.offsetMin = new Vector2(-5f, -5f);
+        frt.offsetMax = new Vector2(5f, 5f);
+        slot.focus.enabled = false;
 
         slot.frame = MakeImage(go.transform, "Frame", spSlotIdle);
         Stretch(slot.frame.rectTransform);

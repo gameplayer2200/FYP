@@ -50,11 +50,15 @@ public class MetroBlackout : MonoBehaviour
 
     private void Update()
     {
-        if (restored) return;
-
+        // 「玩家是否身处 Metro 世界内」必须每帧刷新，即使已经合闸复明。
+        // 旧实现把这段放在 if (restored) return; 之后：复明那一刻 PlayerInZone 就冻结在
+        // 最后一次的值（玩家正站在站内 → true），此后玩家跑去别的世界，Metro 的异常事件
+        //（电磁风暴 / 幽灵进站）仍会照常触发——表现就是「在别的世界听到 Metro 的音效」。
         var player = PlayerRef.Root;
         bool inZone = player != null && InZone(player.position);
         PlayerInZone = inZone;
+
+        if (restored) return;
 
         if (!inZone)
         {

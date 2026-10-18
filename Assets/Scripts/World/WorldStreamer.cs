@@ -7,14 +7,16 @@ using UnityEngine.SceneManagement;
 /// 世界流送：统一裁决"哪个世界现在装载、哪个世界该卸下"。
 ///
 /// 分工：门配对（WorldLink）只描述"谁通往谁"，PortalWindow 只负责取景与穿行；
-/// 场景的装卸集中在这里，规则三条——
+/// 场景的装卸集中在这里，规则四条——
 ///   1) 需求装载：玩家进入某扇门的 preloadRadius 内 → 该门的目标世界开始**预载**；
 ///   2) 远离卸载：某世界关联的所有门都超出 2×preloadRadius + ReleaseMargin 米 → 卸下
 ///      （保活半径比取景渲染距离 2×preloadRadius 大，不会出现"还在取景却被卸掉"）；
 ///   3) 总量封顶：同时存活的世界不超过 MaxLoadedWorlds（含实验室）；满了先淘汰
-///      "需求最弱"（离玩家最远）的可卸世界，腾不出空位就暂缓本次装载。
+///      "需求最弱"（离玩家最远）的可卸世界，腾不出空位就暂缓本次装载；
+///   4) 常驻世界（ResidentWorlds）：不看门与距离，开局即预载、永不卸载；激活仍走常规裁决
+///      （走近 / 门开 / 人在其中）。开局全激活会触发传送 bug（2026-10-18 实测），不要开绿灯。
 ///
-/// 装载分两步，但两步都发生在玩家走近的路上：
+/// 装载分两步（预载 → 激活）：按需世界两步都发生在玩家走近的路上；常驻世界开局只走"预载"一步。
 ///   预载（读盘 + 反序列化，progress 0→0.9，allowSceneActivation=false）在 preloadRadius 处开始，
 ///   预载一完成立即**激活**（见 ActivationRadiusFactor 里"为什么要立即激活"的两条实测理由）。
 ///   于是重活（读盘摊在多帧、激活/首帧渲染各卡一下）全落在玩家还在半路上时，
@@ -25,7 +27,8 @@ using UnityEngine.SceneManagement;
 ///
 /// 永不卸载：实验室（玩家根对象所在场景）、玩家当前所在世界（穿门时登记——
 /// 异世界里实验室侧的门都远在天边，没有这条护栏会卸掉玩家脚下的世界）、
-/// 以及任何"门还开着"的世界（免得开着的门洞后面突然没了世界）。
+/// 任何"门还开着"的世界（免得开着的门洞后面突然没了世界）、
+/// 以及常驻名单（ResidentWorlds）里的全部世界。
 ///
 /// 演化背景见 docs/adr/0003-worlds-stay-resident.md：世界数量到 4~5 个后，
 /// 加载职责要收敛到一个可替换的抽象，就是本类；将来换流式分块/预算调度，
@@ -35,6 +38,22 @@ public static class WorldStreamer
 {
     /// <summary>同时存活的世界上限，含实验室（5 = 实验室 + 最多 4 个异世界）。</summary>
     public static int MaxLoadedWorlds = 5;
+
+    /// <summary>
+    /// 常驻世界名单：不看门、不看距离，开局即**预载**（读盘/反序列化摊在多帧）、永不卸载
+    /// （2026-10-18 定稿：全部异世界开局加载，不再"走到门前才装"）。TickInner 把名单并进 wanted——
+    /// 这同时兜住远离卸载与封顶淘汰。
+    /// **激活不给常驻世界开绿灯**：仍走常规裁决（玩家走近 / 门开着 / 人已在该世界）。
+    /// 开局就全部激活会触发传送 bug（2026-10-18 实测）；预载已把读盘成本摊掉，激活那一下留到走近再发生。
+    /// 新增异世界时把场景名加进来（实验室自身不用写）。
+    /// </summary>
+    public static readonly HashSet<string> ResidentWorlds = new HashSet<string>
+    {
+        "Metro",
+        "FactoryDay",
+        "FactoryNight",
+        "Flooded_Grounds",
+    };
 
     /// <summary>远离卸载余量（米）：最近的门超过 2×preloadRadius + 本值才卸。</summary>
     public const float ReleaseMargin = 2f;
@@ -105,6 +124,20 @@ public static class WorldStreamer
 
     /// <summary>当前存活的世界数（含实验室，含装载中的）。</summary>
     public static int LoadedWorldCount { get { return CountLoaded(); } }
+
+    /// <summary>常驻世界已经就绪（激活完成）的数量——开局部署提示用（幕布/OSD 轮询）。</summary>
+    public static int ResidentReadyCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (string w in ResidentWorlds) if (IsLoadedNow(w)) n++;
+            return n;
+        }
+    }
+
+    /// <summary>常驻世界是否全部就绪（全部激活完成）。</summary>
+    public static bool AllResidentsReady { get { return ResidentReadyCount >= ResidentWorlds.Count; } }
 
     // ─────────────────────────────────────────────────────────────
     // 登记：PortalWindow 在 OnEnable / OnDisable 调用
@@ -192,6 +225,10 @@ public static class WorldStreamer
         foreach (var kv in nearestDist)
             if (nearestRadius[kv.Key] <= 0f || kv.Value <= nearestRadius[kv.Key]) wanted.Add(kv.Key);
 
+        // 常驻世界：不看门、不看距离，永远记需求——开局全量装载就落在这里。
+        // 记进 wanted 同时兜住后面两步：远离卸载会跳过它、封顶淘汰不选它。
+        foreach (string resident in ResidentWorlds) wanted.Add(resident);
+
         // ── 2) 远离卸载：没有需求、超出保活半径、又不受保护的世界，卸掉 ──
         foreach (var kv in nearestDist)
         {
@@ -211,17 +248,22 @@ public static class WorldStreamer
         TickPreloadAndActivation();
 
         // ── 3) 需求装载：按需装；上限满了先淘汰"需求最弱"的世界 ──
+        // 一帧一件事：同一帧最多发起一个新世界的装载，且世界里还有激活在途就先不发起新装载——
+        // 装载与激活的重活错开，开局"N 个世界连发"的复合卡顿就不会出现（一个一个来）。
+        bool startedThisTick = false;
         foreach (string name in wanted)
         {
             // 注意必须排除 preloaded：预载完成的场景 isLoaded 仍为 false，
             // 漏了这条会在下一帧再次 BeginLoad，把同一世界装载两遍。
             if (IsLoadedNow(name) || pending.Contains(name) || preloaded.Contains(name)
                 || unloading.Contains(name) || blocked.Contains(name)) continue;
-            if (CountLoaded() < MaxLoadedWorlds) { BeginLoad(name); continue; }
+            if (startedThisTick || activating.Count > 0) break;   // 一个一个来（见上）
+            if (CountLoaded() < MaxLoadedWorlds) { BeginLoad(name); startedThisTick = true; continue; }
             string victim = PickWeakestVictim();
             if (victim == null) continue;   // 全都受保护/正被需要：暂缓，下一帧再试
             BeginUnload(victim, "封顶淘汰");
             BeginLoad(name);
+            startedThisTick = true;
         }
     }
 

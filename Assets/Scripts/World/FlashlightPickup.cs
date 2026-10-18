@@ -6,12 +6,12 @@ using UnityEngine;
 /// </summary>
 public class FlashlightPickup : MonoBehaviour, IInteractable
 {
-    [SerializeField] private float interactionRange = 2.5f;
     [SerializeField] private string acquireHint = "获得手电筒——F 开关。黑暗里它救命，也费电";
     [Tooltip("缓慢自转，提高暗处的可发现性")]
     [SerializeField] private bool spin = true;
 
-    public float InteractionRange { get { return interactionRange; } }
+    // 拾取范围刻意收紧到"贴近才提示"：2.5m 时离得老远就弹 [E]，实机偏早（2026-10-18）。
+    public float InteractionRange { get { return 1.5f; } }
 
     public Transform GetInteractionPoint() { return transform; }
 

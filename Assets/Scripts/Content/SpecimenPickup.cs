@@ -7,7 +7,6 @@ using UnityEngine;
 /// </summary>
 public class SpecimenPickup : MonoBehaviour, IInteractable
 {
-    [SerializeField] private float interactionRange = 2.5f;
     [SerializeField] private string pickupHint = "回收异常物——带回实验室收容台才能入账";
     [Tooltip("缓慢自转，提高暗处的可发现性")]
     [SerializeField] private bool spin = true;
@@ -17,7 +16,8 @@ public class SpecimenPickup : MonoBehaviour, IInteractable
         if (spin) transform.Rotate(0f, 45f * Time.deltaTime, 0f, Space.World);
     }
 
-    public float InteractionRange { get { return interactionRange; } }
+    // 拾取范围刻意收紧到"贴近才提示"：2.5m 时离得老远就弹 [E]，实机偏早（2026-10-18）。
+    public float InteractionRange { get { return 1.5f; } }
 
     public Transform GetInteractionPoint() { return transform; }
 

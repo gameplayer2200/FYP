@@ -43,4 +43,20 @@ public static class PlayerGear
         FlashlightOn = on;
         if (OnFlashlightChanged != null) OnFlashlightChanged();
     }
+
+    /// <summary>当前选中的道具格（0=手电筒，1=万用表，2=异常物）。鼠标滚轮切换。</summary>
+    public static int SelectedIndex { get; private set; }
+
+    /// <summary>选中格变化时触发（UI 高亮用；UI 也可以直接轮询 SelectedIndex）。</summary>
+    public static event Action OnSelectionChanged;
+
+    /// <summary>滚轮切换选中格：dir&gt;0 下一个 / dir&lt;0 上一个；三格循环。</summary>
+    public static void CycleSelection(int dir)
+    {
+        if (dir == 0) return;
+        int next = ((SelectedIndex + (dir > 0 ? 1 : -1)) % 3 + 3) % 3;
+        if (next == SelectedIndex) return;
+        SelectedIndex = next;
+        if (OnSelectionChanged != null) OnSelectionChanged();
+    }
 }

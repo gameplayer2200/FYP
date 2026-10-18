@@ -23,6 +23,26 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
     public float OpenAngle { get { return openAngle; } } // 配对门同步摆角用
     public float InteractionRange { get { return 3f; } }
 
+    /// <summary>
+    /// 门板**实际**开合进度：0 = 完全合上（门板盖住门洞），1 = 完全打开。
+    ///
+    /// 与 IsOpen 的区别很关键：IsOpen 是**意图**——SetOpen 一被调用就翻，
+    /// 而门板还要走完 spellWindup(1.2s) + 旋转(0.8s) + spellOutro(0.6s) 才到位。
+    /// 传送门的背板材质切换必须看这个，否则「门还在慢慢转回去，门洞先黑了」。
+    ///
+    /// 用门板当前朝向与关闭朝向的夹角反推，所以对任意 openAngle（含 Metro 世界门的 -180）都成立。
+    /// </summary>
+    public float OpenFraction
+    {
+        get
+        {
+            float total = Mathf.Abs(openAngle);
+            if (total < 0.01f) return IsOpen ? 1f : 0f;   // 开合角为 0：没有动画可言，直接跟意图
+            float cur = Quaternion.Angle(closedLocalRot, transform.localRotation);
+            return Mathf.Clamp01(cur / total);
+        }
+    }
+
     private Quaternion closedLocalRot;
     private Quaternion openLocalRot;
     private Coroutine animating;
