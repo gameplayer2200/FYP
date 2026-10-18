@@ -6,11 +6,11 @@ using System;
 /// </summary>
 public static class CollapsePenalty
 {
-    /// <summary>瘫倒重启完成时触发一次。</summary>
-    public static event Action OnCollapseRestart;
+    /// <summary>瘫倒重启完成时触发一次。returnedHome：重启是否真的传送回了实验室（restartAnchor 有效）。</summary>
+    public static event Action<bool> OnCollapseRestart;
 
-    public static void Notify()
+    public static void Notify(bool returnedHome)
     {
-        if (OnCollapseRestart != null) OnCollapseRestart();
+        if (OnCollapseRestart != null) OnCollapseRestart(returnedHome);
     }
 }

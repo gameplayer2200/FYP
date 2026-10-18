@@ -13984,6 +13984,10 @@ PrefabInstance:
       propertyPath: link
       value: 
       objectReference: {fileID: 11400000, guid: 56a10c4a11feeed4b8820a767c02f018, type: 2}
+    - target: {fileID: 4967456388009993185, guid: 52be04012800f234fb8a2e0204f213cc, type: 3}
+      propertyPath: autoPair
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5828925735334874091, guid: 52be04012800f234fb8a2e0204f213cc, type: 3}
       propertyPath: m_LocalPosition.x
       value: 10473.84
@@ -25778,6 +25782,10 @@ PrefabInstance:
       propertyPath: link
       value: 
       objectReference: {fileID: 11400000, guid: 59c0a9f158e106449b8bd159a427553c, type: 2}
+    - target: {fileID: 5950964293761735183, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: autoPair
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8063968408835953565, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
       propertyPath: m_Name
       value: anywhere-door-FactoryNight-A

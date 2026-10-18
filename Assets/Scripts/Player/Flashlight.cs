@@ -1,14 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// 手电筒（探索道具）：L 开关。灯锥挂在视角相机下自动跟随；
+/// 手电筒（探索道具）：F 开关。灯锥挂在视角相机下自动跟随；
 /// 开灯持续耗电（BatterySystem 独立通道），且照明中不吃黑暗区段加成
 /// （MetroBlackout 读 PlayerGear.FlashlightOn）。黑暗里它救命也费电。
 /// 组件由 FlashlightPickup 在拾取时挂到玩家根上，无需场景预摆。
 /// </summary>
 public class Flashlight : MonoBehaviour
 {
-    [SerializeField] private KeyCode toggleKey = KeyCode.L;
+    [SerializeField] private KeyCode toggleKey = KeyCode.F;
     [Tooltip("开灯时每秒额外耗电")]
     [SerializeField] private float drainPerSecond = 0.5f;
     [SerializeField] private float range = 18f;

@@ -41,6 +41,13 @@ public class PortalWindow : MonoBehaviour
     [SerializeField] private bool mirrorU = false;
     [SerializeField] private string openingPath = "Cube.001/Plane";
 
+    [Header("取景相机后撤钳制")]
+    [Tooltip("取景相机离对门门洞中心的最大距离（米）。玩家离门越远，虚拟相机在对门后方撤得越深；" +
+             "撤过头会钻进墙里/走出世界边界，门洞里只剩一片纯色（实测：远看整片绿色），" +
+             "画面还会随玩家走动大幅摇摆。钳住此值后：近处视差保留，远处相机位置定住、" +
+             "门洞画面稳定不动，也不再撞墙。")]
+    [SerializeField] private float maxRecede = 3f;
+
     [Header("本门")]
     [Tooltip("本门根节点（门框）。留空则取自身。")]
     [SerializeField] private Transform srcFrame;
@@ -88,6 +95,9 @@ public class PortalWindow : MonoBehaviour
     /// 典型场景：对面那扇门被删掉或挪到了别的场景，但本门的 WorldLink 还指着旧位置。
     /// </summary>
     private bool failed;
+
+    /// <summary>就绪后的头几帧渲染要做耗时诊断（首次渲染含着色器编译/网格上传，是最贵的几帧）。</summary>
+    private int renderDiagLeft;
 
     /// <summary>
     /// 常驻世界（preloadRadius ≤0，开局即加载）的取景渲染距离兜底值（米）。
@@ -190,6 +200,20 @@ public class PortalWindow : MonoBehaviour
         var scene = SceneManager.GetSceneByName(ResolvedWorldSceneName);
         if (!scene.isLoaded) { Debug.LogError("[PortalWindow] 目标场景未加载：" + ResolvedWorldSceneName, this); return; }
 
+        // 自配对护栏：门名（或用错配置的 WorldLink）把"目标世界"指到了本门自己所在的世界，
+        // 于是配对门被找成它自己 —— 穿行时落点会落在**门背面 0.02m**，也就是挂门的那堵墙里，
+        // 表现为"穿模 / 被墙挤出去 / 掉出世界"，而且这扇门永远回不到对面世界。
+        // 典型的起错名：世界 X 场景里放了 `anywhere-door-X-A`（约定里 `-A` = 不在 X 里、通往 X 的门）。
+        // 这里直接判为配置错误停用，不再"静默地把自己当对面"。
+        if (scene == gameObject.scene)
+        {
+            Debug.LogError("[PortalWindow] 门名推导出的目标世界就是本门自己所在的世界（" + ResolvedWorldSceneName
+                           + "）——配对成了自己。世界侧的门应叫 `anywhere-door-X`（不带 -A），"
+                           + "`-A` 只用于实验室等「外面」的门。本门停用。", this);
+            failed = true;
+            return;
+        }
+
         // 找不到配对门 / 门洞平面属于**配置错误**（对面那扇门被删了或挪走了），
         // 不是暂时的：置 failed 彻底放弃，否则 ready 永远为 false，Update 会每帧重试刷屏。
         // 修好配对后重进 Play 即可（或点菜单 FYP/门配对/扫描并自动重配）。
@@ -226,9 +250,11 @@ public class PortalWindow : MonoBehaviour
 
         ReadCorners(srcPlane, srcCorners);
         ReadCorners(destPlane, destCorners);
+        LoadDiag.Begin();
         CreateRt();
         BuildCamera();
         ApplyPortalToBackPanel();
+        LoadDiag.End("建立取景 " + srcFrame.name + "（RT/相机/投影屏）");
 
         // 背板材质联动：开门=投影露出，关门=暗板挡住。
         // 门板本身（Cube）不做任何处理——它由 AnywhereDoor 正常开合，一直可见。
@@ -242,6 +268,7 @@ public class PortalWindow : MonoBehaviour
         ResetCrossBaseline();        // 清穿行基准：装载期间玩家可能已换过世界，陈旧基准会误判
 
         ready = true;
+        renderDiagLeft = 3;      // 头 3 帧渲染打耗时（首次渲染含着色器编译/网格上传）
         Debug.Log("[PortalWindow] 取景已建立：源=" + srcFrame.name + " 目标=" + destFrame.name
                   + " RT=" + rt.width + "x" + rt.height, this);
     }
@@ -397,6 +424,7 @@ public class PortalWindow : MonoBehaviour
     private void LateUpdate()
     {
         if (!ready) return;
+        ApplySampleAxes();   // 材质属性可能被编辑器刷新/着色器重载清零——每帧补一次（见方法注释）
         SyncBackPanel(false);
         SyncPairedDoor(false);
 
@@ -540,22 +568,8 @@ public class PortalWindow : MonoBehaviour
         quadMat.name = "PortalScreen";
         quadMat.mainTexture = rt;
 
-        // 采样轴必须与「取景相机的右方向」一致，否则画面左右镜像（实测：门局部 +X 的物体
-        // 会显示在窗口左半边）。取景相机的 up 取的是目标门洞 V 轴方向（UpdatePortalCamera 里
-        // 是倒架的），相机右方向 = cross(up, nrm) 恰好与 c0→c1 相反，所以 U 轴要从 c1 指向 c0。
-        // V 不受影响：c0 与 c1 在同一条水平边上，原点到两者算出的 v 相同。
-        // 轴向传**单位向量**、w 传轴长：着色器算的是 dot(d, 轴)/w，只有轴是单位向量时
-        // 这个商才是 0~1 的采样比例。传整条边向量（长度 1.2/2.1 米）算出来是"米"，
-        // 画面会被压缩、多出来的部分被 saturate 夹成死条——实测：面板中点采到 0.613
-        // （应为 0.500），竖轴 1.0m 以下全部夹在 v=1（下半幅是一条拉伸的边行）。
-        Vector3 uAxis = srcCorners[0] - srcCorners[1]; float uLen = Mathf.Max(0.01f, uAxis.magnitude);
-        Vector3 vAxis = srcCorners[3] - srcCorners[0]; float vLen = Mathf.Max(0.01f, vAxis.magnitude);
-        Vector3 uDir = uAxis / uLen;
-        Vector3 vDir = vAxis / vLen;
-        quadMat.SetVector("_Origin", srcCorners[1]);   // u=0 的那个角（本约定下 = 门局部 +X 侧）
-        quadMat.SetVector("_UDir", new Vector4(uDir.x, uDir.y, uDir.z, uLen));
-        quadMat.SetVector("_VDir", new Vector4(vDir.x, vDir.y, vDir.z, vLen));
-        quadMat.SetFloat("_MirrorU", ResolvedMirrorU ? 1f : 0f);
+        // 采样轴/镜像开关：见 ApplySampleAxes（构建时下发一次，之后每帧自愈重发）。
+        ApplySampleAxes();
 
         // 关门暗板：不透明深色（原黑板槽是透明化材质，直接换回会透视 =「门消失」观感）
         darkMat = new Material(Shader.Find("Standard"));
@@ -569,6 +583,39 @@ public class PortalWindow : MonoBehaviour
         // 门体内置的 Plane（旧屏位）必须藏掉，别盖住新投影
         var planeR = srcPlane != null ? srcPlane.GetComponent<Renderer>() : null;
         if (planeR != null) planeR.enabled = false;
+    }
+
+    /// <summary>
+    /// 采样轴与镜像开关：屏幕着色器按「世界坐标投影到门洞平面」算采样坐标，轴由这里下发。
+    ///
+    /// 这些属性一度只写成着色器的裸 uniform、没进 Properties 块，后果实测：编辑器刷新 /
+    /// 着色器重载之后材质上的值被清零（控制台同时刷 "doesn't have a color property '_Origin'"
+    /// 一类报错），门内板 UV 全部塌到 (0,0)——整块面板只采样 RT 的一个像素，看起来就是
+    /// **门洞里一片纯色**（离得远面板画得小，连那点细节也看不出来）。
+    ///
+    /// 双保险：① 着色器 Properties 里正式声明这四个属性；② 这里每帧重算重下发（值本来
+    /// 就是静态的，开销可忽略）——即使材质被重建/重置，下一帧也自动恢复，不需要外部补救。
+    ///
+    /// 采样轴必须与「取景相机的右方向」一致，否则画面左右镜像（实测：门局部 +X 的物体
+    /// 会显示在窗口左半边）。取景相机的 up 取的是目标门洞 V 轴方向（UpdatePortalCamera 里
+    /// 是倒架的），相机右方向 = cross(up, nrm) 恰好与 c0→c1 相反，所以 U 轴要从 c1 指向 c0。
+    /// V 不受影响：c0 与 c1 在同一条水平边上，原点到两者算出的 v 相同。
+    /// 轴向传**单位向量**、w 传轴长：着色器算的是 dot(d, 轴)/w，只有轴是单位向量时
+    /// 这个商才是 0~1 的采样比例。传整条边向量（长度 1.2/2.1 米）算出来是"米"，
+    /// 画面会被压缩、多出来的部分被 saturate 夹成死条——实测：面板中点采到 0.613
+    /// （应为 0.500），竖轴 1.0m 以下全部夹在 v=1（下半幅是一条拉伸的边行）。
+    /// </summary>
+    private void ApplySampleAxes()
+    {
+        if (quadMat == null) return;
+        Vector3 uAxis = srcCorners[0] - srcCorners[1]; float uLen = Mathf.Max(0.01f, uAxis.magnitude);
+        Vector3 vAxis = srcCorners[3] - srcCorners[0]; float vLen = Mathf.Max(0.01f, vAxis.magnitude);
+        Vector3 uDir = uAxis / uLen;
+        Vector3 vDir = vAxis / vLen;
+        quadMat.SetVector("_Origin", srcCorners[1]);   // u=0 的那个角（本约定下 = 门局部 +X 侧）
+        quadMat.SetVector("_UDir", new Vector4(uDir.x, uDir.y, uDir.z, uLen));
+        quadMat.SetVector("_VDir", new Vector4(vDir.x, vDir.y, vDir.z, vLen));
+        quadMat.SetFloat("_MirrorU", ResolvedMirrorU ? 1f : 0f);
     }
 
     private void BuildCamera()
@@ -592,10 +639,19 @@ public class PortalWindow : MonoBehaviour
         //    这里必须与 TryCross 用**同一个** MapLocalPoint——两处各写各的，
         //    就会出现"门里看见的"和"走过去得到的"对不上（实测差 1.75m）。
         Vector3 localEye = srcFrame.InverseTransformPoint(playerCam.transform.position);
-        portalCam.transform.position = destFrame.TransformPoint(MapLocalPoint(localEye));
+        Vector3 camPos = destFrame.TransformPoint(MapLocalPoint(localEye));
+
+        // 1b) 后撤钳制：玩家站得越远，虚拟相机在对门后方撤得越深（≈玩家到门的距离）。
+        //      门后的净空是有限的——撤过头就钻进墙里/走出世界边界，门洞里只剩一片纯色
+        //      （实测：远处整片绿色），而且画面随玩家走动大幅摇摆。
+        //      钳到 maxRecede 后：近处保留完整视差；远处相机位置不再变，门洞画面稳定不动。
+        Vector3 planeCenter = (destCorners[0] + destCorners[2]) * 0.5f;
+        Vector3 rel = camPos - planeCenter;
+        float relDist = rel.magnitude;
+        if (relDist > maxRecede) camPos = planeCenter + rel * (maxRecede / relDist);
+        portalCam.transform.position = camPos;
 
         // 2) 朝向：垂直于目标门洞平面，从外侧看进去（朝向与玩家无关——窗景只取决于眼位）
-        Vector3 planeCenter = (destCorners[0] + destCorners[2]) * 0.5f;
         Vector3 nrm = Vector3.Cross(destCorners[1] - destCorners[0], destCorners[3] - destCorners[0]).normalized;
         // 把法线翻成"从相机一侧指向门洞"，相机就沿它看进去
         if (Vector3.Dot(planeCenter - portalCam.transform.position, nrm) < 0f) nrm = -nrm;
@@ -628,6 +684,9 @@ public class PortalWindow : MonoBehaviour
     {
         if (portalCam == null) return;
 
+        bool diag = renderDiagLeft > 0;
+        if (diag) { renderDiagLeft--; LoadDiag.Begin(); }
+
         // 藏掉目标门自身全部渲染器：任意门预制件的门体是一块实心门板
         //（Cube / Cube.001 / Cube.002 / Cube.003 / Cylinder…），并不是带洞的门框。
         // 相机就贴在门后 2~3 米，若不藏门板，取景里只会看到门板本身（一片纯色），
@@ -650,6 +709,8 @@ public class PortalWindow : MonoBehaviour
 
         for (int i = 0; i < doorHidden.Count; i++)
             if (doorHidden[i] != null) doorHidden[i].enabled = true;
+
+        if (diag) LoadDiag.End("渲染取景 " + (srcFrame != null ? srcFrame.name : name));
     }
 
     private void OnDestroy()

@@ -79,6 +79,7 @@ public static class WorldLightIsolation
     // ── 世界侧：整场改挂专属图层 + 灯只照本世界 ──
     private static void ApplyWorld(Scene scene, int layer)
     {
+        LoadDiag.Begin();
         int bit = 1 << layer;
         int objs = 0, lights = 0, probes = 0;
         foreach (var root in scene.GetRootGameObjects())
@@ -92,6 +93,7 @@ public static class WorldLightIsolation
             foreach (var p in root.GetComponentsInChildren<ReflectionProbe>(true))
                 if ((p.cullingMask & bit) == 0) { p.cullingMask |= bit; probes++; }
         }
+        LoadDiag.End("光影隔离「" + scene.name + "」（物体 " + objs + "、灯 " + lights + "）");
         Debug.Log("[WorldLightIsolation] 世界「" + scene.name + "」光影隔离：图层 " + layer
             + "（物体 " + objs + "、灯 " + lights + "、反射探针 " + probes + "）");
     }
@@ -101,6 +103,7 @@ public static class WorldLightIsolation
     {
         var scene = SceneManager.GetSceneByName(homeWorld);
         if (!scene.isLoaded) return;
+        LoadDiag.Begin();
         var playerRoot = PlayerRef.IsReady ? PlayerRef.Root : null;
         int changed = 0;
         foreach (var root in scene.GetRootGameObjects())
@@ -110,6 +113,7 @@ public static class WorldLightIsolation
                 int m = l.cullingMask & ~worldBits;
                 if (m != l.cullingMask) { l.cullingMask = m; changed++; }
             }
+        LoadDiag.End("实验室灯收敛（改 " + changed + " 盏）");
         Debug.Log("[WorldLightIsolation] 实验室灯收敛：排除世界层 0x" + worldBits.ToString("X")
             + "（改 " + changed + " 盏；玩家的灯不动）");
     }

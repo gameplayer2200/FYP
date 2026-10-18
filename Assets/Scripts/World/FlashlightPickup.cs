@@ -7,7 +7,7 @@ using UnityEngine;
 public class FlashlightPickup : MonoBehaviour, IInteractable
 {
     [SerializeField] private float interactionRange = 2.5f;
-    [SerializeField] private string acquireHint = "获得手电筒——L 开关。黑暗里它救命，也费电";
+    [SerializeField] private string acquireHint = "获得手电筒——F 开关。黑暗里它救命，也费电";
     [Tooltip("缓慢自转，提高暗处的可发现性")]
     [SerializeField] private bool spin = true;
 

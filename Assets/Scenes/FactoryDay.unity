@@ -2254,7 +2254,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3300903666545894743, guid: 776804b167f530f40a80b246090fe5b6, type: 3}
       propertyPath: m_Name
-      value: anywhere-door-FactoryDay-A
+      value: anywhere-door-FactoryDay
       objectReference: {fileID: 0}
     - target: {fileID: 7387530589384747513, guid: 776804b167f530f40a80b246090fe5b6, type: 3}
       propertyPath: link
@@ -11006,6 +11006,10 @@ PrefabInstance:
       propertyPath: link
       value: 
       objectReference: {fileID: 11400000, guid: 95d62fcc85bec5c48b655bc77e93ce5b, type: 2}
+    - target: {fileID: 5950964293761735183, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
+      propertyPath: autoPair
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8063968408835953565, guid: af102a367f80aaf4b86d494f6167a23f, type: 3}
       propertyPath: m_Name
       value: anywhere-door-FactoryNight

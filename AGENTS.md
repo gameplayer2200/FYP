@@ -168,7 +168,7 @@ return ok + " :: " + (string)args[0];
   - 复验：风暴/进站协程启动即生效（IsStorming/running/roar 死灯闪亮 ✓）；订单流转「0/2→携带 2→完成 ✓」全通；从 Metro 直接 Play 时订单板即时可见（v3 截图验收）。
 - ✅ Metro 第三轮：撤离窗口 + 手电筒 + 粉笔箭头（2026-10-17，待玩家实测）：
   - **撤离窗口**（提案「在归途门锁死前撤回」落地）：进站武装 `ExtractionClock`（默认 600s，Inspector 可调），订单板显示倒计时（≤120s 红色闪烁）；归零→`ExtractionTimer` 关闭 Metro 门并 `SetRespondToKey(false)` 锁死（门关=穿行自然被拦）；玩家回实验室（含瘫倒重启传送）→ 窗口复位、门解锁。**瘫倒惩罚**：重启时携带异常物减半（`CollapsePenalty` Core 钩子解耦 Player→Content，已收容不动）。
-  - **手电筒**（探索道具）：实验室门旁 + Metro 门区各一个拾取物（`FlashlightPickup`，Exploration objects 模型）；拾取即给玩家挂 `Flashlight` 组件；**L 开关**——灯锥挂视角相机自动跟随，开灯 +0.5 电/秒（`BatterySystem` 双通道：环境+手电独立叠加），且**照明中不吃黑暗 ×1.5 加成**（MetroBlackout 读 `PlayerGear.FlashlightOn`）。实测：开灯 1.0 / 关灯 1.5。
+  - **手电筒**（探索道具）：实验室门旁 + Metro 门区各一个拾取物（`FlashlightPickup`，Exploration objects 模型）；拾取即给玩家挂 `Flashlight` 组件；**F 开关**——灯锥挂视角相机自动跟随，开灯 +0.5 电/秒（`BatterySystem` 双通道：环境+手电独立叠加），且**照明中不吃黑暗 ×1.5 加成**（MetroBlackout 读 `PlayerGear.FlashlightOn`）。实测：开灯 1.0 / 关灯 1.5。
   - **站台粉笔箭头**（backup 稿「前人痕迹」）：隧道沿线 6 枚程序绘制粉笔箭头（无贴图资产，运行时生成）指向 -Z 死端/配电室；**逆行**（车厢方向）进入惊吓区触发一次「箭头是给出去的人看的……」+ 灯光骤闪全灭再复原。
   - **Metro 场景常驻开发玩家**：实验室玩家（含全套组件）复制为 `Player(Metro开发)` 存入 Metro.unity（@-46.5,94.2,137），从 Metro 直接 Play 即有玩家；双玩家守卫保证运行时只活一个。⚠️ 之前"放了玩家没保存"（预制件实例未落盘、重开场景即丢）的坑由此终结。
   - 分层调整：`FYP.Player` 增加 `FYP.Interaction` 引用（Flashlight 用 HintToast）。

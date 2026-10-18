@@ -25156,7 +25156,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactionRange: 2.5
-  acquireHint: "\u83B7\u5F97\u624B\u7535\u7B52\u2014\u2014L \u5F00\u5173\u3002\u9ED1\u6697\u91CC\u5B83\u6551\u547D\uFF0C\u4E5F\u8D39\u7535"
+  acquireHint: "\u83B7\u5F97\u624B\u7535\u7B52\u2014\u2014F \u5F00\u5173\u3002\u9ED1\u6697\u91CC\u5B83\u6551\u547D\uFF0C\u4E5F\u8D39\u7535"
   spin: 1
 --- !u!1001 &796917227
 PrefabInstance:
@@ -61086,7 +61086,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalRotation.x
@@ -61094,11 +61094,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -61106,7 +61106,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 360
+      value: 180
       objectReference: {fileID: 0}
     - target: {fileID: 6792870772260149853, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -61114,7 +61114,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8037245281538983054, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: m_Name
-      value: anywhere-door-Metro-A
+      value: anywhere-door-Metro
       objectReference: {fileID: 0}
     - target: {fileID: 8999031950521038802, guid: 1474c540969dd924f8c8dd9b54e10435, type: 3}
       propertyPath: link

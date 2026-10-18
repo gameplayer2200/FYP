@@ -14,10 +14,14 @@ using UnityEngine.SceneManagement;
 ///   3) 总量封顶：同时存活的世界不超过 MaxLoadedWorlds（含实验室）；满了先淘汰
 ///      "需求最弱"（离玩家最远）的可卸世界，腾不出空位就暂缓本次装载。
 ///
-/// 装载分两步（延迟激活，见 ActivationRadiusFactor）：
-///   预载（progress 0→0.9，allowSceneActivation=false）在 preloadRadius 处开始，
-///   激活（场景真正就绪）等玩家走到 preloadRadius × 系数 以内。
-///   这样大世界的读盘成本摊在玩家走近的路上，不会"刚进半径就整帧卡一下"。
+/// 装载分两步，但两步都发生在玩家走近的路上：
+///   预载（读盘 + 反序列化，progress 0→0.9，allowSceneActivation=false）在 preloadRadius 处开始，
+///   预载一完成立即**激活**（见 ActivationRadiusFactor 里"为什么要立即激活"的两条实测理由）。
+///   于是重活（读盘摊在多帧、激活/首帧渲染各卡一下）全落在玩家还在半路上时，
+///   走到门前时世界已经就绪、门洞画面也建好了。
+///
+/// 激活串行：同一时刻只放行一个世界的激活（上一个就绪后才放行下一个），
+/// 免得两个世界的实例化成本叠进同一帧。
 ///
 /// 永不卸载：实验室（玩家根对象所在场景）、玩家当前所在世界（穿门时登记——
 /// 异世界里实验室侧的门都远在天边，没有这条护栏会卸掉玩家脚下的世界）、
@@ -36,16 +40,22 @@ public static class WorldStreamer
     public const float ReleaseMargin = 2f;
 
     /// <summary>
-    /// 延迟激活：预载（读盘 + 反序列化）在 preloadRadius 处就开始，但场景**先不激活**；
-    /// 等玩家走到 preloadRadius × 本值 以内才真正激活。
+    /// 延迟激活系数：预载完成（progress ≥ 0.9）后，玩家走到 preloadRadius × 本值 以内才激活。
     ///
-    /// 目的：把大世界（本项目 Flooded_Grounds 约 11MB / 27 万行，是其余场景的 5 倍）
-    /// 的加载成本摊到玩家走近的路上，避免"刚进半径就整帧卡一下"。
-    /// 代价：门洞画面要等激活后才出现（未激活时 IsWorldReady 为 false，PortalWindow 不建取景）。
+    /// **默认 1 = 预载一完成就激活**，这是实测后的定论，原因有两条：
     ///
-    /// 1 = 等价于不延迟激活；0.55 = 走到一半距离才激活。
+    /// 1) **激活成本躲不掉，只能挪**。激活（场景实例化 + 各物体 Awake/OnEnable + 首帧
+    ///    渲染的着色器编译）是整帧级的重活；把激活点从 15m 挪到 8m，玩家走的路上照样卡那一下。
+    ///    挪早反而更好：卡顿时玩家离门还远、视线多半不在门上，且门一定已经就绪。
+    ///
+    /// 2) **停在 0.9 不激活会堵住后面所有世界**。Unity 的场景激活按 AsyncOperation 创建顺序
+    ///    串行放行：第一个 op 停在 0.9（allowSceneActivation=false），后面的 op 即使预载完成
+    ///    也激活不了。实测：开局同时预载 Metro、FactoryDay，FactoryDay 被 Metro 堵了 83 秒，
+    ///    直到玩家走近 Metro 门把 Metro 激活掉才跟着加载出来 —— 表现就是"走到门前什么都没有"。
+    ///
+    /// 保留本系数是为了留出调参余地（<1 = 老行为，只在玩家走近时才激活）。
     /// </summary>
-    public static float ActivationRadiusFactor = 0.55f;
+    public static float ActivationRadiusFactor = 1f;
 
     // ── 登记表与逐帧记账 ──
     private static readonly List<PortalWindow> windows = new List<PortalWindow>();
@@ -60,6 +70,31 @@ public static class WorldStreamer
 
     /// <summary>预载中/待激活世界的 AsyncOperation —— 激活时要拿它置 allowSceneActivation。</summary>
     private static readonly Dictionary<string, AsyncOperation> preloadOps = new Dictionary<string, AsyncOperation>();
+
+    /// <summary>
+    /// 预载**完成**、等激活的 AsyncOperation（激活时才置 allowSceneActivation）。
+    ///
+    /// 必须与 preloadOps 分开：完成后若还留在 preloadOps 里，"转待激活"那一步每帧都会重跑，
+    /// 表现为同一世界每帧重复入列 preloaded + 每帧刷一条「预载完成，待激活」日志
+    /// （实测每帧一条，等于给每个待激活世界挂了个逐帧 Debug.Log）。
+    /// </summary>
+    private static readonly Dictionary<string, AsyncOperation> preloadedOps = new Dictionary<string, AsyncOperation>();
+
+    /// <summary>已放行激活、等场景真正就绪的世界（同帧最多放行一个，见 TickPreloadAndActivation）。</summary>
+    private static readonly HashSet<string> activating = new HashSet<string>();
+    private static int activateGateFrames;   // activating 持续帧数：迟迟不就绪时的兜底放行
+
+    /// <summary>
+    /// op 创建顺序（即调用 LoadSceneAsync 的先后）。**只放还没激活过的**：激活一放行就从这里摘掉。
+    ///
+    /// 用途：Unity 的场景激活按 op 创建顺序**串行**放行——老 op 停在 0.9 不激活，后面的 op
+    /// 就算预载完成也激活不了（实测堵了 83 秒）。装载前查一下"最老的待激活 op"，别把它跳过去。
+    /// </summary>
+    private static readonly List<string> outstanding = new List<string>();
+
+    // ── 喘息闸：两次激活之间至少隔几帧，且等帧时间回落 ──
+    private static int framesSinceActivate = 999;   // 距上次放行激活过了几帧
+    private static int calmFrames;                   // 连续"帧时间正常"的帧数
 
     private static string homeWorld;     // 玩家根对象所在场景 = 实验室（起始世界），永不卸载
     private static string currentWorld;  // 玩家物理所在世界（穿门时登记），离开前不卸载
@@ -82,6 +117,15 @@ public static class WorldStreamer
     {
         if (!string.IsNullOrEmpty(arrivedWorld)) currentWorld = arrivedWorld;
         WorldPresence.SetCurrent(currentWorld);   // HUD 等按世界切换形态
+    }
+
+    /// <summary>瘫倒重启：玩家被传送回实验室时同步登记（returnedHome=false = 原地重启，勿动登记）。
+    /// 不同步的后果：HUD 停在层域形态，且永不卸载护栏一直挂着一个不该保活的世界。</summary>
+    private static void HandleCollapseBackHome(bool returnedHome)
+    {
+        if (!returnedHome || homeWorld == null) return;
+        currentWorld = homeWorld;
+        WorldPresence.SetCurrent(currentWorld);
     }
 
     /// <summary>目标世界是否可用（已装载且不在卸载中）——PortalWindow 据此决定"能不能建立取景"。</summary>
@@ -110,6 +154,9 @@ public static class WorldStreamer
             var root = PlayerRef.Root;
             homeWorld = root != null ? root.gameObject.scene.name : SceneManager.GetActiveScene().name;
             if (currentWorld == null) currentWorld = homeWorld;   // 开局：玩家在起始世界
+            // 瘫倒重启会把玩家传送回实验室（BatterySystem.restartAnchor）——登记见 HandleCollapseBackHome
+            CollapsePenalty.OnCollapseRestart -= HandleCollapseBackHome;
+            CollapsePenalty.OnCollapseRestart += HandleCollapseBackHome;
         }
         WorldPresence.SetHome(homeWorld);        // HUD 等按世界切换形态（含开局初始化）
         WorldPresence.SetCurrent(currentWorld);
@@ -201,8 +248,27 @@ public static class WorldStreamer
                     if (settled == null) settled = new List<string>();
                     settled.Add(w);
                 }
-            if (settled != null) for (int i = 0; i < settled.Count; i++) preloaded.Remove(settled[i]);
+            if (settled != null)
+                for (int i = 0; i < settled.Count; i++)
+                {
+                    preloaded.Remove(settled[i]);
+                    activating.Remove(settled[i]);   // 就绪 → 放行下一个世界的激活
+                    outstanding.Remove(settled[i]);
+                }
         }
+
+        // 串行闸：上一个世界还没真正就绪就不再放行新激活（正常情况下只挡 1~2 帧）。
+        // 兜底：极久不就绪（异常）时放行，免得一个卡住的世界把后续装载全堵死。
+        if (activating.Count > 0)
+        {
+            if (++activateGateFrames > 600)
+            {
+                Debug.LogWarning("[WorldStreamer] 已有世界激活超时未就绪，放行后续装载：" + string.Join("、", activating));
+                activating.Clear();
+                activateGateFrames = 0;
+            }
+        }
+        else activateGateFrames = 0;
 
         // 1) 预载进度 → 待激活
         if (preloadOps.Count > 0)
@@ -223,8 +289,16 @@ public static class WorldStreamer
                 {
                     string w = done[i];
                     pending.Remove(w);
-                    if (preloadOps[w] != null) { preloaded.Add(w); Debug.Log("[WorldStreamer] 预载完成，待激活：" + w); }
-                    else { preloadOps.Remove(w); blocked.Add(w); }
+                    AsyncOperation op;
+                    bool hasOp = preloadOps.TryGetValue(w, out op) && op != null;
+                    preloadOps.Remove(w);            // 关键：摘出"预载中"，否则本段每帧重跑（见 preloadedOps 注释）
+                    if (hasOp)
+                    {
+                        preloadedOps[w] = op;        // 激活时还它置 allowSceneActivation
+                        preloaded.Add(w);
+                        Debug.Log("[WorldStreamer] 预载完成，待激活：" + w);
+                    }
+                    else { blocked.Add(w); outstanding.Remove(w); }
                 }
             }
         }
@@ -256,24 +330,63 @@ public static class WorldStreamer
             }
         }
 
-        if (toActivate != null) for (int i = 0; i < toActivate.Count; i++) Activate(toActivate[i]);
-        if (toAbandon != null)
-            for (int i = 0; i < toAbandon.Count; i++)
-            {
-                Debug.Log("[WorldStreamer] 预载后已远离，激活以便释放：" + toAbandon[i]);
-                Activate(toAbandon[i]);
-            }
+        // 一次只放行一个世界：激活 = 整帧级的重活（场景实例化 + 各物体 Awake/OnEnable），
+        // 同帧放行两个世界会把两次卡顿叠成一帧超长停顿（实测 Metro + FactoryDay 同帧 ≈ 900ms+）。
+        // 串行放行后是两帧各 ~450ms，帧间还有余量恢复，体感明显更轻。
+        if (activating.Count > 0) return;   // 上一个还没就绪：这帧不放行
+
+        // 喘息闸：上次激活后至少隔 1 帧，并等帧时间回落到正常（连续 2 帧 < 50ms）再放行下一个。
+        // 实测：Unity 会把"刚请求激活"的 op 在同一次加载更新里一起实例化，两个世界挤在一起时
+        // 两段卡顿并成一帧 1.5s；错开后是两帧各 ~0.7s，中间还有正常帧喘气。
+        // 帧时间本来就差（比如只有 20fps）时用 120 帧上限强制放行，绝不死等。
+        framesSinceActivate++;
+        if (Time.unscaledDeltaTime < 0.05f) calmFrames++; else calmFrames = 0;
+        if (framesSinceActivate < 2) return;
+        if (calmFrames < 2 && framesSinceActivate < 120) return;
+
+        string target = null;
+        if (toActivate != null && toActivate.Count > 0) target = toActivate[0];
+        else if (toAbandon != null && toAbandon.Count > 0) target = toAbandon[0];
+        if (target == null) return;
+
+        // 让路：Unity 按 op 创建顺序串行激活，更早创建、已经预载完成的 op 若不激活，
+        // 排在它后面的目标永远激活不了（实测被堵 83 秒，门洞一直空着）。先放它上路。
+        string oldest = OldestReadyToActivate();
+        if (oldest != null && oldest != target)
+        {
+            Debug.Log("[WorldStreamer] 让路：先激活更早创建的世界 " + oldest
+                      + "（Unity 激活按创建顺序串行，挡路的先走）");
+            Activate(oldest);
+            return;
+        }
+
+        if (toActivate == null || toActivate.Count == 0)
+            Debug.Log("[WorldStreamer] 预载后已远离，激活以便释放：" + target);
+        Activate(target);
+    }
+
+    /// <summary>最早创建、且已预载完成（能激活）的 op —— 它就是堵在队列最前面的那个。</summary>
+    private static string OldestReadyToActivate()
+    {
+        for (int i = 0; i < outstanding.Count; i++)
+            if (preloadedOps.ContainsKey(outstanding[i])) return outstanding[i];
+        return null;
     }
 
     private static void Activate(string world)
     {
         AsyncOperation op;
-        if (preloadOps.TryGetValue(world, out op) && op != null)
+        if (preloadedOps.TryGetValue(world, out op) && op != null)
         {
+            preloadedOps.Remove(world);
+            activating.Add(world);
+            outstanding.Remove(world);   // 已放行：不再挡后面 op 的激活
+            framesSinceActivate = 0;     // 重置喘息闸
+            calmFrames = 0;
             op.allowSceneActivation = true;
             Debug.Log("[WorldStreamer] 激活世界 " + world);
         }
-        preloadOps.Remove(world);
+        else { preloadedOps.Remove(world); outstanding.Remove(world); }
         // **故意不从 preloaded 移除**：激活要一帧左右才真正 isLoaded，
         // 这期间若把它漏出保护集，装载循环会判定"还没加载"并再 BeginLoad 一次 → 重复加载。
         // 由 TickPreloadAndActivation 第 0 步在 IsLoadedNow 为真时清掉。
@@ -285,17 +398,22 @@ public static class WorldStreamer
     private static void BeginLoad(string world)
     {
         pending.Add(world);
+        outstanding.Add(world);      // 记创建顺序：Unity 按它串行激活，放行前要查谁挡路
+        LoadDiag.Begin();
         var op = SceneManager.LoadSceneAsync(world, LoadSceneMode.Additive);
+        LoadDiag.End("发起装载 " + world + "（LoadSceneAsync 同步段）");
         if (op == null)
         {
             pending.Remove(world);
+            outstanding.Remove(world);
             blocked.Add(world);
             Debug.LogError("[WorldStreamer] 世界装载失败：" + world + "（场景是否已加入 Build Settings？）");
             return;
         }
 
-        // 关键：先只预载、不激活。progress 会停在 0.9，等玩家走近再置 allowSceneActivation = true
-        //（见 TickPreloadAndActivation）——把"读盘 + 反序列化"和"激活"错开，避免刚进半径就卡一帧。
+        // 先只预载、不激活：progress 停在 0.9，等预载一完成再置 allowSceneActivation = true
+        //（见 TickPreloadAndActivation / ActivationRadiusFactor）——
+        // 这样"读盘 + 反序列化"被摊在玩家走近的路上，激活那一下的卡顿与读盘分开。
         //
         // 注意：allowSceneActivation = false 时 op.completed **永远不触发**，
         // 所以不能靠它清 pending，必须每帧轮询 progress。
@@ -307,7 +425,9 @@ public static class WorldStreamer
     private static void BeginUnload(string world, string why)
     {
         unloading.Add(world);
+        LoadDiag.Begin();
         var op = SceneManager.UnloadSceneAsync(world);
+        LoadDiag.End("发起卸载 " + world + "（UnloadSceneAsync 同步段）");
         if (op == null)
         {
             unloading.Remove(world);
@@ -320,7 +440,10 @@ public static class WorldStreamer
             unloading.Remove(world);
             // 防御性清理：正常情况下预载记录在激活时已清掉
             preloadOps.Remove(world);
+            preloadedOps.Remove(world);
             preloaded.Remove(world);
+            activating.Remove(world);
+            outstanding.Remove(world);
             pending.Remove(world);
             TeardownWindows(world);
         };

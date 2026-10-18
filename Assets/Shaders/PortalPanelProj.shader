@@ -9,6 +9,13 @@ Shader "Custom/PortalPanelProj"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        // 采样轴必须正式声明：只写裸 uniform 时，这些值在编辑器刷新 / 着色器重载后会被清零
+        //（控制台同时刷 "doesn't have a color property '_Origin'" 一类报错），门内板 UV
+        // 全部塌到 (0,0)——整块面板只采样 RT 的一个像素，看起来就是门洞里一片纯色。
+        _Origin ("Sample Origin (world xyz)", Vector) = (0,0,0,0)
+        _UDir ("Sample U Axis (unit xyz + len w)", Vector) = (1,0,0,0)
+        _VDir ("Sample V Axis (unit xyz + len w)", Vector) = (0,1,0,0)
+        _MirrorU ("Mirror U", Float) = 0
     }
     SubShader
     {
