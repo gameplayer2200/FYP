@@ -1,0 +1,32 @@
+);# Asset Import Instructions
+// ========================
+// All downloaded assets are in: C:\Users\xiaoming\Downloads\_asset_staging
+// Target directory for import: Assets/Resources/Sourced/
+
+// Manual import steps (Unity Editor):
+// 1. Create the following subfolders under Assets/Resources/Sourced/:
+//    - Kenney_Audio/
+//    - OGA_SFX/
+//    - PolyHaven_Models/
+//    - PolyHaven_Textures/
+//    - PolyHaven_HDRIs/
+//    - ambientCG_Materials/
+//    - GoogleFonts/
+//
+// 2. Extract each .zip/.7z into its category folder:
+//    - Kenney_*(zip) -> Kenney_* categories
+//    - OGA_*(zip/.7z/.ogg) -> OGA_SFX
+//    - *.fbx (Poly Haven models) -> PolyHaven_Models (scale factor 0.001!)
+//    - *.jpg/*.exr/*.png (Poly Haven textures) -> PolyHaven_Textures/<category>/
+//    - *.hdr -> PolyHaven_HDRIs
+//    - *_1K-JPG.zip -> ambientCG_Materials/<assetName>/
+//    - *.ttf + OFL.txt -> GoogleFonts/
+//
+// 3. Unity import settings for each type:
+//    - Fonts (TTF): TextMeshPro -> Font Asset Creator (for Chinese NotoSansSC subset), VT323/ShareTechMono can use IMGUI directly
+//    - Audio (WAV/FLAC/OGG): Decompress On Load + PCM for short sounds; Loop勾选 for long ambience
+//    - Materials (jpg/exr/png): Standard shader, Normal maps set to OpenGL convention, Roughness inverted to Smoothness
+//    - Models (FBX): Scale Factor=0.001 (mm->m); Import Animation off unless needed; NavMeshAgent required
+//    - HDRIs: Texture Shape=Cube (or Skybox/Panoramic); Compression=None
+//
+// 4. License credits already collected in Docs/ASSET-SOURCING.md (CC0/OFL). No attribution required for CC0 except appreciated.
