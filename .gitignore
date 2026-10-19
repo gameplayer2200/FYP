@@ -108,3 +108,10 @@ InitTestScene*.unity*
 # 会话/工具产物
 /.video_agent/
 /.zcode/
+
+# 素材下载暂存目录（原始下载包与解压临时件，约 1 GB / 1 万个文件，不进版本库）
+/[Aa]ssets/Resources/_asset_staging/
+
+# Poly Haven 4k/8k 冗余高清贴图：项目材质统一用 1k，且个别文件超过 GitHub 100 MB 单文件上限
+/[Aa]ssets/Resources/Sourced/Textures/**/*_4k.*
+/[Aa]ssets/Resources/Sourced/Textures/**/*_8k.*

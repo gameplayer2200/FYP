@@ -20,22 +20,22 @@ public class InventoryUI : MonoBehaviour
     private const float SlotGap = 10f;
     private const float PadX = 17f;
     private const float PadY = 14f;
-    private const float BarBottom = 26f;
+    private const float BarMargin = 26f;   // 右下角外边距
     private const float IconInner = 64f;
 
-    // 主题色（与 OrderBoard 同一套深底青调）
-    private static readonly Color PanelFill = new Color(0.043f, 0.055f, 0.067f, 0.82f);
-    private static readonly Color PanelLine = new Color(0.22f, 0.86f, 0.95f, 0.16f);
-    private static readonly Color SlotFill = new Color(1f, 1f, 1f, 0.045f);
-    private static readonly Color SlotLine = new Color(1f, 1f, 1f, 0.10f);
-    private static readonly Color SlotActiveFill = new Color(0.22f, 0.86f, 0.95f, 0.10f);
-    private static readonly Color SlotActiveLine = new Color(0.22f, 0.86f, 0.95f, 0.55f);
-    private static readonly Color SlotWarmFill = new Color(1f, 0.82f, 0.55f, 0.10f);
-    private static readonly Color SlotWarmLine = new Color(1f, 0.82f, 0.55f, 0.60f);
-    private static readonly Color FocusFill = new Color(0.22f, 0.86f, 0.95f, 0.06f);
-    private static readonly Color FocusLine = new Color(0.30f, 0.95f, 1f, 0.85f);
-    private static readonly Color IconWarm = new Color(1f, 0.95f, 0.82f, 1f);
-    private static readonly Color BadgeColor = new Color(0.55f, 0.92f, 1f, 1f);
+    // CRT 终端配色（磷光绿单色 + 暗底；与 OrderBoard / 电量条同一套 CrtTheme 色板）
+    private static readonly Color PanelFill = new Color(0.010f, 0.030f, 0.020f, 0.90f);
+    private static readonly Color PanelLine = new Color(0.47f, 1f, 0.76f, 0.40f);
+    private static readonly Color SlotFill = new Color(0.47f, 1f, 0.76f, 0.05f);
+    private static readonly Color SlotLine = new Color(0.47f, 1f, 0.76f, 0.22f);
+    private static readonly Color SlotActiveFill = new Color(0.47f, 1f, 0.76f, 0.12f);
+    private static readonly Color SlotActiveLine = new Color(0.47f, 1f, 0.76f, 0.85f);
+    private static readonly Color SlotWarmFill = new Color(1f, 0.78f, 0.32f, 0.12f);
+    private static readonly Color SlotWarmLine = new Color(1f, 0.78f, 0.32f, 0.75f);
+    private static readonly Color FocusFill = new Color(0.47f, 1f, 0.76f, 0.05f);
+    private static readonly Color FocusLine = new Color(0.55f, 1f, 0.82f, 0.90f);
+    private static readonly Color IconWarm = new Color(1f, 0.90f, 0.70f, 1f);
+    private static readonly Color BadgeColor = new Color(0.55f, 1f, 0.80f, 1f);
 
     private class ItemSlot
     {
@@ -51,13 +51,16 @@ public class InventoryUI : MonoBehaviour
     private ItemSlot flashSlot, meterSlot, specimenSlot;
 
     private bool built;
-    private Sprite spPanel, spSlotIdle, spSlotActive, spSlotWarm, spKeycap, spFocus;
+    private Sprite spPanel, spSlotIdle, spSlotActive, spSlotWarm, spKeycap, spFocus, spScan;
     private Sprite spriteFlash, spriteMeter, spriteFloppy;
     private Font font;
+    private Canvas canvas;
+    private CanvasScaler canvasScaler;
 
     private bool lastHasFlash, lastHasMeter, lastFlashOn;
     private int lastSpecimen = -1;
     private int lastSelected = -1;
+    private int scaledForHeight = -1;   // 画布缩放比的生效屏幕高度（分辨率变化时重设 scaleFactor）
 
     private void OnEnable()
     {
@@ -79,6 +82,13 @@ public class InventoryUI : MonoBehaviour
             // 重建后下一帧全量刷新（角标/状态一次推齐）
             lastHasFlash = lastHasMeter = lastFlashOn = false;
             lastSpecimen = -1;
+        }
+
+        // 分辨率/窗口大小变化时同步画布缩放比（与 IMGUI 侧 CrtTheme.Scale 保持同一倍率）
+        if (Screen.height != scaledForHeight)
+        {
+            scaledForHeight = Screen.height;
+            if (canvasScaler != null) canvasScaler.scaleFactor = CrtTheme.Scale;
         }
 
         // 鼠标滚轮：切换选中格（三格快速栏循环；上滚=上一个，下滚=下一个）
@@ -200,7 +210,6 @@ public class InventoryUI : MonoBehaviour
     private void Build()
     {
         var canvasGO = GameObject.Find("InventoryCanvas");
-        Canvas canvas;
         if (canvasGO != null && canvasGO.GetComponent<Canvas>() != null)
         {
             canvas = canvasGO.GetComponent<Canvas>();
@@ -211,10 +220,7 @@ public class InventoryUI : MonoBehaviour
             canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 5;
-            var scaler = canvasGO.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280f, 720f);
-            scaler.matchWidthOrHeight = 0.5f;
+            canvasGO.AddComponent<CanvasScaler>();   // 参数统一在下面归一化
             canvasGO.AddComponent<GraphicRaycaster>();
         }
 
@@ -224,32 +230,56 @@ public class InventoryUI : MonoBehaviour
         var oldSlots = canvas.transform.Find("Slots");
         if (oldSlots != null) Destroy(oldSlots.gameObject);
 
-        // 程序化 Sprite（圆角九宫格；无美术资产依赖）
-        spPanel = Rounded(18, PanelFill, PanelLine, 1.5f);
-        spSlotIdle = Rounded(12, SlotFill, SlotLine, 1.5f);
-        spSlotActive = Rounded(12, SlotActiveFill, SlotActiveLine, 1.5f);
-        spSlotWarm = Rounded(12, SlotWarmFill, SlotWarmLine, 1.5f);
-        spFocus = Rounded(14, FocusFill, FocusLine, 2f);
-        spKeycap = Rounded(5, new Color(0.07f, 0.09f, 0.11f, 0.92f), new Color(1f, 1f, 1f, 0.22f), 1.5f);
+        // 统一画布缩放策略：与 IMGUI 侧共用 CrtTheme.Scale（720p 基准整数倍）。
+        // 用 ConstantPixelSize 而不是 ScaleWithScreenSize——缩放比直接等于屏幕倍率，
+        // 字形按设备像素渲染后整体放大，1080p/4K 下不会出现半像素发虚（"分辨率低"的根因）。
+        canvasScaler = canvas.GetComponent<CanvasScaler>();
+        if (canvasScaler == null) canvasScaler = canvas.gameObject.AddComponent<CanvasScaler>();
+        canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+        canvasScaler.scaleFactor = CrtTheme.Scale;
+        canvasScaler.referencePixelsPerUnit = 100f;
+        scaledForHeight = Screen.height;
+
+        // 程序化 Sprite（直角九宫格 —— 终端不用圆角；无美术资产依赖）
+        spPanel = Sharp(PanelFill, PanelLine);
+        spSlotIdle = Sharp(SlotFill, SlotLine);
+        spSlotActive = Sharp(SlotActiveFill, SlotActiveLine);
+        spSlotWarm = Sharp(SlotWarmFill, SlotWarmLine);
+        spFocus = Sharp(FocusFill, FocusLine);
+        spKeycap = Sharp(new Color(0.03f, 0.07f, 0.05f, 0.95f), new Color(0.47f, 1f, 0.76f, 0.35f));
+        spScan = ScanStrip();
         spriteFlash = LoadIcon("flashlight");
         spriteMeter = LoadIcon("multimeter");
         spriteFloppy = LoadIcon("floppy");
         font = GetFont();
 
-        // 条体
+        // 条体（右下角：与左下角电量条同处底部，但左右分开——任何宽高比都不打架）
         var barGO = new GameObject("ItemBar", typeof(RectTransform));
         barGO.transform.SetParent(canvas.transform, false);
         var barRT = (RectTransform)barGO.transform;
-        barRT.anchorMin = new Vector2(0.5f, 0f);
-        barRT.anchorMax = new Vector2(0.5f, 0f);
-        barRT.pivot = new Vector2(0.5f, 0f);
-        barRT.anchoredPosition = new Vector2(0f, BarBottom);
+        barRT.anchorMin = new Vector2(1f, 0f);
+        barRT.anchorMax = new Vector2(1f, 0f);
+        barRT.pivot = new Vector2(1f, 0f);
+        barRT.anchoredPosition = new Vector2(-BarMargin, BarMargin);
         float width = PadX * 2f + SlotSize * 3f + SlotGap * 2f;
         float height = PadY * 2f + SlotSize;
         barRT.sizeDelta = new Vector2(width, height);
 
         var panel = MakeImage(barGO.transform, "Panel", spPanel);
         Stretch(panel.rectTransform);
+
+        // 扫描线层（终端质感）：1×3 条纹平铺，压在面板之上、槽位之下
+        var scan = MakeImage(barGO.transform, "ScanLines", spScan);
+        scan.rectTransform.SetSiblingIndex(1);
+        var srt = scan.rectTransform;
+        srt.anchorMin = Vector2.zero;
+        srt.anchorMax = Vector2.one;
+        srt.pivot = new Vector2(0.5f, 0.5f);
+        srt.offsetMin = new Vector2(2f, 2f);
+        srt.offsetMax = new Vector2(-2f, -2f);
+        scan.type = Image.Type.Tiled;
+        scan.pixelsPerUnitMultiplier = 100f;
+        scan.color = new Color(0f, 0f, 0f, 0.30f);
 
         flashSlot = MakeSlot(barRT, 0);
         meterSlot = MakeSlot(barRT, 1);
@@ -326,7 +356,7 @@ public class InventoryUI : MonoBehaviour
             text.fontSize = 12;
             text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
-            text.color = new Color(0.85f, 0.95f, 1f, 0.95f);
+            text.color = new Color(0.55f, 1f, 0.80f, 0.95f);
             text.raycastTarget = false;
             Stretch((RectTransform)textGO.transform);
         }
@@ -390,43 +420,45 @@ public class InventoryUI : MonoBehaviour
 
     private static Font GetFont()
     {
-        var f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        // CRT 主题的等宽字体（Noto Sans Mono CJK SC）；缺字体时由 CrtTheme 逐级降级
+        var f = CrtTheme.Mono;
+        if (f == null) f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (f == null) f = Resources.GetBuiltinResource<Font>("Arial.ttf");
         return f;
     }
 
-    /// <summary>程序化圆角矩形（圆角 + 描边，SDF 抗锯齿），九宫格切片用。</summary>
-    private static Sprite Rounded(int radius, Color fill, Color line, float lineWidth)
+    /// <summary>程序化直角矩形（1px 描边，Point 采样保持像素锐利），九宫格切片用——终端不用圆角。</summary>
+    private static Sprite Sharp(Color fill, Color line)
     {
-        int size = radius * 2 + 8;
+        const int size = 12;
         var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
+        tex.filterMode = FilterMode.Point;
         tex.wrapMode = TextureWrapMode.Clamp;
-        float half = size * 0.5f;
         var pixels = new Color32[size * size];
         for (int y = 0; y < size; y++)
         {
             for (int x = 0; x < size; x++)
             {
-                float px = x + 0.5f - half;
-                float py = y + 0.5f - half;
-                float bx = half - 1.25f - radius;
-                float by = half - 1.25f - radius;
-                float qx = Mathf.Abs(px) - bx;
-                float qy = Mathf.Abs(py) - by;
-                float outside = Mathf.Sqrt(Mathf.Max(qx, 0f) * Mathf.Max(qx, 0f) + Mathf.Max(qy, 0f) * Mathf.Max(qy, 0f));
-                float sd = outside + Mathf.Min(Mathf.Max(qx, qy), 0f) - radius;
-                Color c;
-                if (sd > 0.5f) c = new Color(0f, 0f, 0f, 0f);
-                else if (sd > -lineWidth) c = line;
-                else c = fill;
-                c.a *= Mathf.Clamp01(0.5f - sd);   // 外缘 1px 抗锯齿
-                pixels[y * size + x] = c;
+                bool edge = x == 0 || y == 0 || x == size - 1 || y == size - 1;
+                pixels[y * size + x] = edge ? (Color32)line : (Color32)fill;
             }
         }
         tex.SetPixels32(pixels);
         tex.Apply();
         return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
-            SpriteMeshType.FullRect, new Vector4(radius + 2, radius + 2, radius + 2, radius + 2));
+            SpriteMeshType.FullRect, new Vector4(2f, 2f, 2f, 2f));
+    }
+
+    /// <summary>1×3 扫描线条纹（一行暗、两行透明），配合 Image.Tiled 平铺出 CRT 扫描线。</summary>
+    private static Sprite ScanStrip()
+    {
+        var tex = new Texture2D(1, 3, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Point;
+        tex.wrapMode = TextureWrapMode.Repeat;
+        tex.SetPixel(0, 0, new Color(0f, 0f, 0f, 1f));
+        tex.SetPixel(0, 1, new Color(0f, 0f, 0f, 0f));
+        tex.SetPixel(0, 2, new Color(0f, 0f, 0f, 0f));
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0f, 0f, 1f, 3f), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
     }
 }

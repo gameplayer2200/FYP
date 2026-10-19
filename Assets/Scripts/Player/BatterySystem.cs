@@ -81,6 +81,18 @@ public class BatterySystem : MonoBehaviour
         else Notify();
     }
 
+    /// <summary>
+    /// 一次性按量耗电（超级跳等主动技能用）：
+    /// 直接扣固定数值，不播受创动画；扣到 0 同样触发瘫倒。
+    /// </summary>
+    public void Drain(float amount)
+    {
+        if (IsDead) return;
+        Battery = Mathf.Max(0f, Battery - Mathf.Max(0f, amount));
+        if (Battery <= 0f) Die();
+        else Notify();
+    }
+
     private void Die()
     {
         IsDead = true;
@@ -188,11 +200,45 @@ public class BatterySystem : MonoBehaviour
     {
         if (IsDead) return;
 
-        GUI.color = Battery > sprintLockThreshold ? new Color(0.22f, 0.86f, 0.95f) : new Color(0.95f, 0.4f, 0.2f);
-        GUI.Box(new Rect(20f, Screen.height - 46f, 170f, 22f), "");
-        GUI.Box(new Rect(22f, Screen.height - 44f, 166f * (Battery / maxBattery), 18f), "");
-        GUI.color = Color.white;
-        GUI.Label(new Rect(24f, Screen.height - 44f, 320f, 20f),
-            EmfStorm.Scramble("BATTERY " + (int)Battery + (SprintEnabled ? "" : "  [冲刺已关闭]") + (JumpEnabled ? "" : " [跳跃已关闭]")));
+        // CRT 终端电量条：方块格 + 三位读数（VT323 像素字）。不加任何文字标签。
+        // 蓄力跳（按住空格）时，第二行显示蓄力百分比与蓄力格。
+        var pm = GetComponentInParent<PlayerMovement>();
+        float charge = pm != null ? pm.ChargeRatio : -1f;
+        bool chargingJump = charge >= 0f;
+        bool degraded = !SprintEnabled || !JumpEnabled;
+
+        float ratio = maxBattery > 0f ? Mathf.Clamp01(Battery / maxBattery) : 0f;
+        Color c = ratio > 0.5f ? CrtTheme.Ink : (ratio > 0.25f ? CrtTheme.Warn : CrtTheme.Danger);
+
+        float W = CrtTheme.Px(252f);
+        float H = CrtTheme.Px(40f);
+        float rowH = CrtTheme.Px(17f);
+        float extra = (chargingJump || degraded) ? rowH + CrtTheme.Px(2f) : 0f;
+
+        var r = new Rect(CrtTheme.Px(20f), Screen.height - CrtTheme.Px(20f) - (H + extra), W, H + extra);
+        CrtTheme.Panel(r);
+
+        // 电量格 + 三位读数
+        CrtTheme.Gauge(new Rect(r.x + CrtTheme.Px(10f), r.y + CrtTheme.Px(13f), CrtTheme.Px(130f), CrtTheme.Px(12f)),
+            ratio, 10, c);
+        GUI.Label(new Rect(r.x + CrtTheme.Px(146f), r.y + CrtTheme.Px(9f), CrtTheme.Px(96f), CrtTheme.Px(17f)),
+            ((int)Battery).ToString("000"), CrtTheme.Style(19, c, false, true, TextAnchor.MiddleCenter));
+
+        // 第二行：蓄力跳优先显示蓄力进度（蓄力中 / 降级提示二选一，避免挤成两行糊在一起）
+        if (chargingJump)
+        {
+            int pct = Mathf.RoundToInt(charge * 100f);
+            var cJump = pct >= 100 ? CrtTheme.Ink : CrtTheme.Warn;
+            CrtTheme.Gauge(new Rect(r.x + CrtTheme.Px(10f), r.y + CrtTheme.Px(34f), CrtTheme.Px(130f), CrtTheme.Px(8f)),
+                charge, 10, cJump);
+            GUI.Label(new Rect(r.x + CrtTheme.Px(146f), r.y + CrtTheme.Px(30f), CrtTheme.Px(96f), CrtTheme.Px(15f)),
+                pct.ToString("000") + "%", CrtTheme.Style(13, cJump, false, true, TextAnchor.MiddleCenter));
+        }
+        else if (degraded)
+        {
+            string flags = (SprintEnabled ? "" : "冲刺已关闭 ") + (JumpEnabled ? "" : "跳跃已关闭");
+            GUI.Label(new Rect(r.x + CrtTheme.Px(10f), r.y + CrtTheme.Px(29f), W - CrtTheme.Px(20f), CrtTheme.Px(14f)),
+                flags, CrtTheme.Style(10, CrtTheme.Warn, false));
+        }
     }
 }

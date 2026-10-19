@@ -19,6 +19,20 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float rollCooldown = 0.3f;   // 翻滚结束后的冷却（防连按）
     [SerializeField] private float doubleTapWindow = 0.25f; // Shift 双击判定窗口（秒）
 
+    [Header("蓄力超级跳")]
+    [Tooltip("按住空格超过此秒数即判定为蓄力（而非普通跳）。松开时发射。")]
+    [SerializeField] private float superJumpHoldTime = 0.25f;
+    [Tooltip("蓄力满时长（秒）。蓄力成长线性,满蓄力跳得最高最远。")]
+    [SerializeField] private float superJumpMaxCharge = 2f;
+    [Tooltip("满蓄力时的跳跃初速加速度(相对普通跳高度比例)。")]
+    [SerializeField] private float superJumpHeightScale = 2.2f;
+    [Tooltip("满蓄力时的水平冲刺初速(m/s)。")]
+    [SerializeField] private float superJumpForwardSpeed = 9f;
+    [Tooltip("蓄力跳扣除的电量（固定值，不随蓄力比例变化）。")]
+    [SerializeField] private float superJumpDrain = 1f;
+    [Tooltip("超级跳的水平冲刺持续时长(秒)。期间无视按键,保持冲刺速度。")]
+    [SerializeField] private float superJumpBoostTime = 0.6f;
+
     [Header("蹲伏")]
     [SerializeField] private float crouchHeight = 1.2f; // 蹲下时碰撞体高度
 
@@ -52,6 +66,31 @@ public class PlayerMovement : MonoBehaviour
     private float rollTimer;
     private float rollCooldownUntil;
     private float lastShiftTapTime = -10f;
+
+    // 蓄力超级跳
+    private float superJumpPressTime = -10f;   // 本次按住空格的起始时刻（Time.time）
+    private float superJumpCharge;             // 当前蓄力值 0~1
+    private bool superJumpBoost;               // 本段按下的水平冲刺是否已注入
+    private float superJumpBoostUntil;         // 冲刺结束时刻（Time.time）,期间保持冲刺速度
+
+    /// <summary>
+    /// 蓄力跳的充能进度 0~1；返回 -1 表示「此刻不是在蓄力」（没按住 / 还没过蓄力阈值）。
+    /// 供 HUD 显示蓄力百分比，避免普通点按跳跃时闪一下 0%。
+    /// </summary>
+    public float ChargeRatio
+    {
+        get
+        {
+            if (superJumpPressTime < 0f) return -1f;
+            if (!Input.GetKey(KeyCode.Space)) return -1f;
+            float held = Time.time - superJumpPressTime;
+            if (held < superJumpHoldTime) return -1f;   // 未达蓄力阈值 = 普通跳
+            return Mathf.Clamp01(held / superJumpMaxCharge);
+        }
+    }
+
+    /// <summary>蓄力跳一次固定扣多少电（HUD 提示用）。</summary>
+    public float SuperJumpDrain { get { return superJumpDrain; } }
 
     private void Awake()
     {
@@ -131,10 +170,70 @@ public class PlayerMovement : MonoBehaviour
         else if (!wantCrouch && crouching && CanStandUp())
             SetCrouch(false);
 
-        // 跳跃（蹲下时不可跳；翻滚/起身中不可跳；电量≤25 时功能已被系统关闭）
+        // ── 跳跃（蓄力版）：点按 = 普通跳；按住攒力、松开 = 超级跳(更高更远+耗电) ──
+        // 起步条件：在地面、非蹲、非翻滚、非起身、电量允许。
+        bool canJumpState = controller.isGrounded && !crouching && !rolling && !recovering;
         bool jumpAllowed = BatterySystem.Instance == null || BatterySystem.Instance.JumpEnabled;
-        if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded && !crouching && !rolling && !recovering && jumpAllowed)
-            verticalVelocity = Mathf.Sqrt(2f * -gravity * jumpHeight);
+
+        // 1) 按下空格：记下起始时刻，进入蓄力。
+        if (Input.GetKeyDown(KeyCode.Space) && canJumpState && jumpAllowed)
+        {
+            superJumpPressTime = Time.time;
+            superJumpCharge = 0f;
+        }
+
+        // 2) 按住空格且尚未松开：蓄力按按住时长成长。
+        if (Input.GetKey(KeyCode.Space) && superJumpPressTime > -1f)
+        {
+            float held = Time.time - superJumpPressTime;
+            superJumpCharge = Mathf.Clamp01(held / superJumpMaxCharge);
+        }
+
+        // 3) 松开空格：普通跳 or 超级跳。
+        if (Input.GetKeyUp(KeyCode.Space) && superJumpPressTime > -1f)
+        {
+            float held = Time.time - superJumpPressTime;
+            bool isSuper = held >= superJumpHoldTime;
+            if (canJumpState && jumpAllowed)
+            {
+                if (isSuper)
+                {
+                    float charge = Mathf.Clamp01(held / superJumpMaxCharge);   // 0~1
+                    // 跳得更高：初速 = 普通跳初速 × 蓄力缩放
+                    float normalV = Mathf.Sqrt(2f * -gravity * jumpHeight);
+                    verticalVelocity = normalV * Mathf.Lerp(1f, superJumpHeightScale, charge);
+                    // 水平冲刺：沿当前输入方向(无则前向)冲一小段,幅度随蓄力递增
+                    if (!superJumpBoost)
+                    {
+                        Vector3 dir = PlayerInputDir();
+                        horizontalVel = dir * Mathf.Lerp(0f, superJumpForwardSpeed, charge);
+                        superJumpBoost = true;   // 本跳只冲一次
+                        superJumpBoostUntil = Time.time + superJumpBoostTime;   // 冲刺持续这段
+                    }
+                    // 耗电：蓄力跳固定扣 superJumpDrain（不随蓄力比例变化）
+                    if (BatterySystem.Instance != null)
+                        BatterySystem.Instance.Drain(superJumpDrain);
+                    Debug.Log("[SuperJump] 蓄力 " + (int)(charge * 100f) + "% 起跳 速度=" + horizontalVel.magnitude.ToString("F1") + " 高度="
+                              + verticalVelocity.ToString("F1") + " 耗电=" + superJumpDrain);
+                }
+                else
+                {
+                    // 普通跳：不耗电
+                    verticalVelocity = Mathf.Sqrt(2f * -gravity * jumpHeight);
+                    superJumpBoost = false;
+                }
+            }
+            else
+            {
+                superJumpBoost = false;
+            }
+            // 每次松开都要清掉按下标记与蓄力(哪怕是无效跳,避免空蓄力残留)
+            superJumpPressTime = -1f;
+            superJumpCharge = 0f;
+        }
+
+        // 若在空中/落地时重置水平冲刺标记:下次落地后再按空格才会重新冲
+        if (!controller.isGrounded) superJumpBoost = false;
 
         // 翻滚：Shift 双击（0.25s 内两次轻点）触发，与按住冲刺不冲突；起身中不可翻滚
         if (Input.GetKeyDown(KeyCode.LeftShift))
@@ -174,6 +273,11 @@ public class PlayerMovement : MonoBehaviour
             horizontalVel = rollDir * rollSpeed;
             if (anim != null) anim.SetMove(1f, false, false, controller.isGrounded);
         }
+        else if (Time.time < superJumpBoostUntil)
+        {
+            // 超级跳冲刺持续期：保持冲刺初速沿原方向滑行,不再受水平按键影响(垂直/重力照常)。
+            if (anim != null) anim.SetMove(1f, false, false, controller.isGrounded);
+        }
         else
         {
             Vector3 input = Vector3.ClampMagnitude(new Vector3(h, 0f, v), 1f);
@@ -203,6 +307,16 @@ public class PlayerMovement : MonoBehaviour
         Vector3 motion = horizontalVel;
         motion.y = verticalVelocity;
         controller.Move(motion * Time.deltaTime);
+    }
+
+    /// <summary>当前移动输入方向（世界空间，水平），无输入则朝玩家正前方。供超级跳冲刺用。</summary>
+    private Vector3 PlayerInputDir()
+    {
+        float v = Input.GetAxisRaw("Vertical");
+        float h = Input.GetAxisRaw("Horizontal");
+        Vector3 input = Vector3.ClampMagnitude(new Vector3(h, 0f, v), 1f);
+        if (input.sqrMagnitude > 0.01f) return transform.TransformDirection(input);
+        return transform.forward;
     }
 
     /// <summary>外部传送（电量重启）：清零速度。穿门请用 PlayerRef.Teleport——那条路要保留动量。</summary>

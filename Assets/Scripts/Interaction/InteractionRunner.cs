@@ -24,8 +24,17 @@ public class InteractionRunner : MonoBehaviour
     private void OnGUI()
     {
         if (current == null) return;
-        GUI.Label(new Rect(Screen.width * 0.5f - 120f, Screen.height * 0.62f, 240f, 24f),
-            "[E] " + currentLabel);
+
+        // CRT 终端提示片：等宽字形 + 磷光绿 + 取景角（亮场景里靠暗底条保证可读）
+        var style = CrtTheme.Style(15, CrtTheme.Ink, false, false, TextAnchor.MiddleCenter);
+        var content = new GUIContent("[E] " + currentLabel);
+        float w = style.CalcSize(content).x + CrtTheme.Px(30f);
+        float h = CrtTheme.Px(26f);
+        var box = new Rect(Mathf.Round((Screen.width - w) * 0.5f), Mathf.Round(Screen.height * 0.62f), w, h);
+        CrtTheme.Fill(box, new Color(0.01f, 0.03f, 0.02f, 0.74f));
+        CrtTheme.Border(box, new Color(CrtTheme.Ink.r, CrtTheme.Ink.g, CrtTheme.Ink.b, 0.32f));
+        CrtTheme.Corners(box, new Color(CrtTheme.Ink.r, CrtTheme.Ink.g, CrtTheme.Ink.b, 0.70f), 7f, 2f);
+        GUI.Label(box, content, style);
     }
 
     private void Update()

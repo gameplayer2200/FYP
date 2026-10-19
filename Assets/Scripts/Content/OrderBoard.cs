@@ -5,7 +5,9 @@ using UnityEngine;
 ///  · 实验室（起始世界）：整备视图——收容档案、随身装备清单、出发提示；
 ///  · 层域（异世界）：订单视图——目标进度、下一步提示、撤离窗口倒计时（≤120s 红闪）。
 /// Tab 展开详情；收容入账即完成订单（绿色提示）。吸收了旧 SpecimenHud 的计数职能。
-/// OnGUI 直绘与电量条风格一致；风暴中经 EmfStorm 乱码化。
+///
+/// 外观：CRT 终端面板（CrtTheme）——等宽字形、磷光绿、扫描线、"> " 提示符、方块光标。
+/// 风暴中经 EmfStorm 乱码化（乱码字符集只含块符号，不会破坏富文本）。
 /// </summary>
 public class OrderBoard : MonoBehaviour
 {
@@ -15,14 +17,10 @@ public class OrderBoard : MonoBehaviour
     [SerializeField] private string detailText = "目标散落在站台与车厢深处。\n带回实验室收容台按 E 入账，才算完成订单。\n瘫倒重启会散失一半随身异常物。";
     [SerializeField] private KeyCode detailKey = KeyCode.Tab;
 
-    private static readonly Color ThemeColor = new Color(0.22f, 0.86f, 0.95f);
-    private static readonly Color DimColor = new Color(0.62f, 0.78f, 0.82f);
-    private static readonly Color DoneColor = new Color(0.45f, 0.95f, 0.55f);
-
     private int carrying;
     private int stored;
     private bool detail;
-    private Texture2D backing;
+    private float detailShownAt;
 
     // 双世界常驻、两侧场景各挂一份时，先到者独占渲染，避免重叠双画
     private static OrderBoard renderOwner;
@@ -57,7 +55,11 @@ public class OrderBoard : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(detailKey)) detail = !detail;
+        if (Input.GetKeyDown(detailKey))
+        {
+            detail = !detail;
+            detailShownAt = Time.unscaledTime;
+        }
     }
 
     private static string WorldDisplay(string sceneName)
@@ -79,76 +81,100 @@ public class OrderBoard : MonoBehaviour
         renderOwner = this;
 
         bool inHome = WorldPresence.InHome;
-        int lineCount = inHome ? 3 : 4; // 层域形态多一行撤离窗口（武装时）
-        float h = (detail ? 106f : 0f) + (inHome ? 118f : (lineCount * 24f) + 42f);
+        bool armed = !inHome && ExtractionClock.Armed;
+
+        float W = CrtTheme.Px(340f);
+        float h = CrtTheme.Px(30f);                      // 标题行 + 分隔线
+        h += inHome ? CrtTheme.Px(96f) : CrtTheme.Px(72f); // 正文行
+        if (armed) h += CrtTheme.Px(26f);                // 撤离窗口
+        h += CrtTheme.Px(22f);                           // 底栏（[Tab]）
+        if (detail) h += CrtTheme.Px(112f);              // 详情区
+
         var j = EmfStorm.Jitter();
-        float x = Screen.width - 322f + j.x;
-        float y = 40f + j.y;
+        var panel = new Rect(Screen.width - W - CrtTheme.Px(22f) + j.x, CrtTheme.Px(26f) + j.y, W, h);
 
-        var prev = GUI.color;
-        GUI.DrawTexture(new Rect(x, y, 302f, h), Backing);
-        GUI.color = prev;
+        CrtTheme.Panel(panel, "FYP // 终端 " + (inHome ? "LAB" : "FIELD"));
+        HeaderLamp(panel, inHome, armed);
 
-        float cy = y + 8f;
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true };
-        title.normal.textColor = ThemeColor;
-        var body = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true };
-        body.normal.textColor = ThemeColor;
-        var dim = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
-        dim.normal.textColor = DimColor;
+        float x = panel.x + CrtTheme.Px(12f);
+        float y = panel.y + CrtTheme.Px(27f);
+        float w = panel.width - CrtTheme.Px(24f);
 
         if (inHome)
         {
-            GUI.Label(new Rect(x + 12f, cy, 278f, 22f), EmfStorm.Scramble("实验室 · 整备"), title); cy += 30f;
-            GUI.Label(new Rect(x + 12f, cy, 278f, 20f), EmfStorm.Scramble("已收容异常物 " + stored + "（订单目标 " + targetCount + "）"), body); cy += 24f;
-            GUI.Label(new Rect(x + 12f, cy, 278f, 20f), EmfStorm.Scramble("装备：手电筒 " + Mark(PlayerGear.HasFlashlight)
-                + " · 万用表 " + Mark(PlayerGear.HasMultimeter)), body); cy += 24f;
-            var hint = stored >= targetCount ? DoneColor : DimColor;
-            var hStyle = new GUIStyle(dim) { fontSize = 12 };
-            hStyle.normal.textColor = hint;
-            GUI.Label(new Rect(x + 12f, cy, 278f, 22f), EmfStorm.Scramble(stored >= targetCount
-                ? "订单完成 ✓——休整后可再次出发" : "从任意一扇门出发，深入层域回收"), hStyle); cy += 26f;
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(20f)), Scramble("> 实验室 · 整备"), CrtTheme.Style(14, CrtTheme.Ink, false));
+            y += CrtTheme.Px(24f);
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("  已收容异常物 " + stored + " / 订单目标 " + targetCount), CrtTheme.Style(13, CrtTheme.Ink, false));
+            y += CrtTheme.Px(21f);
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("  装备 手电筒 " + Mark(PlayerGear.HasFlashlight)
+                + " · 万用表 " + Mark(PlayerGear.HasMultimeter)), CrtTheme.Style(13, CrtTheme.Ink, false));
+            y += CrtTheme.Px(23f);
+
+            bool done = stored >= targetCount;
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble(done
+                ? "> 订单完成 ✓ 休整后可再次出发"
+                : "> 从任意一扇门出发，深入层域回收"), CrtTheme.Style(13, done ? CrtTheme.Done : CrtTheme.InkDim, false));
+            y += CrtTheme.Px(22f);
         }
         else
         {
-            GUI.Label(new Rect(x + 12f, cy, 278f, 22f), EmfStorm.Scramble("订单：" + WorldDisplay(WorldPresence.Current) + " 回收"), title); cy += 30f;
-            GUI.Label(new Rect(x + 12f, cy, 278f, 20f), EmfStorm.Scramble(ProgressLine()), body); cy += 24f;
-            var hStyle = new GUIStyle(dim);
-            hStyle.normal.textColor = stored >= targetCount ? DoneColor : DimColor;
-            GUI.Label(new Rect(x + 12f, cy, 278f, 22f), EmfStorm.Scramble(HintLine()), hStyle); cy += 26f;
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(20f)), Scramble("> 订单：" + WorldDisplay(WorldPresence.Current) + " 回收"), CrtTheme.Style(14, CrtTheme.Ink, false));
+            y += CrtTheme.Px(24f);
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("  " + ProgressLine()), CrtTheme.Style(13, CrtTheme.Ink, false));
+            y += CrtTheme.Px(21f);
 
-            if (ExtractionClock.Armed)
+            bool done = stored >= targetCount;
+            GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("> " + HintLine()), CrtTheme.Style(13, done ? CrtTheme.Done : CrtTheme.InkDim, false));
+            y += CrtTheme.Px(21f);
+
+            if (armed)
             {
                 float r = ExtractionClock.Remaining;
-                var clock = new GUIStyle(GUI.skin.label) { fontSize = 13 };
                 bool urgent = r <= 120f;
-                clock.normal.textColor = urgent ? new Color(0.95f, 0.3f, 0.2f) : ThemeColor;
-                if (!urgent || Mathf.Repeat(Time.unscaledTime, 1f) < 0.62f)
+                bool visible = !urgent || Mathf.Repeat(Time.unscaledTime, 1f) < 0.62f;
+                if (visible)
                 {
                     int mm = (int)r / 60, ss = (int)r % 60;
-                    string label = r <= 0f ? "撤离窗口 已关闭" : "撤离窗口 " + mm + ":" + ss.ToString("00");
-                    GUI.Label(new Rect(x + 12f, cy, 278f, 20f), EmfStorm.Scramble(label), clock);
+                    string label = r <= 0f ? "  撤离窗口 已关闭" : "  撤离窗口 " + mm + ":" + ss.ToString("00");
+                    GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble(label), CrtTheme.Style(13, urgent ? CrtTheme.Danger : CrtTheme.Warn, false));
                 }
-                cy += 24f;
+                y += CrtTheme.Px(24f);
             }
         }
 
-        var foot = new GUIStyle(GUI.skin.label) { fontSize = 11 };
-        foot.normal.textColor = DimColor;
-        GUI.Label(new Rect(x + 12f, y + h - 22f, 278f, 18f), detail ? "[Tab] 收起" : "[Tab] 详情", foot);
+        // 底栏：[Tab] 提示 + 闪烁方块光标
+        GUI.Label(new Rect(x, panel.yMax - CrtTheme.Px(20f), w, CrtTheme.Px(16f)), detail ? "[Tab] 收起" : "[Tab] 详情", CrtTheme.Style(11, CrtTheme.InkFaint, false));
+        CrtTheme.Cursor(panel.xMax - CrtTheme.Px(22f), panel.yMax - CrtTheme.Px(19f), 7f, 12f, 0.75f);
 
         if (detail)
         {
-            var rich = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
-            rich.normal.textColor = DimColor;
-            GUI.Label(new Rect(x + 12f, cy + 2f, 278f, 66f), EmfStorm.Scramble(detailText), rich);
-            GUI.Label(new Rect(x + 12f, y + h - 44f, 278f, 20f), EmfStorm.Scramble(rewardText), rich);
+            float dy = panel.yMax - CrtTheme.Px(112f);
+            CrtTheme.Fill(new Rect(panel.x + CrtTheme.Px(6f), dy, panel.width - CrtTheme.Px(12f), Mathf.Max(1f, Mathf.Round(CrtTheme.Scale))), new Color(CrtTheme.Ink.r, CrtTheme.Ink.g, CrtTheme.Ink.b, 0.18f));
+            string body = EmfStorm.Scramble(detailText);
+            body = CrtTheme.Reveal(body, Time.unscaledTime - detailShownAt, 90f);
+            GUI.Label(new Rect(x, dy + CrtTheme.Px(8f), w, CrtTheme.Px(52f)), body, CrtTheme.Style(12, CrtTheme.InkDim));
+            GUI.Label(new Rect(x, dy + CrtTheme.Px(62f), w, CrtTheme.Px(16f)), EmfStorm.Scramble("> " + rewardText), CrtTheme.Style(12, CrtTheme.InkFaint, false));
         }
+    }
+
+    /// <summary>标题右侧的状态灯：实验室=常亮，层域武装=慢闪，未武装=暗。</summary>
+    private static void HeaderLamp(Rect panel, bool inHome, bool armed)
+    {
+        bool on = inHome || (armed && CrtTheme.Blink(1.6f, 0.5f));
+        var c = on ? CrtTheme.Ink : CrtTheme.InkFaint;
+        float lx = panel.xMax - CrtTheme.Px(20f);
+        float ly = panel.y + CrtTheme.Px(6f);
+        CrtTheme.Fill(new Rect(lx, ly, CrtTheme.Px(7f), CrtTheme.Px(7f)), new Color(c.r, c.g, c.b, on ? 0.95f : 0.35f));
+    }
+
+    private static string Scramble(string s)
+    {
+        return EmfStorm.Scramble(s);
     }
 
     private static string Mark(bool owned)
     {
-        return owned ? "✓" : "—";
+        return owned ? "✓" : "─";
     }
 
     private string ProgressLine()
@@ -163,21 +189,5 @@ public class OrderBoard : MonoBehaviour
         if (stored >= targetCount) return "可继续探索，或经任意门返回";
         if (carrying > 0) return "回实验室——收容台按 E 入账";
         return "前往站台与车厢，寻找异常物";
-    }
-
-    /// <summary>1×1 实底纹理：GUI.Box 的默认纹理乘半透明色在暗场景几乎不可见。</summary>
-    private Texture2D Backing
-    {
-        get
-        {
-            if (backing == null)
-            {
-                backing = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-                backing.SetPixel(0, 0, new Color(0.01f, 0.02f, 0.03f, 0.82f));
-                backing.Apply();
-                backing.hideFlags = HideFlags.DontSave;
-            }
-            return backing;
-        }
     }
 }
