@@ -52,6 +52,7 @@ Assets/Resources/Sourced/     Poly Haven/ambientCG CC0 素材（模型/贴图/HD
 Assets/Audio/Metro/           程序合成音效（emf_storm / arrival_pressure）
 Assets/items/                 旧素材（门模型 / Exploration objects / RandomObjects）
 Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计
+HANDOVER.md                   交接总览文档（新人/接手者从这里入门，再回本手册查细节）
 GLOSSARY.md                   术语表（写代码/注释/文档必须遵守）
 FYP_Game_Proposal.md          内容提案
 PortalDumps/ + Assets/Screenshots/   验证截图（部分已入库、部分未跟踪）
