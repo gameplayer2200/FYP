@@ -11,6 +11,11 @@ public class SpecimenPickup : MonoBehaviour, IInteractable
     [Tooltip("缓慢自转，提高暗处的可发现性")]
     [SerializeField] private bool spin = true;
 
+    [Header("收容档案（图鉴条目，留空显示\"未登记样本\"）")]
+    [SerializeField] private string specimenName = "";
+    [Tooltip("行为记录——一句话环境叙事")]
+    [SerializeField] private string flavor = "";
+
     private void Update()
     {
         if (spin) transform.Rotate(0f, 45f * Time.deltaTime, 0f, Space.World);
@@ -24,12 +29,13 @@ public class SpecimenPickup : MonoBehaviour, IInteractable
     public void Interact(GameObject player)
     {
         if (Inventory.Instance == null) return;
-        if (!Inventory.Instance.AddSpecimen())
+        var arch = new Inventory.SpecimenArch { name = specimenName, flavor = flavor };
+        if (!Inventory.Instance.AddSpecimen(arch))
         {
             HintToast.Show("随身收容已满（" + Inventory.Instance.SpecimenCapacity + " 件）");
             return;
         }
-        HintToast.Show(pickupHint);
+        HintToast.Show(string.IsNullOrEmpty(specimenName) ? pickupHint : "回收「" + specimenName + "」——收容台入账");
         Destroy(gameObject);
     }
 

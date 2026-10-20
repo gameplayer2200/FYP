@@ -1718,7 +1718,115 @@ public static class MetroSceneDev
         foreach (var c in s) w.Write((byte)c);
     }
 
-    // ================= 阶段 5：撤离窗口 + 手电筒 + 粉笔箭头（2026-10-17 第三轮） =================
+    // ================= 阶段 6：结算反馈层 + 档案 + 清理（2026-10-20 第五轮） =================
+
+    /// <summary>阶段6a：账单/播报挂载（Lab WorldManager + Metro MetroGameplay 双挂，先到先得渲染）。</summary>
+    public static string Stage6_Hud()
+    {
+        var sb = new StringBuilder();
+        var lab = EditorSceneManager.OpenScene("Assets/Scenes/SpecimenLab.unity", OpenSceneMode.Additive);
+        var wm = GameObject.Find("WorldManager");
+        if (wm != null)
+        {
+            if (wm.GetComponent<BillPanel>() == null) { wm.AddComponent<BillPanel>(); sb.AppendLine("BillPanel@Lab"); }
+            if (wm.GetComponent<DutyBriefing>() == null) { wm.AddComponent<DutyBriefing>(); sb.AppendLine("Briefing@Lab"); }
+            EditorSceneManager.SaveScene(lab);
+        }
+        EditorSceneManager.CloseScene(lab, true);
+
+        var mg = GameObject.Find("MetroGameplay");
+        if (mg != null)
+        {
+            if (mg.GetComponent<BillPanel>() == null) mg.AddComponent<BillPanel>();
+            if (mg.GetComponent<DutyBriefing>() == null) mg.AddComponent<DutyBriefing>();
+            sb.AppendLine("BillPanel/Briefing@Metro");
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>阶段6b：Metro 两块软盘配档案 + 站厅放第三异常物「复读磁带」。</summary>
+    public static string Stage6_MetroArchive()
+    {
+        var sb = new StringBuilder();
+        var items = EnsureChild(GameRoot(), "Items");
+
+        // 软盘档案（差异化图鉴条目）
+        var f1 = items.Find("Specimen_软盘1");
+        if (f1 != null)
+        {
+            var so = new SerializedObject(f1.GetComponent<SpecimenPickup>());
+            so.FindProperty("specimenName").stringValue = "值班员的备份";
+            so.FindProperty("flavor").stringValue = "标签写着\"别再弄丢了\"，可谁会弄丢一块绑在钥匙上的软盘";
+            so.ApplyModifiedPropertiesWithoutUndo();
+            sb.AppendLine("软盘1 档案 ok");
+        }
+        var f2 = items.Find("Specimen_软盘2");
+        if (f2 != null)
+        {
+            var so = new SerializedObject(f2.GetComponent<SpecimenPickup>());
+            so.FindProperty("specimenName").stringValue = "末班车的行车记录";
+            so.FindProperty("flavor").stringValue = "最后一班的司机日志——到站时间是明天";
+            so.ApplyModifiedPropertiesWithoutUndo();
+            sb.AppendLine("软盘2 档案 ok");
+        }
+
+        // 第三异常物：复读磁带（Poly Haven 磁带机，站厅轨道边）
+        if (items.Find("Specimen_复读磁带") == null)
+        {
+            var tape = InstantiateModel("Assets/Resources/Sourced/Models/cassette_player.fbx", "Specimen_复读磁带",
+                new Vector3(-44.2f, 95.35f, 141.5f), 0.34f, 35f);
+            if (tape != null)
+            {
+                tape.transform.SetParent(items, true);
+                var sp = tape.AddComponent<SpecimenPickup>();
+                var so = new SerializedObject(sp);
+                so.FindProperty("specimenName").stringValue = "复读磁带";
+                so.FindProperty("flavor").stringValue = "同一句「……你终于来了」，每播一次语气都不耐烦一点";
+                so.ApplyModifiedPropertiesWithoutUndo();
+                SetText(tape.AddComponent<InteractionLabel>(), "text", "回收异常物·磁带");
+                sb.AppendLine("复读磁带 ok");
+            }
+            else sb.AppendLine("磁带模型 MISSING");
+        }
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return sb.ToString();
+    }
+
+    /// <summary>阶段6c：Flooded_Grounds 清理 Demo 残留。⚠️ 只删脚本所在对象本身与具名残留，
+    /// 绝不按"子树含 Demo 脚本"删根——环境主体全挂在 "scene" 根容器下（首版误删已从 git 恢复）。</summary>
+    public static string Stage6_FloodedClean()
+    {
+        var sb = new StringBuilder();
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/Flooded_Grounds.unity", OpenSceneMode.Single);
+        var doomed = new System.Collections.Generic.List<GameObject>();
+
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            if (root.name == "player (1)") { doomed.Add(root); continue; } // 布位残留的玩家实例
+            foreach (var mb in root.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+                var tn = mb.GetType().Name;
+                if (tn == "FPSDisplay" || tn == "CharController_Motor" || tn == "FpsController")
+                {
+                    if (!doomed.Contains(mb.gameObject)) doomed.Add(mb.gameObject); // 只删脚本宿主本体
+                }
+            }
+        }
+        foreach (var go in doomed)
+        {
+            sb.AppendLine("删除: " + go.name + "（父: " + (go.transform.parent != null ? go.transform.parent.name : "<root>") + "）");
+            Object.DestroyImmediate(go);
+        }
+        EditorSceneManager.SaveScene(scene);
+        int terr = Object.FindObjectsOfType<Terrain>(true).Length;
+        int lights = Object.FindObjectsOfType<Light>(true).Length;
+        sb.AppendLine("环境校验: 地形=" + terr + " 灯=" + lights + "（应 1/16）");
+        return sb.ToString();
+    }
+
 
     /// <summary>阶段5a（Metro）：ExtractionTimer 挂载 + 手电筒拾取物（前人遗留）+ 粉笔箭头。</summary>
     public static string Stage5_Wiring()

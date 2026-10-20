@@ -1,12 +1,25 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>全局道具栏：管理门把手与异常物的持有数量。挂在常驻场景对象上。</summary>
+/// <summary>
+/// 全局道具栏：管理门把手与异常物的持有数量。挂在常驻场景对象上。
+/// 异物档案：拾取物自带档案（名/行为记录），随身携带→收容入账后进入收容数据库（图鉴）。
+/// </summary>
 public class Inventory : MonoBehaviour
 {
+    /// <summary>一件异常物的收容档案（图鉴条目）。</summary>
+    public struct SpecimenArch
+    {
+        public string name;
+        public string flavor;
+    }
+
     public static Inventory Instance { get; private set; }
     public static event System.Action<int> OnKnobChanged;
     /// <summary>(携带数, 已收容数)。异常物只有送进实验室收容台才从携带转已收容。</summary>
     public static event System.Action<int, int> OnSpecimenChanged;
+    /// <summary>收容台入账时广播（本次入账件数）——电费账单等结算演出订阅。</summary>
+    public static event System.Action<int> OnDeposit;
 
     [SerializeField] private int knobCapacity = 3;
     [Tooltip("随身可携带的异常物上限")]
@@ -17,6 +30,14 @@ public class Inventory : MonoBehaviour
     public int SpecimenCount { get; private set; }
     public int StoredSpecimenCount { get; private set; }
     public int SpecimenCapacity { get { return specimenCapacity; } }
+
+    // 随身档案队列（与 SpecimenCount 同步；瘫倒散失从队尾丢）
+    private readonly List<SpecimenArch> pending = new List<SpecimenArch>();
+    // 收容数据库（已入账，图鉴读）
+    private readonly List<SpecimenArch> archive = new List<SpecimenArch>();
+
+    /// <summary>收容数据库（已入账档案，图鉴用）。</summary>
+    public IReadOnlyList<SpecimenArch> Archive { get { return archive; } }
 
     private void Awake()
     {
@@ -36,6 +57,7 @@ public class Inventory : MonoBehaviour
         int lost = SpecimenCount / 2;
         if (lost <= 0) return;
         SpecimenCount -= lost;
+        for (int i = 0; i < lost && pending.Count > 0; i++) pending.RemoveAt(pending.Count - 1);
         NotifySpecimen();
         HintToast.Show("瘫倒重启——随身异常物散失 " + lost + " 件");
     }
@@ -61,11 +83,12 @@ public class Inventory : MonoBehaviour
         return true;
     }
 
-    /// <summary>异常物拾取物调用：随身收容一件异常物。</summary>
-    public bool AddSpecimen()
+    /// <summary>异常物拾取物调用：随身收容一件异常物（档案可缺省，缺省显示"未登记样本"）。</summary>
+    public bool AddSpecimen(SpecimenArch arch)
     {
         if (SpecimenCount >= specimenCapacity) return false;
         SpecimenCount++;
+        pending.Add(arch);
         NotifySpecimen();
         return true;
     }
@@ -77,7 +100,10 @@ public class Inventory : MonoBehaviour
         int n = SpecimenCount;
         StoredSpecimenCount += n;
         SpecimenCount = 0;
+        archive.AddRange(pending);
+        pending.Clear();
         NotifySpecimen();
+        if (OnDeposit != null) OnDeposit(n);
         return n;
     }
 

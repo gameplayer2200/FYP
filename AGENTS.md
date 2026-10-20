@@ -1,15 +1,15 @@
 # AGENTS.md — 《门阈行动》项目对接手册
 
-> 面向**接手的开发者与 AI agent**。阅读顺序：本文件 → `GLOSSARY.md`（术语强制）→ `Docs/adr/0001~0004`（设计决策）。
-> 文中数值均为**实测 / 代码核对**结论（截至提交 `bca6118` + 三世界传送门工作，2026-10-17）。改门 / 传送逻辑前，先读 §4 和 §7。
+> 面向**接手的开发者与 AI agent**。阅读顺序：本文件 → `GLOSSARY.md`（术语强制）→ `Docs/adr/0001~0005`（设计决策）。
+> 文中数值均为**实测 / 代码核对**结论（截至提交 `85a91fb` + 第五轮结算反馈层，2026-10-20）。改门 / 传送逻辑前，先读 §4 和 §7。
 
 ---
 
 ## 0. 项目速览
 
 - **《门阈行动 (Operation: Threshold)》**：第一人称心理恐怖游戏。玩家从实验室接单出发，推开一扇门进入异世界（层域），回收异常物，在归途门锁死前撤回实验室。
-- 当前仓库 = MVP 纵向切片：双世界（实验室 ↔ Metro 异世界）、完整门系统（实时取景 + 穿行传送 + 开关同步）、玩家基础（电量 / 降级 / 瘫倒）、交互与背包。
-- 内容方向与扩展规划见 `FYP_Game_Proposal.md`（四支柱：主世界 + 三大世界 + 探索道具 + 异常体道具；单次流程 30~45 分钟）。
+- 当前仓库 = MVP 纵向切片 + Metro 完整玩法闭环：**链式六世界**（实验室 ↔ Metro；实验室 ↔ 工厂昼 ↔ 工厂夜 ↔ 水淹区）、完整门系统（实时取景 + 穿行传送 + 开关同步 + `autoPair` 自动配对）、WorldStreamer 世界装卸裁决、玩家基础（电量 / 降级 / 瘫倒 / 起身）、交互与背包、CRT 终端风 HUD、接单任务板 / 电费账单 / 收容图鉴 / 值班播报。
+- 内容方向与扩展规划见 `FYP_Game_Proposal.md`（四支柱：主世界 + 三大世界 + 探索道具 + 异常体道具；单次流程 30~45 分钟）；素材许可规范见 `Docs/ASSET-SOURCING.md`。
 
 ## 1. 环境与工具链
 
@@ -20,23 +20,38 @@
 | 场景（Build Settings 顺序） | `Assets/Scenes/SpecimenLab.unity`（起始/实验室）→ 第三方样例 `country house` → `Assets/Scenes/Metro.unity` → `Assets/Scenes/FactoryDay.unity` → `Assets/Scenes/FactoryNight.unity` → `Assets/Scenes/Flooded_Grounds.unity`（后四者 = 异世界） |
 | 编辑器自动化 | 已装 **MCP for Unity**（v10.3.1-beta.7，本地包 `Packages/com.coplaydev.unity-mcp`，经 `file:` 引用——**勿改回 git URL**，UPM 在本机解析 git 包会报 `not in a git directory`）。服务端口 **8080**（日志 `Library/MCPForUnity/Logs/`）；`unity-mcp-cli` 的 `/api/tools/...` 路径与本服务不匹配，**用 MCP JSON-RPC（POST /mcp）调用**，用法见 §6 |
 
-关键提交（新→旧）：`bca6118` Metro 世界整体抬高 +93.9（仅 5 行：4 个根对象 + 门实例 y 0.13→94.03）→ `31185c2` 门收尾（判定提前/门同步/出向修正/SelfTest）+ Metro「渐渐熄灭」闭环 → `151f3b6` 关门态暗板 → `abadeae` 开门后门板碰撞体 → `501c95e` 穿门判定符号翻转 → `71a77bb` 黑板投影。
+关键提交（新→旧）：`0f3d68a` 第三/四轮（撤离窗口+手电筒+粉笔箭头+HUD 按世界切换）→ 队友六连（`85a91fb` CRT UI+CC0 素材库 / `345e4ec` 背包交互+收容台两段式 / `e725eae` 图标+验证截图 / `e13c571` autoPair+玩家 prefab 化 / `b3248f1` 起身动画+门配对工具 / `bbd4050` 链式布局落盘）→ `5cf464f` 接单板+电磁风暴/幽灵进站 → `22226b6` Metro 渐熄闭环 → `bca6118` Metro 抬高 +93.9 → `31185c2` 门收尾（判定提前/门同步/出向修正/SelfTest）。
 
 ## 2. 目录地图
 
 ```
 Assets/Scripts/              按程序集分层（Docs/adr/0004，依赖单向）
-  Core/        FYP.Core      PlayerRef（玩家引用注册表，判空用 IsReady）
-  Player/      FYP.Player    PlayerMovement / BatterySystem / PlayerAnimatorProxy
-  Interaction/ FYP.Interaction  IInteractable / InteractionRegistry / InteractionRunner（唯一 E 键）
-  World/       FYP.World     AnywhereDoor / PortalWindow / WorldLink / ChargeStation
-  Content/     FYP.Content   Inventory / InventoryUI
-Assets/Editor/                FixHingeTool / PortalDiagnostics / SceneOptimizer / MetroSceneDev（Metro 分阶段搭建 + PT_* 测试驱动）
-Assets/Prefab/                anywhere-door.prefab（基座，2026-10-17 起含 PortalWindow）+ anywhere-door-portal.prefab（成品传送门：osd 关、openAngle 95——新增世界门挂它）+ anywhere-door-Metro-Lab.prefab（Metro 实验室侧专用）+ anywhere-door-Metro Variant.prefab（Metro 世界侧，**勿删**——Metro 场景的门是它的实例）+ ChargeStation/Wall
-Assets/WorldLinks/            8 条门配对（WorldLink）：LabToMetro / MetroToLab + LabTo{FactoryDay,FactoryNight,FloodedGrounds} 与三条反向
+  Core/        FYP.Core      PlayerRef / PlayerGear / WorldPresence / ExtractionClock / EmfStorm /
+                              BillingLedger / CollapsePenalty / CrtTheme / CrtOverlay
+  Player/      FYP.Player    PlayerMovement（含双玩家守卫/蓄力跳）/ BatterySystem（双通道耗电+记账上报）/
+                              Flashlight（F 开关）/ PlayerAnimatorProxy（含起身动画链）
+  Interaction/ FYP.Interaction  IInteractable / InteractionRegistry / InteractionRunner（唯一 E 键）/
+                              InteractionLabel / HintToast
+  World/       FYP.World     AnywhereDoor / PortalWindow（autoPair）/ WorldLink / WorldStreamer（装卸裁决）/
+                              WorldLightIsolation / LoadDiag / Metro 渐熄玩法全套（MetroBlackout/LightGroup/
+                              ExtractionTimer/PowerCabinet/PowerWire/BreakerSwitch/PowerLockedDoor/
+                              PoweredLight/RequiresPower）/ 异常（EmfStormAnomaly/GhostArrivalEvent/
+                              UnreachableLightAnomaly/ChalkTrail）/ 道具（MultimeterPickup/FlashlightPickup/ChargeStation）
+  Content/     FYP.Content   Inventory（含档案）/ InventoryUI（底部道具栏+图标）/ OrderBoard（按世界切换形态+收容档案）/
+                              SpecimenPickup（带档案）/ SpecimenDeposit（两段式）/ SpecimenHud /
+                              BillPanel（电费账单）/ DutyBriefing（值班播报）
+Assets/Editor/                MetroSceneDev（分阶段搭建+测试驱动）+ DoorLinkAutoRepair / DoorPairFixer /
+                              ItemIconBaker / LoadHitchProbe / FixHingeTool / PortalDiagnostics / SceneOptimizer
+Assets/Prefab/                player.prefab（玩家整体，场景里是其实例）+ door/（anywhere-door.prefab 基座 +
+                              anywhere-door-portal.prefab + 各世界专属门 prefab）+ Tables/ + ChargeStation/Wall
+Assets/WorldLinks/            8 条门配对（WorldLink，autoPair 后只作参数兜底）：
+                              SpecimenLab↔Metro、SpecimenLab↔FactoryDay、FactoryDay↔FactoryNight、
+                              FactoryNight↔Flooded_Grounds 各正反
 Assets/Shaders/               PortalPanelProj.shader（投影屏：世界坐标投影采样，不走网格 UV）
-Assets/items/anywhere-door-pintu-kemana-saja/   门模型来源（印尼语「想去哪就去哪的门」）
-Docs/adr/0001~0004            设计决策记录；Docs/tools/ 提案生成脚本（node）
+Assets/Resources/Sourced/     Poly Haven/ambientCG CC0 素材（模型/贴图/HDRI/字体/音效）——许可见 Docs/ASSET-SOURCING.md
+Assets/Audio/Metro/           程序合成音效（emf_storm / arrival_pressure）
+Assets/items/                 旧素材（门模型 / Exploration objects / RandomObjects）
+Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计
 GLOSSARY.md                   术语表（写代码/注释/文档必须遵守）
 FYP_Game_Proposal.md          内容提案
 PortalDumps/ + Assets/Screenshots/   验证截图（部分已入库、部分未跟踪）
@@ -46,29 +61,32 @@ PortalDumps/ + Assets/Screenshots/   验证截图（部分已入库、部分未�
 
 ## 3. 门系统架构（核心）
 
-一句话：**门是实体，传送门是配置**。
+一句话：**门是实体，传送门是配置**（2026-10-18 起 = 门名约定 + 参数兜底）。
 
-- **门 `AnywhereDoor`**（挂在门板 `Cube` 上；当前八扇 = Metro 一对 + FactoryDay/FactoryNight/Flooded_Grounds 三对）：`IInteractable`，E 键开关；`SetOpen(open, scheduleAutoClose)`；动画 = 挥法 `spellWindup` → 旋转 `duration`（smoothstep）→ `spellOutro`。无碰撞体时 Awake 自动补一个 trigger BoxCollider（供交互发现）。
-- **门配对 `WorldLink` 资产**：`worldSceneName / worldDoorName / openingPath / rtHeight / preloadRadius / mapYaw180 / mirrorU`。新增一扇门 = 新增一条配对资产，不改代码（ADR-0001/0002）。
+- **门拓扑为链式**（2026-10-18 队友重构，替代旧的"实验室中庭一排三扇"）：实验室 ↔ Metro、实验室 ↔ 工厂昼、工厂昼 ↔ 工厂夜、工厂夜 ↔ 水淹区。**命名约定 `anywhere-door-X-A` ↔ `anywhere-door-X`**（`-A` 后缀在"来路侧"：实验室的 Metro-A/FactoryDay-A、工厂夜侧的 FactoryNight-A、水淹区侧的 Flooded-Grounds-A）。
+- **`PortalWindow.autoPair`（默认 true）**：运行时按门名自动推导配对（剥掉 `-A` 后缀匹配），WorldLink 资产退化为**参数兜底**（rtHeight/preloadRadius 等）；`DoorLinkAutoRepair` / `DoorPairFixer`（Editor）可一键重配。
+- **门 `AnywhereDoor`**（挂在门板 `Cube` 上，八扇如上）：`IInteractable`，E 键开关；`SetOpen(open, scheduleAutoClose)` / `SetRespondToKey(bool)`（撤离锁门用）；动画 = 挥法 `spellWindup` → 旋转 `duration`（smoothstep）→ `spellOutro`。
 - **实时取景 `PortalWindow`**：把本门 `Cube.001` 的材质槽 `backSlot=0` 换成 `Custom/PortalPanelProj` 投影屏；偏心视锥相机渲染对面世界（渲染时隐藏对面门体全部 Renderer，防递归）；关门时换回原材质/暗板。
 - **穿行 `PortalWindow.TryCross()`**（LateUpdate）：
   - 触发：玩家在门平面法线上的带符号距离**跨过提前触发面**即传送；触发面在门根平面往接近侧偏 `crossPlaneLead = 0.25m`（≈面板前 0.2m，修「先穿模再传送」）；
   - 只认**朝门里走**（inward）；`crossPlaneTolerance=1.5` 防远处误触发；`crossCooldown=0.6s` 防双触发；门关着不许穿；
-  - 落点 = local 坐标镜像到对门，再沿对门法线补偿 `exitAdvance=0.02m`（落点恒在门洞槽内 raw≈−0.02）；**朝向与位置成对**（取景与瞬移共用同一 `MapLocalPoint/MapLocalDirection`，`mapYaw180=true`）；
+  - 落点 = local 坐标镜像到对门 + `exitAdvance=0.02m`（落点恒在门洞槽内 raw≈−0.02）；**朝向与位置成对**（取景与瞬移共用同一映射）；穿行后 `WorldStreamer.NotifyCrossed()` 更新当前世界快照（WorldPresence）。
   - 传送后两侧 `ResetCrossBaseline()`（prevDot=0 哨兵），否则对面窗会把玩家立刻弹回来。
 - **开关同步 `SyncPairedDoor`**：只在本门状态**变化**时向对门下发 `SetOpen(_, false)`；自动关计时只由被交互门排（防级联）。
-- **世界加载**：世界全部 Additive 常驻（ADR-0003）；每扇门在玩家进 `preloadRadius` 内才加载目标世界，已加载则复用；取景渲染距离 = 2×preloadRadius。三世界对里**实验室侧半径 4.5**（避免一次加载全部世界）、世界侧 15；⚠️ 异世界已到 4 个（+实验室 = 5 场景），ADR-0003 的复查条件已触发，见 §8 待办 3。
+- **世界装卸 = `WorldStreamer`（ADR-0005，2026-10-18 落地）**：场景装卸的唯一裁决者，三规则——①玩家进门 `preloadRadius` 装载；②所有关联门远离 2×preloadRadius+2m 卸载；③同时存活上限 `MaxLoadedWorlds=5`（封顶淘汰"需求最弱"）。永不卸载：实验室（homeWorld）、玩家当前世界（穿门登记）、门开着的世界。`WorldLightIsolation` 随装载做各世界光照隔离（世界灯只照本世界图层）。
 
 ## 4. 关键数值与不变量（改前必读）
 
 - 门根 `localScale = 0.6048`；`raw = 门局部 z × scale`（米）——raw 为负 = 门前方（玩家侧）。
-- **八扇门 = 四对**（异世界整体放远，互不重叠，避免同时加载时穿帮）：
-  - Metro 对：`anywhere-door-Metro-Lab` @ (3.78, 0.02, 5.14)，forward=+Z（SpecimenLab，`anywhere-door-Metro-Lab.prefab` 实例）↔ `anywhere-door-Metro` @ (−47.89, **94.03**, 132.69)，forward=−Z（Metro，Variant 实例；**Metro 世界整体抬高 +93.9**，根对象 `__EA_ART__`/`__EA_SYSTEM__`/`MetroGameplay` 均在 y≈93.9）；
-  - 三世界实验室侧一排（SpecimenLab 中庭，z=−3.5、yaw180，均为 `anywhere-door-portal.prefab` 实例）：`anywhere-door-FactoryDay-Lab` @ (−5, 0.016, −3.5)、`-FactoryNight-Lab` @ (0, 0.016, −3.5)、`-Flooded-Grounds-Lab` @ (5, 0.016, −3.5)；
-  - 三世界侧门（yaw0，portal 预制件实例）：`anywhere-door-FactoryDay` @ (−4324, ≈0, 0)（工厂内容 x≈−4324）、`anywhere-door-FactoryNight` @ (10472.9, ≈0, 0)（内容 x≈+10472.9）、`anywhere-door-Flooded-Grounds` @ (402, 2147.83, 330)（内容整体抬高 y+2134，地面 ≈2147.81）；
-  - **门后必须留 ≥4.5m 净空**：取景相机在对门后方 ≈ 玩家到门的距离处，门后贴墙会取景进墙内（门洞一片扁平纯色）。实验排门曾因此在 2026-10-17 从 z=−5.6 挪到 −3.5（世界侧看门洞全绿 bug 的根因）。
+- **八扇门 = 链式四对**（对象名与坐标以场景为准）：
+  - SpecimenLab：`anywhere-door-Metro-A` @ (3.78, 0.02, 5.14)、`anywhere-door-FactoryDay-A` @ (6.17, 0, −4.34)；
+  - Metro：`anywhere-door-Metro` @ (−47.89, **94.03**, 132.69)（**Metro 世界整体抬高 +93.9**，根对象 `__EA_ART__`/`__EA_SYSTEM__`/`MetroGameplay` 均在 y≈93.9）；
+  - FactoryDay：`anywhere-door-FactoryDay` @ (−4324, ≈0, 0)、`anywhere-door-FactoryNight`（去往工厂夜）；
+  - FactoryNight：`anywhere-door-FactoryNight-A`、`anywhere-door-Flooded-Grounds` @ (10473, ≈1.7, ...)；
+  - Flooded_Grounds：`anywhere-door-Flooded-Grounds-A` @ (402, 2147.83, 330)（内容整体抬高 y+2134，地面 ≈2147.81）；
+  - **门后必须留 ≥4.5m 净空**：取景相机在对门后方 ≈ 玩家到门的距离处，门后贴墙会取景进墙内（门洞一片扁平纯色）。
 - 门洞 ≈ 1.225 × 2.106 m；`Cube.001` 两个材质槽：**槽 0 = 门洞内板（投影屏，必须填 0）**；槽 1 = 门框环（填 1 会「门框消失」）。
-- WorldLink（共 8 条）：均 `mapYaw180=1`、`mirrorU=0`、`rtHeight=720`、`openingPath=Cube.001/Plane`；Metro 两条 `preloadRadius=15`；三世界六条 = 实验室侧 **4.5** / 世界侧 **15**。
+- WorldLink（共 8 条，链式命名如 `SpecimenLabToMetro`/`FactoryDayToFactoryNight`）：均 `mapYaw180=1`、`mirrorU=0`、`rtHeight=720`、`openingPath=Cube.001/Plane`、`preloadRadius=15`（2026-10-18 统一回调为 15，MaxLoadedWorlds=5 兜住总量）。
 - AnywhereDoor 当前实例参数（以提交为准）：
 
 | 参数 | Metro-Lab 门 | Metro 世界门（变体继承） | 三世界六门（portal 预制件） |
@@ -87,8 +105,8 @@ PortalDumps/ + Assets/Screenshots/   验证截图（部分已入库、部分未�
 ### 5.1 `PortalWindow.SelfTest`（数值自检，权威）
 
 ```csharp
-// execute_code 片段
-var win = GameObject.Find("anywhere-door-Metro-Lab").GetComponentInChildren<PortalWindow>(true);
+// execute_code 片段（注意门对象名已是 -A 后缀约定，见 §3）
+var win = GameObject.Find("anywhere-door-Metro-A").GetComponentInChildren<PortalWindow>(true);
 var m = typeof(PortalWindow).GetMethod("SelfTest");
 var args = new object[]{ null };
 bool ok = (bool)m.Invoke(win, args);
@@ -101,7 +119,7 @@ return ok + " :: " + (string)args[0];
 ### 5.2 回归清单（自然管线）
 
 0. 新增世界门最低验收（2026-10-17 定式）：① 实验室窗 `SelfTest` PASS；② 双向穿行落点 = 对门门槽（raw≈−0.02、朝向保持行进方向）；③ 站世界侧门前 2~4m 反看门洞，应看到实验室内部（门后净空 ≥4.5m，见 §4）。
-1. Play → 走近实验室门（进 `preloadRadius`，三世界对实验室侧为 4.5m）→ 目标世界预载、两窗就绪；
+1. Play → 走近实验室门（进 `preloadRadius`=15）→ 目标世界预载、两窗就绪（WorldStreamer 装载，灯随装载隔离）；
 2. E 开门（等动画到位，约 2.6s）→ 走过去：应在**贴到面板前 ~0.2m** 触发（不再穿模）；落点在对面门洞槽内、朝向保持行进方向；
 3. 从 Metro 侧走回来：同样通过；
 4. 门外折返、绕门框蹭走：不误触发；门关着不能穿；
@@ -178,11 +196,24 @@ return ok + " :: " + (string)args[0];
   - **右上角 HUD 按世界切换形态**（新 `WorldPresence`，Core 静态：Home/Current/InHome，WorldStreamer 的 TickInner/NotifyCrossed 各加一行写入）：实验室=「整备视图」（已收容档案、装备清单 手电筒/万用表 ✓/—、出发提示）；层域=「订单视图」（订单：{世界名} 回收 + 进度 + 提示 + 撤离窗口倒计时）。世界显示名映射：Metro→Metro 站、FactoryDay→工厂·昼、FactoryNight→工厂·夜、Flooded_Grounds→水淹区。
   - **Metro 常驻开发玩家补充**：`Player(Metro开发)` 已存盘；注意从 SpecimenLab 正常开局时它会被双玩家守卫禁用（实测 players=2 active=1）。
 - ✅ 三世界传送门（2026-10-17）：FactoryDay / FactoryNight / Flooded_Grounds 各一对（实验室侧中庭一排 z=−3.5、`preloadRadius` 4.5/15、统一 `anywhere-door-portal.prefab` 实例 + 六条 WorldLink）。三对双向穿行实测全通过（落点均在对门门槽 raw≈−0.02、朝向保持行进方向）；实验室窗 `SelfTest` 全 PASS；修复「世界侧看门洞全绿」（排门后墙太近 → 挪至中庭）；Metro 门误删的 Variant 已恢复并复验。证据截图在 `PortalDumps/`（`v_labrow4.png`、`p_fix_labview2.png` 等）。
+- ✅ 队友六连（2026-10-18~20，`bbd4050`→`85a91fb`，此前未同步进本手册——2026-10-20 补记）：
+  - **门拓扑链式重构**：实验室中庭三扇 → 链式（实验室↔Metro、实验室↔工厂昼↔工厂夜↔水淹区）；`PortalWindow.autoPair` 按门名自动配对（`-A` 后缀约定），WorldLink 只作参数兜底；Editor 工具 `DoorLinkAutoRepair`/`DoorPairFixer`。
+  - **WorldStreamer 终态**（ADR-0005）：三规则装卸 + 永不卸载护栏，`MaxLoadedWorlds=5`、全 preloadRadius=15、预载完成即激活（延迟激活方案试过两版均回退，踩坑记录见 ADR）。
+  - **玩家 prefab 化**：整体抽成 `Assets/Prefab/player.prefab`，场景里是实例；死亡起身动画（Dead→GetUp→Idle，GetUp→Idle 不用 hasExitTime）；蓄力超级跳（耗电 1）。
+  - **CRT 终端 UI 主题**（`CrtTheme`/`CrtOverlay`，Core）：全 HUD 磷光绿等宽字 + 扫描线 + 打字机；**手电筒开关改 F 键**；背包底部道具栏 + 物品图标（`ItemIconBaker`）；收容台两段式（先开盖再收容）；拾取范围收紧 1.5m。
+  - **CC0 素材库**：Poly Haven 16 模型 + 贴图/HDRI + 字体 + ambientCG（`Assets/Resources/Sourced/`），许可审计 `Docs/ASSET-SOURCING.md`（**新增素材先查此文件**，BBC/freepbr/Zapsplat 等来源排除）。
+- ✅ 第五轮：结算反馈层 + 文档补账（2026-10-20，待玩家实测）：
+  - **电费账单 `BillPanel`（Content）**：收容台入账时居中弹 ~6.5s——照明/环境/机动/受创四类耗电 + 合计（满电量百分比）+ 机器人味结语；数据经 `BillingLedger`（Core 静态桥，BatterySystem 记账上报，同 EmfStorm 模式解耦 Player→Content）；触发链 `Inventory.OnDeposit`。瘫倒不清零（账单=整局累计）；Capacity 未就绪时百分比防御为 0（勿显示 int.MinValue）。
+  - **收容图鉴（收容数据库）**：`SpecimenPickup` 加档案字段（`specimenName`/`flavor`），`Inventory` 收容时记录档案列表；实验室形态下订单板 Tab 详情 = 收容档案区（#001 起逐条档案卡）；瘫倒散失同步丢档案（队尾）。Metro 三件：值班员的备份 / 末班车的行车记录 / **复读磁带**（新第三异常物，站厅轨道边，Poly Haven 磁带机模型——「同一句『你终于来了』，每播一次语气都不耐烦一点」）。
+  - **值班播报 `DutyBriefing`（Content）**：进层域时左上打字机式播报当班规则（Metro=渐熄/撤离/黑暗加倍；工厂/水淹占位），每世界每次会话一次；依赖 `WorldPresence`（WorldStreamer 每帧写入，后台无帧时 Home 未初始化——仅测试环境现象）。
+  - **Flooded_Grounds Demo 残留清理**：删 FpsController/FPSDisplay/`player (1)`（保留环境：地形 1、灯 16）。⚠️ **首版清理误删了 "scene" 根（环境容器）——已从 git 恢复**；教训：按"子树含 Demo 脚本删根"会误伤，只删脚本宿主本体。
+  - 文档：AGENTS.md 全面同步（本条目即）；新增 `Docs/adr/0005-world-streamer.md`。
 - ⏳ 待办（按优先级）：
-  1. ~~定稿前关 `showDebugOsd`~~ ✅ 两门均已设 0（2026-10-17）；
-  2. 玩家实测 Metro 闭环 + 三世界门动线（重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线；三条新世界门的走位体感）；
-  3. 内容按 `FYP_Game_Proposal.md` 推进——**异世界已 4 个，ADR-0003 的复查条件已触发：世界继续增加前，把「常驻/加载」收敛到可替换的 WorldStreamer**（现状 = 每门各自 `preloadRadius` 加载，尚可工作）；
-  4. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）、`snippets/`（MCP 测试片段，建议保留并入库）与 `Packages/com.coplaydev.unity-mcp`（本地 vendor，**必须入库**否则他人拉库后包解析失败）的跟踪策略。
+  1. 玩家实测 Metro 闭环 + 三世界门动线（重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线、账单/图鉴/播报观感）；
+  2. **工厂昼夜玩法闭环**（下一个大项）——设计已定（2026-10-20 用户拍板）：**软轮换**（时间到才换：门上挂钟提示，玩家自主穿门切换；不切换会被锁在当前状态——白天机器可见但门锁/夜晚门全开但异常显形）+ **夜班不掉电**（与 Metro 差异化，压迫来自轮换混乱与异常显形）；谜题=值班室排班表按序启动 3 台机器电源→锁定昼夜；奖励=昼夜自选手动切换（冷却 60s）。素材：Factory 双场景同布局（Day x≈−4324 / Night x≈+10473，几何几乎相同可坐标映射）。
+  3. 水淹区玩法闭环（提案：积水短路易 2 倍+抖屏、扳手关 3 个排水阀、水位下降露下层区+防水涂层；素材自带水/雾/混响/8 音效）；
+  4. 收容图鉴扩展：异常物种类还很少（软盘×2+磁带），工厂/水淹各配 2 件 + 差异化档案；
+  5. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）。
 
 ## 9. 术语速查（完整见 GLOSSARY.md）
 

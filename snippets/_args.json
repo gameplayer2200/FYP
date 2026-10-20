@@ -1,1 +1,1 @@
-{"action":"stop"}
+{"action":"execute","code":"return MetroSceneDev.SaveAll();"}

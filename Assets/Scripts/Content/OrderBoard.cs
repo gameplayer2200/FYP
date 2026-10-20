@@ -83,12 +83,17 @@ public class OrderBoard : MonoBehaviour
         bool inHome = WorldPresence.InHome;
         bool armed = !inHome && ExtractionClock.Armed;
 
+        // 详情区高度：实验室形态 = 收容档案（按条数扩展）；层域形态 = 订单详情
+        var inv = Inventory.Instance;
+        int archCount = inHome && detail && inv != null ? inv.Archive.Count : 0;
+        float detailH = inHome ? CrtTheme.Px(46f + Mathf.Max(1, archCount) * 20f + 18f) : CrtTheme.Px(112f);
+
         float W = CrtTheme.Px(340f);
         float h = CrtTheme.Px(30f);                      // 标题行 + 分隔线
         h += inHome ? CrtTheme.Px(96f) : CrtTheme.Px(72f); // 正文行
         if (armed) h += CrtTheme.Px(26f);                // 撤离窗口
         h += CrtTheme.Px(22f);                           // 底栏（[Tab]）
-        if (detail) h += CrtTheme.Px(112f);              // 详情区
+        if (detail) h += detailH;                        // 详情区
 
         var j = EmfStorm.Jitter();
         var panel = new Rect(Screen.width - W - CrtTheme.Px(22f) + j.x, CrtTheme.Px(26f) + j.y, W, h);
@@ -148,12 +153,47 @@ public class OrderBoard : MonoBehaviour
 
         if (detail)
         {
-            float dy = panel.yMax - CrtTheme.Px(112f);
+            float dy = panel.yMax - detailH;
             CrtTheme.Fill(new Rect(panel.x + CrtTheme.Px(6f), dy, panel.width - CrtTheme.Px(12f), Mathf.Max(1f, Mathf.Round(CrtTheme.Scale))), new Color(CrtTheme.Ink.r, CrtTheme.Ink.g, CrtTheme.Ink.b, 0.18f));
-            string body = EmfStorm.Scramble(detailText);
-            body = CrtTheme.Reveal(body, Time.unscaledTime - detailShownAt, 90f);
-            GUI.Label(new Rect(x, dy + CrtTheme.Px(8f), w, CrtTheme.Px(52f)), body, CrtTheme.Style(12, CrtTheme.InkDim));
-            GUI.Label(new Rect(x, dy + CrtTheme.Px(62f), w, CrtTheme.Px(16f)), EmfStorm.Scramble("> " + rewardText), CrtTheme.Style(12, CrtTheme.InkFaint, false));
+
+            if (inHome)
+            {
+                // 收容档案（图鉴）：#001 起逐条档案卡
+                GUI.Label(new Rect(x, dy + CrtTheme.Px(8f), w, CrtTheme.Px(18f)),
+                    Scramble("> 收容档案（" + (inv != null ? inv.Archive.Count : 0) + "）"),
+                    CrtTheme.Style(13, CrtTheme.Ink, false));
+                float ay = dy + CrtTheme.Px(30f);
+                if (inv != null && inv.Archive.Count > 0)
+                {
+                    for (int i = 0; i < inv.Archive.Count; i++)
+                    {
+                        var arch = inv.Archive[i];
+                        string name = string.IsNullOrEmpty(arch.name) ? "未登记样本" : arch.name;
+                        string flavor = string.IsNullOrEmpty(arch.flavor) ? "" : " — " + arch.flavor;
+                        GUI.Label(new Rect(x, ay, w, CrtTheme.Px(18f)),
+                            Scramble("#" + (i + 1).ToString("000") + " " + name),
+                            CrtTheme.Style(12, CrtTheme.Ink, false));
+                        if (!string.IsNullOrEmpty(flavor))
+                        {
+                            GUI.Label(new Rect(x + CrtTheme.Px(34f), ay + CrtTheme.Px(2f), w - CrtTheme.Px(34f), CrtTheme.Px(16f)),
+                                Scramble(flavor), CrtTheme.Style(11, CrtTheme.InkFaint, false));
+                        }
+                        ay += CrtTheme.Px(20f);
+                    }
+                }
+                else
+                {
+                    GUI.Label(new Rect(x, ay, w, CrtTheme.Px(18f)), Scramble("（暂无收容记录——深入层域回收异常物）"),
+                        CrtTheme.Style(12, CrtTheme.InkFaint, false));
+                }
+            }
+            else
+            {
+                string body = EmfStorm.Scramble(detailText);
+                body = CrtTheme.Reveal(body, Time.unscaledTime - detailShownAt, 90f);
+                GUI.Label(new Rect(x, dy + CrtTheme.Px(8f), w, CrtTheme.Px(52f)), body, CrtTheme.Style(12, CrtTheme.InkDim));
+                GUI.Label(new Rect(x, dy + CrtTheme.Px(62f), w, CrtTheme.Px(16f)), EmfStorm.Scramble("> " + rewardText), CrtTheme.Style(12, CrtTheme.InkFaint, false));
+            }
         }
     }
 

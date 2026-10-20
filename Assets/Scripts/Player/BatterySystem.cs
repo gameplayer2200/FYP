@@ -67,6 +67,7 @@ public class BatterySystem : MonoBehaviour
     private void Start()
     {
         Battery = maxBattery;
+        BillingLedger.SetCapacity(maxBattery);
         Notify();
     }
 
@@ -74,7 +75,9 @@ public class BatterySystem : MonoBehaviour
     public void TakeHit()
     {
         if (IsDead) return;
+        float before = Battery;
         Battery = Mathf.Max(0f, Battery - hitDrain);
+        BillingLedger.AddHit(before - Battery);
         if (anim != null) anim.PlayHit();
         Debug.Log("[Battery] 受创 -" + hitDrain + " 剩余 " + (int)Battery + " 冲刺=" + SprintEnabled + " 跳跃=" + JumpEnabled);
         if (Battery <= 0f) Die();
@@ -88,7 +91,9 @@ public class BatterySystem : MonoBehaviour
     public void Drain(float amount)
     {
         if (IsDead) return;
+        float before = Battery;
         Battery = Mathf.Max(0f, Battery - Mathf.Max(0f, amount));
+        BillingLedger.AddDevice(before - Battery);
         if (Battery <= 0f) Die();
         else Notify();
     }
@@ -169,6 +174,8 @@ public class BatterySystem : MonoBehaviour
         float drain = ambientDrain + flashlightDrain;
         if (!IsDead && !IsCharging && drain > 0f)
         {
+            BillingLedger.AddAmbient(ambientDrain * Time.deltaTime);
+            BillingLedger.AddLighting(flashlightDrain * Time.deltaTime);
             Battery = Mathf.Max(0f, Battery - drain * Time.deltaTime);
             if (Battery <= 0f) Die();
             else Notify();
