@@ -43,6 +43,8 @@ public class SpecimenDeposit : MonoBehaviour, IInteractable
 
     private void Awake()
     {
+        lid = null;  // 强制清空,避免旧域/序列化残留干扰认领
+        clasps = null;
         label = GetComponent<InteractionLabel>();
         AcquireParts();
         UpdateLabel();
@@ -141,19 +143,29 @@ public class SpecimenDeposit : MonoBehaviour, IInteractable
     /// <summary>认领可动部件并缓存开合目标旋转。部件缺任何一件，对应动作静默跳过。</summary>
     private void AcquireParts()
     {
-        if (lid == null || !HasClasps)
+        // 精确匹配子物体: 并发会话/域重载下 GetComponentsInChildren 的遍历顺序不稳定,
+        // transform.Find 按路径名查更快且不依赖顺序。
+        if (lid == null) lid = transform.Find("caseup_low");
+        if (lid == null)    // 兜底: 找不到精确名时遍历一次 (不同模型名/变体)
         {
             foreach (var c in GetComponentsInChildren<Transform>(true))
+                if (c != transform && c.name.StartsWith("caseup") && !c.name.ToLower().Contains("deco"))
+                    { lid = c; break; }
+        }
+        if (!HasClasps)
+        {
+            var found = new System.Collections.Generic.List<Transform>();
+            for (int i = 0; i < transform.childCount; i++)
             {
-                if (lid == null && c.name.StartsWith("caseup")) lid = c;
+                var c = transform.GetChild(i);
+                if (c.name.StartsWith("caseop")) found.Add(c);
             }
-            if (!HasClasps)
+            if (found.Count == 0)   // 兜底: 遍历,用于非标准层级
             {
-                var found = new System.Collections.Generic.List<Transform>();
                 foreach (var c in GetComponentsInChildren<Transform>(true))
                     if (c != transform && c.name.StartsWith("caseop")) found.Add(c);
-                clasps = found.ToArray();
             }
+            clasps = found.ToArray();
         }
         if (lid != null)
         {
