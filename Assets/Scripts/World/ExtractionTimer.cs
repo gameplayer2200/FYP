@@ -34,9 +34,12 @@ public class ExtractionTimer : MonoBehaviour
             if (!ExtractionClock.Armed) ExtractionClock.Arm(windowSeconds);
             ExtractionClock.Tick(Time.deltaTime);
         }
-        else if (ExtractionClock.Armed)
+        else if (ExtractionClock.Armed && WorldPresence.InHome)
         {
-            // 回实验室（含瘫倒重启）：窗口复位、门解锁
+            // 回实验室（含瘫倒重启）：窗口复位、门解锁。
+            // 复位必须带 InHome 门槛（2026-10-22）：ExtractionClock 是全局唯一的一口钟，
+            // 工厂等其它层域也会武装它——「玩家不在 Metro」不再意味着「这口钟归我管」，
+            // 只有回到实验室才复位（Metro 单层域时代的对外行为不变：离开 Metro 只能是回实验室）。
             ExtractionClock.Reset();
             Unlock();
         }
@@ -45,6 +48,7 @@ public class ExtractionTimer : MonoBehaviour
     private void HandleLocked()
     {
         if (locked) return;
+        if (!blackout.PlayerInZone) return; // 只锁本层域武装的窗口——别家的钟归零不关 Metro 的门
         locked = true;
         exitDoor.SetOpen(false, false);   // 关门并同步给对门
         exitDoor.SetRespondToKey(false);  // E 失效——门打不开了
