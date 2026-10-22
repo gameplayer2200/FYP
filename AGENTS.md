@@ -1,7 +1,7 @@
 # AGENTS.md — 《门阈行动》项目对接手册
 
 > 面向**接手的开发者与 AI agent**。阅读顺序：本文件 → `GLOSSARY.md`（术语强制）→ `Docs/adr/0001~0005`（设计决策）。
-> 文中数值均为**实测 / 代码核对**结论（截至提交 `85a91fb` + 第五轮结算反馈层，2026-10-20）。改门 / 传送逻辑前，先读 §4 和 §7。
+> 文中数值均为**实测 / 代码核对**结论（截至提交 `104f838` + 第六轮素材入库，2026-10-21）。改门 / 传送逻辑前，先读 §4 和 §7。
 
 ---
 
@@ -18,9 +18,9 @@
 | Unity | **2022.3.62f3c1**（Windows；用 Unity Hub 打开仓库根目录） |
 | 分支 | `main` |
 | 场景（Build Settings 顺序） | `Assets/Scenes/SpecimenLab.unity`（起始/实验室）→ 第三方样例 `country house` → `Assets/Scenes/Metro.unity` → `Assets/Scenes/FactoryDay.unity` → `Assets/Scenes/FactoryNight.unity` → `Assets/Scenes/Flooded_Grounds.unity`（后四者 = 异世界） |
-| 编辑器自动化 | 已装 **MCP for Unity**（v10.3.1-beta.7，本地包 `Packages/com.coplaydev.unity-mcp`，经 `file:` 引用——**勿改回 git URL**，UPM 在本机解析 git 包会报 `not in a git directory`）。服务端口 **8080**（日志 `Library/MCPForUnity/Logs/`）；`unity-mcp-cli` 的 `/api/tools/...` 路径与本服务不匹配，**用 MCP JSON-RPC（POST /mcp）调用**，用法见 §6 |
+| 编辑器自动化 | 已装 **MCP for Unity**（v10.3.1-beta.8，本地包 `Packages/com.coplaydev.unity-mcp`，经 `file:` 引用——**勿改回 git URL**，UPM 在本机解析 git 包会报 `not in a git directory`）。**通道是 stdio**（Unity 注册表 `MCPForUnity.UseHttpTransport = 0`，插件不回连 8080），DSH 侧经 `uvx --from mcpforunityserver mcp-for-unity --transport stdio` 接入、工具名 `mcp__unity__*`（49 个）；`manage_editor` 的合法 action 只有 telemetry_status/telemetry_ping/play/pause/stop/set_active_tool/add_tag/remove_tag/add_layer/remove_layer/deploy_package/restore_package/undo/redo（**没有 get_state**）。日志 `Library/MCPForUnity/Logs/`；用法见 §6 |
 
-关键提交（新→旧）：`0f3d68a` 第三/四轮（撤离窗口+手电筒+粉笔箭头+HUD 按世界切换）→ 队友六连（`85a91fb` CRT UI+CC0 素材库 / `345e4ec` 背包交互+收容台两段式 / `e725eae` 图标+验证截图 / `e13c571` autoPair+玩家 prefab 化 / `b3248f1` 起身动画+门配对工具 / `bbd4050` 链式布局落盘）→ `5cf464f` 接单板+电磁风暴/幽灵进站 → `22226b6` Metro 渐熄闭环 → `bca6118` Metro 抬高 +93.9 → `31185c2` 门收尾（判定提前/门同步/出向修正/SelfTest）。
+关键提交（新→旧）：`104f838` 第六轮（sci-fi-train 素材入库 + 收容台 casedeco 根因修复）→ `0c909e0` 新增 HANDOVER.md → `e4e2d03` 第五轮结算反馈层（电费账单/收容图鉴/值班播报）+ 文档补账 → `0f3d68a` 第三/四轮（撤离窗口+手电筒+粉笔箭头+HUD 按世界切换）→ 队友六连（`85a91fb` CRT UI+CC0 素材库 / `345e4ec` 背包交互+收容台两段式 / `e725eae` 图标+验证截图 / `e13c571` autoPair+玩家 prefab 化 / `b3248f1` 起身动画+门配对工具 / `bbd4050` 链式布局落盘）→ `5cf464f` 接单板+电磁风暴/幽灵进站 → `22226b6` Metro 渐熄闭环 → `bca6118` Metro 抬高 +93.9 → `31185c2` 门收尾（判定提前/门同步/出向修正/SelfTest）。
 
 ## 2. 目录地图
 
@@ -130,9 +130,11 @@ return ok + " :: " + (string)args[0];
 
 ## 6. Unity MCP 工作流（agent 专用）
 
-> 2026-10-17 更新：经 8080 端口的 MCP JSON-RPC 直连（curl）是唯一验证可用的通道；`manage_editor`/`execute_code`/`read_console`/`refresh_unity`/`manage_camera`/`manage_scene` 等工具名不变。
+> 2026-10-21 更新：**主通道是 DSH 的 MCP 客户端（stdio）**——Unity 插件监听 `127.0.0.1:6400`，由 `uvx --from mcpforunityserver mcp-for-unity --transport stdio` 桥接，agent 侧直接用 `mcp__unity__*` 工具（49 个），**不必手写 JSON-RPC**。
+> ⚠️ 8080 的 HTTP 直连**已不可用**（Unity 注册表 `MCPForUnity.UseHttpTransport = 0`，插件不回连 8080，桥日志刷 `No Unity plugin reconnected within 20.00s`，`tools/call` 恒返回 `no_unity_session`）；下文 curl 段落仅在把 Unity 切回 HTTP 传输后才有效，保留作参考。
 
-- **调用方式**（每次调用 = initialize → notifications/initialized → tools/call；响应可能是 SSE `data:` 行或纯 JSON，两者都要兼容）：
+- **主路径（stdio，当前）**：直接调 `mcp__unity__<工具名>`（如 `mcp__unity__execute_code`、`mcp__unity__read_console`）。参数与旧 JSON-RPC 的 `arguments` 完全一致。
+- **旧路径（HTTP 传输才可用，留作参考）**：每次调用 = initialize → notifications/initialized → tools/call；响应可能是 SSE `data:` 行或纯 JSON，两者都要兼容：
   ```bash
   # 长代码先落盘成 .cs（工程根 snippets/ 目录），再用 python json.dumps 包成 args.json，杜绝转义问题
   curl -s -X POST http://localhost:8080/mcp -H "Content-Type: application/json" \
@@ -163,7 +165,9 @@ return ok + " :: " + (string)args[0];
 8. **脚本搬迁必须用 `AssetDatabase.MoveAsset`** 保 .meta GUID，否则场景引用全变 Missing（ADR-0004）。
 9. **execute_code 片段写法**：`Vector3` / `float` 字面量带 `f`；失败响应结构 `{success:false,data:{errors:[...]}}`；长脚本先落盘再执行。
 10. **Play 失焦冻结 → 穿门「穿不回去」**：`LateUpdate` 里 `cooldown -= Time.deltaTime`，冻结时 dt=0 → 首次穿门写入的 0.6s 冷却永不归零、`TryCross` 不再执行（症状：正向穿行成功、反向不动、prevDot 卡在哨兵 0）。测试法：反射把该窗 `cooldown` 置 0 再驱动 `LateUpdate`；真实游玩时钟正常、无此问题。
-11. **误删预制件 → 场景只剩空壳**：删掉 `anywhere-door-Metro Variant.prefab` 后，Metro 场景的门变成 "Missing Prefab" 空壳（kids=1、无 `Cube.001/Plane`）并刷控制台报错；`git checkout` 恢复预制件 + `AssetDatabase.Refresh` 后场景内自动复原（只要场景文件没在缺失期间被保存过）。教训：门实例引用的预制件别直接删，先改场景再删。
+11. **新建 .cs 后 refresh 必须 `scope:"all"`**：用 `scope:"scripts"` 时 Unity 不会导入新文件，引用处报 `CS0103: The name 'X' does not exist in the current context`（改已有脚本才用 scripts）。
+12. **MCP 实例名会瞬时抖动**：偶发报 `Unity instance 'FYP@<hash>' not found. Available instances: ['Lesson06_Assets@...']`，重试即恢复；`refresh_unity` 每次都会先回一次 `Connection closed before reading expected bytes` 然后 `Refresh recovered after Unity disconnect/retry`，属常态。
+13. **误删预制件 → 场景只剩空壳**：删掉 `anywhere-door-Metro Variant.prefab` 后，Metro 场景的门变成 "Missing Prefab" 空壳（kids=1、无 `Cube.001/Plane`）并刷控制台报错；`git checkout` 恢复预制件 + `AssetDatabase.Refresh` 后场景内自动复原（只要场景文件没在缺失期间被保存过）。教训：门实例引用的预制件别直接删，先改场景再删。
 
 ## 8. 当前状态 / 待办 / 仓库卫生
 
@@ -209,12 +213,16 @@ return ok + " :: " + (string)args[0];
   - **值班播报 `DutyBriefing`（Content）**：进层域时左上打字机式播报当班规则（Metro=渐熄/撤离/黑暗加倍；工厂/水淹占位），每世界每次会话一次；依赖 `WorldPresence`（WorldStreamer 每帧写入，后台无帧时 Home 未初始化——仅测试环境现象）。
   - **Flooded_Grounds Demo 残留清理**：删 FpsController/FPSDisplay/`player (1)`（保留环境：地形 1、灯 16）。⚠️ **首版清理误删了 "scene" 根（环境容器）——已从 git 恢复**；教训：按"子树含 Demo 脚本删根"会误伤，只删脚本宿主本体。
   - 文档：AGENTS.md 全面同步（本条目即）；新增 `Docs/adr/0005-world-streamer.md`。
+- ✅ 第六轮：收容台根因修复 + 素材入库（2026-10-21，`104f838`）：
+  - **收容台「按 E 打不开」根因**：`SpecimenDeposit.AcquireParts()` 用 `GetComponentsInChildren<Transform>(true)` 遍历，装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，而旧判据只有 `name.StartsWith("caseup")` → 认领到装饰件，盖子其实在动但玩家看不见，表现为「按 E 没反应」。修法：先 `transform.Find("caseup_low")` 精确取，兜底遍历时排除含 `deco` 的名字；`Awake` 里先把 `lid`/`clasps` 置 null，避免旧域/序列化残留干扰认领（`clasps` 同理由 `GetChild` 直取 `caseop*`）。
+  - **素材入库**：`Assets/Material_Scence/sci-fi-train/`（Sketchfab「Sci-Fi Train」`Untitled.glb` + 贴图，约 44MB）。⚠️ 来源是 Sketchfab，**与 `Docs/ASSET-SOURCING.md` §1「Sketchfab 全站」排除项冲突**（其许可 2.2(b) 禁止把素材作为裸文件再分发，而本仓库是公开 GitHub）——去留待定，见待办 5。
+  - 另有**未跟踪**目录 `Assets/Material/MatrixVFX-master/`（约 82MB 的完整外部 Unity 工程，含自带 `ProjectSettings/`、`Packages/`、3 个 `.cs`；网格来自 Global Digital Heritage，README 明写 non-commercial）——同样待决定去留。
 - ⏳ 待办（按优先级）：
   1. 玩家实测 Metro 闭环 + 三世界门动线（重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线、账单/图鉴/播报观感）；
   2. **工厂昼夜玩法闭环**（下一个大项）——设计已定（2026-10-20 用户拍板）：**软轮换**（时间到才换：门上挂钟提示，玩家自主穿门切换；不切换会被锁在当前状态——白天机器可见但门锁/夜晚门全开但异常显形）+ **夜班不掉电**（与 Metro 差异化，压迫来自轮换混乱与异常显形）；谜题=值班室排班表按序启动 3 台机器电源→锁定昼夜；奖励=昼夜自选手动切换（冷却 60s）。素材：Factory 双场景同布局（Day x≈−4324 / Night x≈+10473，几何几乎相同可坐标映射）。
   3. 水淹区玩法闭环（提案：积水短路易 2 倍+抖屏、扳手关 3 个排水阀、水位下降露下层区+防水涂层；素材自带水/雾/混响/8 音效）；
   4. 收容图鉴扩展：异常物种类还很少（软盘×2+磁带），工厂/水淹各配 2 件 + 差异化档案；
-  5. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）。
+  5. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）；**素材合规待决**——`Assets/Material_Scence/sci-fi-train/`（Sketchfab Free Standard，公开仓库裸文件再分发风险，建议不入库或换 CC0）与未跟踪的 `Assets/Material/MatrixVFX-master/`（82MB 外部工程 + non-commercial 网格，建议移出 `Assets/` 或删除）。
 
 ## 9. 术语速查（完整见 GLOSSARY.md）
 

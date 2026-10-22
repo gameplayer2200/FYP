@@ -224,6 +224,20 @@
 
 ---
 
+## 7.5 入库后发现的问题素材（2026-10-21 审计补记）
+
+以下两件**已经在仓库里**（`104f838` 与未跟踪目录），但来源与本文 §1 的排除清单冲突，需决定去留。
+
+| 素材 | 来源 | 许可判定 | 建议 |
+|---|---|---|---|
+| `Assets/Material_Scence/sci-fi-train/`（`Untitled.glb` 约 20MB + 贴图，合计约 44MB） | Sketchfab「Sci-Fi Train」，来源 URL 记在 `Docs/asset.txt`（`sketchfab.com/3d-models/sci-fi-train-40ab7e95...`） | Sketchfab **Free Standard**。§1 已把「Sketchfab 全站」列入排除项（下载强制登录）；其许可条款 2.2(b) 明文禁止「把素材作为裸文件分发」——本仓库是**公开 GitHub**，提交 glb 即等于裸文件再分发 | **不入库（加 .gitignore）或换 CC0 替代** |
+| `Assets/Material/MatrixVFX-master/`（**未跟踪**，约 82MB） | GitHub `ShahriarShahrabi/MatrixVFX` | 代码 MIT；**网格来自 Global Digital Heritage，README 明写 non commercial use** → non-commercial = §1 红线（CC-BY-NC 类）。且该目录是完整外部 Unity 工程（含自带 `ProjectSettings/`、`Packages/`、3 个 `.cs`），放进 `Assets/` 会被 Unity 当资源导入 | **移出 `Assets/` 或删除** |
+
+> 判定依据：Sketchfab 许可页原文抓取（条款 2.2(b)）+ MatrixVFX 仓库 README 原文（原文："The Mesh is from Global Digital Heritage and is licnesed under non commercial use"）。
+> **引用扫描（2026-10-21 实测）**：`sci-fi-train` 的 18 个 GUID、`MatrixVFX-master` 的 63 个 GUID 逐一比对全部 `.unity`/`.prefab`/`.mat`——**零外部引用**（MatrixVFX 的 14 个纹理 GUID 仅被它自己目录内的 `.mat` 引用）。所以两件都还没被任何场景用到，移出或删除不会破坏现有内容。
+
+---
+
 ## 8. 需要你拍板的三件事
 
 1. **仓库是公开还是私有？** → 决定 Sonniss / Pixabay 这类"可随游戏分发但禁止裸文件再分发"的素材能不能进 `Assets/`。

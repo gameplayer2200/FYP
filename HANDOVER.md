@@ -1,6 +1,6 @@
 # 《门阈行动》交接文档
 
-> 最后更新：2026-10-20 · 对应提交 `e4e2d03`
+> 最后更新：2026-10-21 · 对应提交 `104f838`
 > 配套阅读：**AGENTS.md**（对接手册，操作细节最全）→ **GLOSSARY.md**（术语强制）→ **Docs/adr/0001~0005**（设计决策）→ `FYP_Game_Proposal.md`（内容提案）→ `Docs/ASSET-SOURCING.md`（素材许可）
 
 ---
@@ -22,7 +22,7 @@
 | 门/传送门（实时取景+穿行+同步） | ✅ 完整 | 8 扇门 4 对，链式拓扑，autoPair 自动配对 |
 | 世界装卸 WorldStreamer | ✅ 完整 | 三规则 + 永不卸载护栏，上限 5 世界（ADR-0005） |
 | 电量系统（双通道耗电/降级链/瘫倒起身） | ✅ 完整 | 含分类记账（照明/环境/机动/受创） |
-| 交互与背包 | ✅ 完整 | 唯一 E 键中枢；底部道具栏 + 图标；两段式收容台 |
+| 交互与背包 | ✅ 完整 | 唯一 E 键中枢；底部道具栏 + 图标；两段式收容台（认领部件已改精确取名，见 §8.9） |
 | **Metro 渐熄闭环** | ✅ 完整 | 渐熄/黑暗加倍/配电室谜题/复明级联/车厢奖励 |
 | Metro 异常 ×4 | ✅ 完整 | 电磁风暴 / 幽灵进站 / 对面的灯 / 粉笔箭头 |
 | 撤离窗口 + 瘫倒惩罚 | ✅ 完整 | 倒计时→锁门；瘫倒散失一半携带 |
@@ -102,6 +102,8 @@ FYP.Editor → 全部
 6. **场景清理别按"子树含目标脚本删根"**——Flooded 环境容器 "scene" 曾被整树误删（已从 git 恢复）；只删脚本宿主本体。
 7. 控制台历史 6 条 missing-script 警告为第三方资产遗留，属正常基线；「0 报错」指除此之外无错误。
 8. 仓库卫生欠账：`Docs/tools/node_modules`（418 文件已入库）、截图目录跟踪策略待定。
+9. **收容台认领部件别用 `GetComponentsInChildren` 的遍历顺序**：装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，旧判据 `name.StartsWith("caseup")` 会认领到装饰件 → 盖子看着不动、玩家以为「按 E 没反应」。现改为 `transform.Find("caseup_low")` 精确取 + 兜底排除含 `deco` 的名字，`Awake` 先把缓存置 null 防旧域残留。同类「按名字认领子物体」的逻辑都该用 `Find` 而不是遍历。
+10. **素材合规**：`Assets/Material_Scence/sci-fi-train/` 来自 Sketchfab（Free Standard 许可禁止裸文件再分发），与本仓库公开状态冲突；`Assets/Material/MatrixVFX-master/` 是未跟踪的完整外部 Unity 工程（含自带 ProjectSettings/Packages，会被当资源导入）+ non-commercial 网格。两者去留待定，新增素材前先查 `Docs/ASSET-SOURCING.md`。
 
 ## 9. 待办路线图（按优先级）
 
