@@ -115,3 +115,7 @@ InitTestScene*.unity*
 # Poly Haven 4k/8k 冗余高清贴图：项目材质统一用 1k，且个别文件超过 GitHub 100 MB 单文件上限
 /[Aa]ssets/Resources/Sourced/Textures/**/*_4k.*
 /[Aa]ssets/Resources/Sourced/Textures/**/*_8k.*
+
+# 许可不合规 + 自带独立 Unity 工程的外部素材（详见 Docs/ASSET-SOURCING.md §7.5）
+# MatrixVFX 网格 README 标注 non commercial use；且它是完整外部工程（含 ProjectSettings/、Packages/）
+/[Aa]ssets/Material/MatrixVFX-master/
