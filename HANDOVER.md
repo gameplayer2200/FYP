@@ -1,6 +1,6 @@
 # 《门阈行动》交接文档
 
-> 最后更新：2026-10-21 · 对应提交 `104f838`
+> 最后更新：2026-10-22 · 对应提交 `104f838` + 第六轮（工厂昼夜玩法闭环 / 收容台根因修复 / 素材入库）
 > 配套阅读：**AGENTS.md**（对接手册，操作细节最全）→ **GLOSSARY.md**（术语强制）→ **Docs/adr/0001~0005**（设计决策）→ `FYP_Game_Proposal.md`（内容提案）→ `Docs/ASSET-SOURCING.md`（素材许可）
 
 ---
@@ -25,12 +25,16 @@
 | 交互与背包 | ✅ 完整 | 唯一 E 键中枢；底部道具栏 + 图标；两段式收容台（认领部件已改精确取名，见 §8.9） |
 | **Metro 渐熄闭环** | ✅ 完整 | 渐熄/黑暗加倍/配电室谜题/复明级联/车厢奖励 |
 | Metro 异常 ×4 | ✅ 完整 | 电磁风暴 / 幽灵进站 / 对面的灯 / 粉笔箭头 |
-| 撤离窗口 + 瘫倒惩罚 | ✅ 完整 | 倒计时→锁门；瘫倒散失一半携带 |
+| 撤离窗口 + 瘫倒惩罚 | ✅ 完整 | 倒计时→锁门；瘫倒散失一半携带（Metro/工厂通用钟） |
 | 探索道具 | ✅ 部分 | 手电筒、万用表已做；照相机/EMF 未做 |
 | 结算反馈层 | ✅ 完整 | 电费账单 / 收容图鉴 / 值班播报（CRT 终端风） |
-| **工厂昼夜玩法** | ❌ 纯美术壳 | 设计已拍板（见 §9） |
+| **工厂昼夜玩法** | ✅ 完整（2026-10-22，待玩家实测） | 值班/沉睡轮换 + 排班表谜题 + 锁定奖励 + 深区泵房 + 异常 ×2 + 撤离窗口 |
 | **水淹区玩法** | ❌ 纯美术壳（已清理 Demo 残留） | 设计在提案与 AGENTS 待办 |
 | 怪物 / 配额递进 / 商店 / 笔记叙事 | ❌ 未做 | 提案有完整设计 |
+
+**第六轮（工厂昼夜，2026-10-22，提交 `786b773`）已完成明细**：值班/沉睡轮换（排班钟 240s/班，歇班世界死寂）· 排班表谜题（昼 2 风机 + 夜 1 送料机按序启动，错序复位）· 锁定与 60s 改锁奖励 · 深区泵房（工业门 + 程序化围护，昼/夜镜像）· 夜班异常 ×2（自开的生产线 / 巡检灯束，锁夜平息）· 撤离窗口（600s，锁实验室归途门）· 异常物 ×2（考勤卡/交接本）与订单目标 5 · HUD 排班行与工厂播报文案 · `FactorySceneDev` 全套工具与 PT 自动化验收（全过，0 报错）。机制细节与数值见 AGENTS.md §8 第六轮条目。
+
+**明确未做（接手从这里挑）**：① 玩家实测工厂闭环（体感/惊吓度/引导是否够）；② 水淹区玩法（下一大项，提案已定方向）；③ 探索道具照相机/EMF；④ 水淹区异常物 ×2 与图鉴扩展；⑤ 怪物/经济/笔记叙事（更远）；⑥ 仓库卫生（node_modules/截图策略）。另：工厂音效全部为程序合成占位，配了 fal key 后可换正式素材。
 
 ## 3. 十分钟跑通
 
@@ -38,7 +42,8 @@
 2. 起始场景 `Assets/Scenes/SpecimenLab.unity`（Build Settings 第 0 项），直接 Play。
 3. 主要键位：**WASD** 移动 / **Shift** 冲刺（双击翻滚）/ **Ctrl** 蹲 / **Space** 跳（含蓄力超级跳）/ 鼠标视角 / **E** 交互（唯一交互键）/ **F** 手电筒 / **Tab** 订单板详情 / **G** 调试受创（上线前移除）/ Esc 释放鼠标。
 4. 推荐验证动线：实验室拿门边手电筒 → Tab 看订单板（整备形态）→ 穿粉色任意门进 Metro（左上值班播报、右上订单+撤离倒计时）→ 90 秒一段熄灯体验压迫 → 死端配电室测线合闸复明 → 车厢拿第二块软盘 → 站厅捡"复读磁带" → 回收容台两段式入账 → 看电费账单 → Tab 看收容图鉴。
-5. 开发捷径：**Metro 场景内常驻 `Player(Metro开发)`**，直接从 Metro Play 也能玩（双玩家守卫保证只有一个活）。
+5. 工厂动线（2026-10-22 新）：实验室另一扇门进工厂·昼（值班播报+订单板排班行）→ 北墙读排班表 → 主厅按序启动 2 台风机（歇班会被拒）→ annex 尽头穿门进工厂·夜（深区门开、异常显形、不掉电）→ 深区泵房启动送料机 → 回排班表锁定昼夜（60s 可改锁）→ 拾考勤卡/交接本回收容入账。
+6. 开发捷径：**Metro 场景内常驻 `Player(Metro开发)`**、**FactoryDay 内常驻 `Player(工厂开发)`**，直接从对应场景 Play 也能玩（双玩家守卫保证只有一个活；⚠️ 从异世界直接 Play 时 WorldPresence.Home 未初始化属测试伪象，验证真实动线请从 SpecimenLab 起）。
 
 ## 4. 世界与门拓扑（链式）
 
@@ -62,6 +67,7 @@ SpecimenLab(实验室) ↔ FactoryDay(工厂·昼) ↔ FactoryNight(工厂·夜)
 | 交互 | Interaction/* | 交互物实现 IInteractable 自注册；InteractionLabel 自定义 [E] 文案；HintToast 全玩法反馈出口 |
 | 背包/异常物 | Content/Inventory · SpecimenPickup · SpecimenDeposit | 拾取带档案（name/flavor）→ 随身 → 两段式收容入账 → 图鉴；瘫倒散失一半（含档案） |
 | Metro 渐熄 | World/MetroBlackout · LightGroup · PowerCabinet 等 | 5 灯组每 90s 熄一组；黑暗区段 ×1.5（手电照明时免）；谜题=万用表测线合闸；复明广播 OnPowerRestored 级联（车厢/充电桩/车厢灯） |
+| 工厂昼夜 | Core/FactoryShift · World/FactoryShiftController · ShiftScheduleBoard · MachinePowerSwitch · ShiftGate · ShiftClock · FactoryExtractionTimer · GhostProduction · PatrolBeam | 排班钟每 240s 换班，歇班世界死寂（机器停摆/门锁）；按排班表顺序启动 3 台机器（昼 2 夜 1，必然跨昼夜）→ 锁定想要的昼夜（60s 可改锁）；夜班不掉电；锁夜=异常平息 |
 | 撤离窗口 | Core/ExtractionClock · World/ExtractionTimer | 进站武装 600s；归零关门锁 E；回实验室复位解锁 |
 | Metro 异常 | World/EmfStormAnomaly · GhostArrivalEvent · UnreachableLightAnomaly · ChalkTrail | 风暴=灯乱闪+HUD 乱码（Core/EmfStorm.Scramble）；幽灵进站=有征兆无列车；对面的灯=近灭远亮；粉笔箭头=顺行指路/逆行惊吓 |
 | 探索道具 | Player/Flashlight · World/FlashlightPickup · MultimeterPickup | F 开关；开灯 +0.5 电/s 但免黑暗加倍；灯锥 ForcePixel（灯多场景必须） |
@@ -85,12 +91,13 @@ FYP.Editor → 全部
 
 ## 7. 开发工具与自动化
 
-- **Unity MCP**（编辑器自动化，端口 8080）：本地包 `Packages/com.coplaydev.unity-mcp`（`file:` 引用，**勿改回 git URL**）。用 MCP JSON-RPC（POST /mcp）调用；工具与片段用法见 **AGENTS.md §6**（含 curl 握手模板）。
-- **测试驱动模式**：编辑器失焦 Play 不推进——计时类逻辑用 `snippets/` 里的反射驱动片段（`blackdrive`/`drive_lateupdate`/`repair_singletons` 等）；Play 中改脚本会触发域重载清空静态，修法也在 snippets。
-- **分阶段搭建**：`Assets/Editor/MetroSceneDev.cs`（Stage0~6 幂等方法 + PT_* Play 驱动 + 勘察/截图/探缺工具）——新世界的搭建照这个模式写 Stage。
+- **Unity MCP**（编辑器自动化，端口 8080）：本地包 `Packages/com.coplaydev.unity-mcp`（`file:` 引用，**勿改回 git URL**）。用 MCP JSON-RPC（POST /mcp）调用，现成调用器 `snippets/mcp.py`（initialize 握手 + tools/call 一发一收，兼容 SSE/纯 JSON）；工具与片段用法见 **AGENTS.md §6**（含 curl 模板）。
+- **测试驱动模式**：编辑器失焦 Play 不推进——计时类逻辑用 `snippets/` 反射驱动片段；确定性断言**直接调静态方法**（如 `ExtractionClock.Tick(2.6f)`），别指望手调 N 帧 Update 凑时间（Update 里 `Time.deltaTime` 是真实帧长，帧数与秒数不可换算）。
+- **分阶段搭建**：`Assets/Editor/MetroSceneDev.cs` 与 `Assets/Editor/FactorySceneDev.cs`（勘察 Report/Shot + Stage 幂等搭建 + FixPass 视觉修正 + PT_* Play 测试）——新世界照这个模式写。
+- **贴墙物件定位铁律**：目测坐标必埋墙（工厂北墙内面实测 z=36.0、annex 南墙内面 z=−83.4，均与直觉差 0.5m+）——一律 `Physics.Raycast` 探到真实墙面再悬挑 0.1~0.3m。
 - **门配对工具**：`DoorLinkAutoRepair` / `DoorPairFixer`（Editor 菜单）。
 - **素材规范**：新增外部素材先查 `Docs/ASSET-SOURCING.md`（CC0 白名单；BBC/freepbr/Zapsplat 排除）。CC0 素材在 `Assets/Resources/Sourced/`。
-- **音效**：`generate_audio` 需在 Unity 的 MCP Asset Generation 页配 fal key；无 key 时可用 `MetroSceneDev.Stage4_MakeSfx` 的程序合成回退。
+- **音效**：`generate_audio` 需在 Unity 的 MCP Asset Generation 页配 fal key；无 key 时用程序合成回退（`MetroSceneDev.Stage4_MakeSfx` / `FactorySceneDev.Stage0_Sfx`，WriteWav 手写 RIFF）。
 
 ## 8. 已知问题与坑（必读）
 
@@ -98,24 +105,29 @@ FYP.Editor → 全部
 2. **编辑器失焦 Play 不推进**（runInBackground 也一样）——计时/协程测试用反射手动驱动 Update/LateUpdate。
 3. 域重载后静态注册表清空（PlayerRef/BatterySystem.Instance/Inventory.Instance）——跑 `snippets/repair_singletons.cs`；组件缓存初始化放 OnEnable（勿放 Awake）。
 4. SelfTest 玩家站门洞内会假 FAIL（挪开 2m+）；Metro 侧窗镜像判据 dot=−1 属已知表现（自检不补偿 mapYaw180，以实验室窗为准）。
-5. 控制台基线 = 6 条历史 missing-script 警告（第三方资产）。
+5. 控制台基线 = 6 条历史 missing-script 警告（第三方资产）；「0 报错」指除此之外无错误。
 6. **场景清理别按"子树含目标脚本删根"**——Flooded 环境容器 "scene" 曾被整树误删（已从 git 恢复）；只删脚本宿主本体。
-7. 控制台历史 6 条 missing-script 警告为第三方资产遗留，属正常基线；「0 报错」指除此之外无错误。
-8. 仓库卫生欠账：`Docs/tools/node_modules`（418 文件已入库）、截图目录跟踪策略待定。
-9. **收容台认领部件别用 `GetComponentsInChildren` 的遍历顺序**：装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，旧判据 `name.StartsWith("caseup")` 会认领到装饰件 → 盖子看着不动、玩家以为「按 E 没反应」。现改为 `transform.Find("caseup_low")` 精确取 + 兜底排除含 `deco` 的名字，`Awake` 先把缓存置 null 防旧域残留。同类「按名字认领子物体」的逻辑都该用 `Find` 而不是遍历。
-10. **素材合规**：`Assets/Material_Scence/sci-fi-train/` 来自 Sketchfab（Free Standard 许可禁止裸文件再分发），与本仓库公开状态冲突；`Assets/Material/MatrixVFX-master/` 是未跟踪的完整外部 Unity 工程（含自带 ProjectSettings/Packages，会被当资源导入）+ non-commercial 网格。两者去留待定，新增素材前先查 `Docs/ASSET-SOURCING.md`。
+7. **从异世界直接 Play = WorldPresence.Home 未初始化**（InHome 恒真 → 播报不触发、订单板显示整备形态、撤离钟会被误复位）——**验证真实动线必须从 SpecimenLab 起 Play**；`Player(Metro开发)` / `Player(工厂开发)` 只用于局部调试。
+8. **ExtractionClock 是全局唯一一口钟**：多层域撤离窗口共存靠两道守卫——复位必须 `WorldPresence.InHome`、锁门必须玩家在本层域 zone（Metro 与工厂的计时器都已照此实现）。**再加新的撤离层域时必须照抄这套守卫**，否则各家计时器会互相复位/锁错门。
+9. **跨场景引用不可序列化（ADR-0002）**：工厂撤离计时器需要引用另一个场景的控制器——解法是运行时按类型查找（每帧重试直到就绪，自愈域重载与加载次序）。新组件要跨场景拿引用一律照此，别走 [SerializeField]。
+10. **夜侧（暗场景）离屏渲染远暗于实机**：异常物/关键道具必须局部补光（ForcePixel）+ 自发光（Metro 软盘、工厂交接本同款先例）；编辑模式截图评审偏暗时先加临时灯再下结论。
+11. **父级非均匀缩放的子物体**：局部 position/scale 都会被父级缩放（工厂控制箱按钮曾因此缩到 3cm 并埋进箱体）——要么按比例补偿局部值，要么给子件独立父级。
+12. **工厂 4 个 `FanBig01Motor01Animated` 的自动播放已被 Stage1 停掉**（playAutomatically=false）——「歇班=死寂」依赖它；若重建/重置工厂场景，重跑 `FactorySceneDev.Stage1_Core` 会自动再停。
+13. **订单 targetCount=5 分散在全部订单板实例**（SpecimenLab×2 / Metro×2 / FactoryDay / FactoryNight），且 `Inventory.specimenCapacity=5` 在 Lab——改订单目标要全量同步，漏一处则「从该场景直接 Play」时显示错数。
+14. **MCP `execute_code` 传输层对 `\n` 二次反转义**（"Newline in constant"）——字符串拼接用 `"; "` 等代替换行；长代码先落盘 `snippets/` 再执行。
+15. **Git Bash 的 /tmp 与 Windows python 路径不互通**——JSON 参数用单引号内联传给 `snippets/mcp.py`，或把参数文件放进工程目录。
+16. 仓库卫生欠账：`Docs/tools/node_modules`（418 文件已入库）、截图目录跟踪策略待定（当前惯例：验证截图分批入库作证据）。
+17. **收容台认领部件别用 `GetComponentsInChildren` 的遍历顺序**：装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，旧判据 `name.StartsWith("caseup")` 会认领到装饰件 → 盖子看着不动、玩家以为「按 E 没反应」。现改为 `transform.Find("caseup_low")` 精确取 + 兜底排除含 `deco` 的名字，`Awake` 先把缓存置 null 防旧域残留。同类「按名字认领子物体」的逻辑都该用 `Find` 而不是遍历。
+18. **素材合规**：`Assets/Material_Scence/sci-fi-train/` 来自 Sketchfab（Free Standard 许可禁止裸文件再分发），与本仓库公开状态冲突；`Assets/Material/MatrixVFX-master/` 是未跟踪的完整外部 Unity 工程（含自带 ProjectSettings/Packages，会被当资源导入）+ non-commercial 网格。两者去留待定，新增素材前先查 `Docs/ASSET-SOURCING.md`。
 
 ## 9. 待办路线图（按优先级）
 
-1. **玩家实测** Metro 闭环 + 三世界动线 + 本轮结算反馈层观感。
-2. **工厂昼夜玩法闭环**（下一个大项，设计已拍板 2026-10-20）：
-   - **软轮换**：不强制切换；时间到门上挂钟提示，玩家自主穿门换昼夜。不切换的代价=被锁在当前状态（**昼**：机器可见但通往深处的门锁死 / **夜**：门全开但异常显形）。
-   - **夜班不掉电**（与 Metro 差异化——压迫来自轮换混乱与异常显形，不靠耗电）。
-   - 谜题：值班室排班表 → 按序启动 3 台机器电源 → 锁定想要的昼夜；奖励：昼夜自选手动切换（冷却 60s）。
-   - 素材就绪：FactoryDay/Night 同布局双场景（x 相差约 1.48 万，坐标可线性映射）。
-3. **水淹区闭环**：积水短路易（耗电 ×2 + 抖屏）、扳手关 3 个排水阀、水位下降露下层区 + 防水涂层；场景自带水/雾/混响/8 个环境音效。
-4. 图鉴扩展：工厂/水淹各配 2 件异常物 + 差异化档案（素材建议见 ASSET-SOURCING 的「背影 CRT」「多一人的合影」等）。
-5. 更远：探索道具补全（照相机/EMF）、配额递进/结算升级、笔记叙事、提案其余异常池。
+1. **玩家实测** Metro + 工厂昼夜闭环 + 三世界动线 + 结算反馈层观感。
+2. **水淹区玩法闭环**（下一个大项）：积水短路易（耗电 ×2 + 抖屏）、扳手关 3 个排水阀、水位下降露下层区 + 防水涂层；场景自带水/雾/混响/8 个环境音效。
+3. 图鉴扩展：Metro 3 + 工厂 2 已就位，水淹区再配 2 件 + 差异化档案（素材建议见 ASSET-SOURCING 的「背影 CRT」「多一人的合影」等）。
+4. 更远：探索道具补全（照相机/EMF）、配额递进/结算升级、笔记叙事、提案其余异常池。
+
+> 工厂昼夜玩法已落地（2026-10-22，值班/沉睡模型——设计细节与踩坑见 AGENTS.md §8 第六轮条目）。
 
 ## 10. 文档地图
 

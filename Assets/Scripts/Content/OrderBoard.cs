@@ -82,6 +82,7 @@ public class OrderBoard : MonoBehaviour
 
         bool inHome = WorldPresence.InHome;
         bool armed = !inHome && ExtractionClock.Armed;
+        bool shiftLine = !inHome && IsFactoryWorld(WorldPresence.Current);
 
         // 详情区高度：实验室形态 = 收容档案（按条数扩展）；层域形态 = 订单详情
         var inv = Inventory.Instance;
@@ -92,6 +93,7 @@ public class OrderBoard : MonoBehaviour
         float h = CrtTheme.Px(30f);                      // 标题行 + 分隔线
         h += inHome ? CrtTheme.Px(96f) : CrtTheme.Px(72f); // 正文行
         if (armed) h += CrtTheme.Px(26f);                // 撤离窗口
+        if (shiftLine) h += CrtTheme.Px(26f);            // 工厂排班钟
         h += CrtTheme.Px(22f);                           // 底栏（[Tab]）
         if (detail) h += detailH;                        // 详情区
 
@@ -131,6 +133,27 @@ public class OrderBoard : MonoBehaviour
             bool done = stored >= targetCount;
             GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("> " + HintLine()), CrtTheme.Style(13, done ? CrtTheme.Done : CrtTheme.InkDim, false));
             y += CrtTheme.Px(21f);
+
+            // 工厂专属：排班钟状态（换班倒计时 / 已锁定——数据源 FactoryShift，Core 静态桥）
+            if (shiftLine)
+            {
+                string text;
+                if (FactoryShift.PuzzleSolved)
+                {
+                    text = FactoryShift.LockedPhase.HasValue
+                        ? "  排班钟已停——锁定" + (FactoryShift.LockedPhase == FactoryShift.Phase.Day ? "白班" : "夜班") + "（排班表可改锁）"
+                        : "  三台机器已就绪——回排班表锁定昼夜";
+                }
+                else
+                {
+                    float s = Mathf.Max(0f, FactoryShift.TimeLeft);
+                    int mm = (int)s / 60, ss = (int)s % 60;
+                    text = "  换班 " + mm + ":" + ss.ToString("00") + " → "
+                        + (FactoryShift.Current == FactoryShift.Phase.Day ? "夜班" : "白班") + "（歇班的世界死寂）";
+                }
+                GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble(text), CrtTheme.Style(13, CrtTheme.Warn, false));
+                y += CrtTheme.Px(24f);
+            }
 
             if (armed)
             {
@@ -189,7 +212,7 @@ public class OrderBoard : MonoBehaviour
             }
             else
             {
-                string body = EmfStorm.Scramble(detailText);
+                string body = EmfStorm.Scramble(DetailBody());
                 body = CrtTheme.Reveal(body, Time.unscaledTime - detailShownAt, 90f);
                 GUI.Label(new Rect(x, dy + CrtTheme.Px(8f), w, CrtTheme.Px(52f)), body, CrtTheme.Style(12, CrtTheme.InkDim));
                 GUI.Label(new Rect(x, dy + CrtTheme.Px(62f), w, CrtTheme.Px(16f)), EmfStorm.Scramble("> " + rewardText), CrtTheme.Style(12, CrtTheme.InkFaint, false));
@@ -224,10 +247,33 @@ public class OrderBoard : MonoBehaviour
         return "异常物 " + done + "/" + targetCount + (carrying > 0 ? "（携带 " + carrying + " 未入账）" : "");
     }
 
+    private static bool IsFactoryWorld(string sceneName)
+    {
+        return sceneName == "FactoryDay" || sceneName == "FactoryNight";
+    }
+
+    /// <summary>订单详情按世界区分：工厂讲班次规则，Metro 讲站台动线（serialized detailText）。</summary>
+    private string DetailBody()
+    {
+        if (IsFactoryWorld(WorldPresence.Current))
+        {
+            return "排班钟每 4 分钟换班，歇班的世界死寂：机器停摆、深区门锁。\n"
+                + "白班机器可启动但深区门锁死；夜班门全开但异常显形。\n"
+                + "按值班室排班表顺序启动 3 台机器，可锁定想要的昼夜（冷却 60 秒可改）。";
+        }
+        return detailText;
+    }
+
     private string HintLine()
     {
         if (stored >= targetCount) return "可继续探索，或经任意门返回";
         if (carrying > 0) return "回实验室——收容台按 E 入账";
+        if (IsFactoryWorld(WorldPresence.Current))
+        {
+            return FactoryShift.PuzzleSolved
+                ? "昼夜已锁定——回收异常物，经工厂·昼返回"
+                : "按值班室排班表顺序启动 3 台机器，再回收异常物";
+        }
         return "前往站台与车厢，寻找异常物";
     }
 }

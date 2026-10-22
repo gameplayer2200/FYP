@@ -8,7 +8,7 @@
 ## 0. 项目速览
 
 - **《门阈行动 (Operation: Threshold)》**：第一人称心理恐怖游戏。玩家从实验室接单出发，推开一扇门进入异世界（层域），回收异常物，在归途门锁死前撤回实验室。
-- 当前仓库 = MVP 纵向切片 + Metro 完整玩法闭环：**链式六世界**（实验室 ↔ Metro；实验室 ↔ 工厂昼 ↔ 工厂夜 ↔ 水淹区）、完整门系统（实时取景 + 穿行传送 + 开关同步 + `autoPair` 自动配对）、WorldStreamer 世界装卸裁决、玩家基础（电量 / 降级 / 瘫倒 / 起身）、交互与背包、CRT 终端风 HUD、接单任务板 / 电费账单 / 收容图鉴 / 值班播报。
+- 当前仓库 = MVP 纵向切片 + Metro / 工厂昼夜双世界玩法闭环：**链式六世界**（实验室 ↔ Metro；实验室 ↔ 工厂昼 ↔ 工厂夜 ↔ 水淹区）、完整门系统（实时取景 + 穿行传送 + 开关同步 + `autoPair` 自动配对）、WorldStreamer 世界装卸裁决、玩家基础（电量 / 降级 / 瘫倒 / 起身）、交互与背包、CRT 终端风 HUD、接单任务板 / 电费账单 / 收容图鉴 / 值班播报。
 - 内容方向与扩展规划见 `FYP_Game_Proposal.md`（四支柱：主世界 + 三大世界 + 探索道具 + 异常体道具；单次流程 30~45 分钟）；素材许可规范见 `Docs/ASSET-SOURCING.md`。
 
 ## 1. 环境与工具链
@@ -27,7 +27,7 @@
 ```
 Assets/Scripts/              按程序集分层（Docs/adr/0004，依赖单向）
   Core/        FYP.Core      PlayerRef / PlayerGear / WorldPresence / ExtractionClock / EmfStorm /
-                              BillingLedger / CollapsePenalty / CrtTheme / CrtOverlay
+                              BillingLedger / CollapsePenalty / CrtTheme / CrtOverlay / FactoryShift（工厂排班钟）
   Player/      FYP.Player    PlayerMovement（含双玩家守卫/蓄力跳）/ BatterySystem（双通道耗电+记账上报）/
                               Flashlight（F 开关）/ PlayerAnimatorProxy（含起身动画链）
   Interaction/ FYP.Interaction  IInteractable / InteractionRegistry / InteractionRunner（唯一 E 键）/
@@ -36,12 +36,14 @@ Assets/Scripts/              按程序集分层（Docs/adr/0004，依赖单向�
                               WorldLightIsolation / LoadDiag / Metro 渐熄玩法全套（MetroBlackout/LightGroup/
                               ExtractionTimer/PowerCabinet/PowerWire/BreakerSwitch/PowerLockedDoor/
                               PoweredLight/RequiresPower）/ 异常（EmfStormAnomaly/GhostArrivalEvent/
-                              UnreachableLightAnomaly/ChalkTrail）/ 道具（MultimeterPickup/FlashlightPickup/ChargeStation）
+                              UnreachableLightAnomaly/ChalkTrail）/ 道具（MultimeterPickup/FlashlightPickup/ChargeStation）/
+                              工厂昼夜玩法全套（FactoryShiftController/ShiftScheduleBoard/MachinePowerSwitch/
+                              ShiftGate/ShiftClock/FactoryExtractionTimer/异常（GhostProduction/PatrolBeam））
   Content/     FYP.Content   Inventory（含档案）/ InventoryUI（底部道具栏+图标）/ OrderBoard（按世界切换形态+收容档案）/
                               SpecimenPickup（带档案）/ SpecimenDeposit（两段式）/ SpecimenHud /
                               BillPanel（电费账单）/ DutyBriefing（值班播报）
-Assets/Editor/                MetroSceneDev（分阶段搭建+测试驱动）+ DoorLinkAutoRepair / DoorPairFixer /
-                              ItemIconBaker / LoadHitchProbe / FixHingeTool / PortalDiagnostics / SceneOptimizer
+Assets/Editor/                MetroSceneDev + FactorySceneDev（分阶段搭建+测试驱动）+ DoorLinkAutoRepair /
+                              DoorPairFixer / ItemIconBaker / LoadHitchProbe / FixHingeTool / PortalDiagnostics / SceneOptimizer
 Assets/Prefab/                player.prefab（玩家整体，场景里是其实例）+ door/（anywhere-door.prefab 基座 +
                               anywhere-door-portal.prefab + 各世界专属门 prefab）+ Tables/ + ChargeStation/Wall
 Assets/WorldLinks/            8 条门配对（WorldLink，autoPair 后只作参数兜底）：
@@ -50,6 +52,7 @@ Assets/WorldLinks/            8 条门配对（WorldLink，autoPair 后只作参
 Assets/Shaders/               PortalPanelProj.shader（投影屏：世界坐标投影采样，不走网格 UV）
 Assets/Resources/Sourced/     Poly Haven/ambientCG CC0 素材（模型/贴图/HDRI/字体/音效）——许可见 Docs/ASSET-SOURCING.md
 Assets/Audio/Metro/           程序合成音效（emf_storm / arrival_pressure）
+Assets/Audio/Factory/         同款程序合成（factory_bell / factory_hum / factory_clank / factory_sting / gate_roll）
 Assets/items/                 旧素材（门模型 / Exploration objects / RandomObjects）
 Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计
 HANDOVER.md                   交接总览文档（新人/接手者从这里入门，再回本手册查细节）
@@ -215,14 +218,25 @@ return ok + " :: " + (string)args[0];
   - 文档：AGENTS.md 全面同步（本条目即）；新增 `Docs/adr/0005-world-streamer.md`。
 - ✅ 第六轮：收容台根因修复 + 素材入库（2026-10-21，`104f838`）：
   - **收容台「按 E 打不开」根因**：`SpecimenDeposit.AcquireParts()` 用 `GetComponentsInChildren<Transform>(true)` 遍历，装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，而旧判据只有 `name.StartsWith("caseup")` → 认领到装饰件，盖子其实在动但玩家看不见，表现为「按 E 没反应」。修法：先 `transform.Find("caseup_low")` 精确取，兜底遍历时排除含 `deco` 的名字；`Awake` 里先把 `lid`/`clasps` 置 null，避免旧域/序列化残留干扰认领（`clasps` 同理由 `GetChild` 直取 `caseop*`）。
-  - **素材入库**：`Assets/Material_Scence/sci-fi-train/`（Sketchfab「Sci-Fi Train」`Untitled.glb` + 贴图，约 44MB）。⚠️ 来源是 Sketchfab，**与 `Docs/ASSET-SOURCING.md` §1「Sketchfab 全站」排除项冲突**（其许可 2.2(b) 禁止把素材作为裸文件再分发，而本仓库是公开 GitHub）——去留待定，见待办 5。
+  - **素材入库**：`Assets/Material_Scence/sci-fi-train/`（Sketchfab「Sci-Fi Train」`Untitled.glb` + 贴图，约 44MB）。⚠️ 来源是 Sketchfab，**与 `Docs/ASSET-SOURCING.md` §1「Sketchfab 全站」排除项冲突**（其许可 2.2(b) 禁止把素材作为裸文件再分发，而本仓库是公开 GitHub）——去留待定，见待办 4。
   - 另有**未跟踪**目录 `Assets/Material/MatrixVFX-master/`（约 82MB 的完整外部 Unity 工程，含自带 `ProjectSettings/`、`Packages/`、3 个 `.cs`；网格来自 Global Digital Heritage，README 明写 non-commercial）——同样待决定去留。
+- ✅ 第六轮：工厂昼夜玩法闭环（2026-10-22，待玩家实测）——设计 2026-10-20 拍板 + 本轮三问定稿（值班/沉睡模型 + 配撤离窗口 + 异常选自开生产线/巡检灯束）：
+  - **值班/沉睡模型**：Core 静态排班钟 `FactoryShift`（每班 240s 昼⇄夜轮换，玩家离厂即暂停；谜题完成后冻结）。在班的世界醒着（机器可启动 / 夜侧深区门开放 / 异常显形），歇班的世界死寂（机器停摆、门锁死、E 只给「机器沉睡」提示）。**夜班不掉电**：工厂代码从不调用 `SetAmbientDrain`（与 Metro 差异化；手电通道照常）。
+  - **谜题**：值班室排班表（主厅北墙）每局随机顺序，按序启动 3 台机器——昼侧主厅 2 台风机（z=9.3 东西墙，槽位刻意避开 Animated 叠加位）+ 夜侧深区送料机（程序化图元拼装），**必然跨昼夜往返**；错序 = 火花 + 全厂复位（排班表是唯一线索）。完成 → 排班表变锁定器：E 锁定当前班次（被锁世界永久在班且缺陷消除：锁昼=昼侧深区门也开 / 锁夜=异常平息），之后每 **60s** 可改锁（奖励=轮换控制权交给玩家）。
+  - **深区**：annex 东墙工业门（z=−70.1）通往程序化泵房（昼/夜镜像，**Night = Day + (14797, 0, 0)**）；昼侧谜题前恒锁 / 夜侧夜班开放 / 谜题后双侧常开（`ShiftGate`，条件满足自动开闸演出）。泵房在穿行动线之外——锁门不阻断轮换。
+  - **异常 ×2（夜班显形，锁夜平息）**：`GhostProduction` 自开的生产线（机器自转渐强→骤停死寂，幽灵进站三段协程复刻，不动谜题状态）；`PatrolBeam` 巡检灯束（annex 走廊扫光，扫中玩家 → HUD 乱码一瞬=EmfStorm 短脉冲 + 刺点，无伤害）。
+  - **撤离窗口**：`FactoryExtractionTimer`（只挂昼场景一份；昼/夜双 zone **运行时按类型查找**——跨场景引用不可序列化，ADR-0002）；归零锁死 `anywhere-door-FactoryDay`，回实验室复位解锁。⚠️ **Metro 的 `ExtractionTimer` 同步加了两道守卫**（复位需 `WorldPresence.InHome` + 锁门需玩家在 Metro 站）——ExtractionClock 是全局唯一一口钟，多层域共存必需；对 Metro 单层域时代行为零变化。
+  - **异常物 ×2**（订单目标 3→5，Inventory 容量 3→5，全部订单板实例同步）：昼「停在 17:59 的考勤卡」（值班角柜顶）/ 夜「对不上班的交接本」（泵房木箱，带补光+内页自发光）。
+  - **HUD**：OrderBoard 工厂形态新增**排班行**（「换班 X:XX → 夜班（歇班的世界死寂）」/ 谜题后「排班钟已停——锁定X」）+ 提示行与详情按世界区分；DutyBriefing 工厂真文案（昼/夜各一条）。
+  - **工具 `FactorySceneDev`**（MetroSceneDev 同构）：`Report/Boxes/SurveyShots/Shot` 勘察 + `Stage0_Sfx`（程序合成 5 音效：换班钟/机器嗡鸣/金属敲击/扫光刺点/闸门滚动 → `Assets/Audio/Factory/`）+ `Stage1_Core(bool night)/Stage2_Anomalies/Stage3_Player/Stage4_Orders` + `FixPass1~3`（截图评审视觉修正：贴墙定位用**射线探测**真实墙面，勿目测）+ `PT_Setup/PT_Drive/PT_Status/PT_SolvePuzzle/PT_LockFlow/PT_Extraction`。工厂常驻开发玩家 `Player(工厂开发)` @ FactoryDay (−4320, 1.1, 3)。
+  - **复验（2026-10-22）**：PT 解谜全链（错序拒绝→按序三台→锁定→冻结→双侧门开）/ 锁流转（冷却拦截→改锁→异常平息）/ 撤离（武装→归零锁门→回家复位）全过；实验室开局穿门落点 (−4324.00, 0.06, −0.02) 精确门槽、presence/InHome 正确、HUD 订单视图含排班行（截图 `Assets/Screenshots/screenshot-20261022-231134.png`）；Metro 进站武装/回家复位回归通过；控制台 0 报错。
+  - 已知测试环境伪象：从工厂直接 Play 时 `WorldPresence.Home` 未初始化（InHome 恒真、播报不触发、撤离钟会被误复位）——实验室正常开局不受影响，验证工厂动线请从 SpecimenLab 起 Play。
+  - 夜侧照明教训：离屏渲染比实机暗很多，异常物一律带局部补光 + 自发光（Metro 软盘同款先例）；挂钟时针/分针静止重合在 12 点属正常（游玩时随班次分开）。
 - ⏳ 待办（按优先级）：
-  1. 玩家实测 Metro 闭环 + 三世界门动线（重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线、账单/图鉴/播报观感）；
-  2. **工厂昼夜玩法闭环**（下一个大项）——设计已定（2026-10-20 用户拍板）：**软轮换**（时间到才换：门上挂钟提示，玩家自主穿门切换；不切换会被锁在当前状态——白天机器可见但门锁/夜晚门全开但异常显形）+ **夜班不掉电**（与 Metro 差异化，压迫来自轮换混乱与异常显形）；谜题=值班室排班表按序启动 3 台机器电源→锁定昼夜；奖励=昼夜自选手动切换（冷却 60s）。素材：Factory 双场景同布局（Day x≈−4324 / Night x≈+10473，几何几乎相同可坐标映射）。
-  3. 水淹区玩法闭环（提案：积水短路易 2 倍+抖屏、扳手关 3 个排水阀、水位下降露下层区+防水涂层；素材自带水/雾/混响/8 音效）；
-  4. 收容图鉴扩展：异常物种类还很少（软盘×2+磁带），工厂/水淹各配 2 件 + 差异化档案；
-  5. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）；**素材合规待决**——`Assets/Material_Scence/sci-fi-train/`（Sketchfab Free Standard，公开仓库裸文件再分发风险，建议不入库或换 CC0）与未跟踪的 `Assets/Material/MatrixVFX-master/`（82MB 外部工程 + non-commercial 网格，建议移出 `Assets/` 或删除）。
+  1. 玩家实测 Metro + 工厂昼夜闭环 + 三世界门动线（Metro 重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线、账单/图鉴/播报观感；工厂重点：换班节奏体感、歇班死寂的引导是否够、错序复位的挫败感、深区泵房探索动线、异常显形的惊吓度、锁定奖励的意义感）；
+  2. **水淹区玩法闭环**（下一个大项）——提案：积水短路易 2 倍+抖屏、扳手关 3 个排水阀、水位下降露下层区+防水涂层；素材自带水/雾/混响/8 音效；
+  3. 收容图鉴扩展：Metro 3 + 工厂 2 已就位，水淹区配 2 件 + 差异化档案（素材建议见 ASSET-SOURCING）；
+  4. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）；**素材合规待决**——`Assets/Material_Scence/sci-fi-train/`（Sketchfab Free Standard，公开仓库裸文件再分发风险，建议不入库或换 CC0）与未跟踪的 `Assets/Material/MatrixVFX-master/`（82MB 外部工程 + non-commercial 网格，建议移出 `Assets/` 或删除）。
 
 ## 9. 术语速查（完整见 GLOSSARY.md）
 
