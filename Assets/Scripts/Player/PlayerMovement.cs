@@ -60,6 +60,17 @@ public class PlayerMovement : MonoBehaviour
     private float standHeight;
     private Vector3 standCenter;
 
+    // 动画用的落地态（见 ComputeAnimGrounded）。
+    // controller.isGrounded 只在 Move() 真正触地的那一帧为真：传送（PlayerRef.Teleport 会
+    // 禁用再启用 CharacterController）、台阶边缘、斜坡、蹲起改碰撞体高度都会让它单帧闪 false。
+    // 而动画控制器里 JumpStart 没有回 Idle 的出口（只有 JumpStart → JumpLoop → JumpLand → Idle），
+    // 所以一次闪断就要把整套「起跳→滞空→落地」播完——表现就是人站在地上却变成空中落下的动画。
+    private bool animGrounded = true;
+    private float groundedGraceUntil;
+    private Vector3 lastPosForTeleport;
+    private const float GroundedGrace = 0.12f;   // 落地宽限：闪断不超过这个时长就不算离地
+    private const float FallVelocity = 2.5f;     // 垂直速度超过这个下行值才算真的在坠落（米/秒）
+
     // 翻滚状态
     private bool rolling;
     private Vector3 rollDir;      // 翻滚推进方向（触发瞬间锁定）
@@ -122,6 +133,8 @@ public class PlayerMovement : MonoBehaviour
                 if (b2 != null && b2.name == "Head") { headBone = b2; break; }
         standHeight = controller.height;
         standCenter = controller.center;
+        lastPosForTeleport = transform.position;
+        groundedGraceUntil = Time.time + GroundedGrace;
         // 发布给全项目消费方，取代各处 GameObject.Find("player")
         PlayerRef.Register(transform, worldCam, controller);
     }
@@ -158,6 +171,9 @@ public class PlayerMovement : MonoBehaviour
         if (controller.isGrounded && verticalVelocity < 0f)
             verticalVelocity = -1f;
         verticalVelocity += gravity * Time.deltaTime;
+
+        // 动画落地态：带滞回，避免单帧闪断把起跳动画整套播完（详见字段注释）
+        UpdateAnimGrounded();
 
         // 重生起身中：锁移动 / 跳跃 / 翻滚 / 蹲伏。
         // 起身动画（UAL2_LayToIdle）要 1.5s，不锁的话角色会边爬起边滑走。
@@ -230,6 +246,8 @@ public class PlayerMovement : MonoBehaviour
             // 每次松开都要清掉按下标记与蓄力(哪怕是无效跳,避免空蓄力残留)
             superJumpPressTime = -1f;
             superJumpCharge = 0f;
+            // 真起跳了就立刻判离地，别等下一帧的速度判定（否则起跳动画晚一帧）
+            if (verticalVelocity > 0.5f) animGrounded = false;
         }
 
         // 若在空中/落地时重置水平冲刺标记:下次落地后再按空格才会重新冲
@@ -271,12 +289,12 @@ public class PlayerMovement : MonoBehaviour
         {
             // 翻滚期间锁输入：沿触发瞬间锁定的方向匀速推进（动画是原地滚，位移由代码给）
             horizontalVel = rollDir * rollSpeed;
-            if (anim != null) anim.SetMove(1f, false, false, controller.isGrounded);
+            if (anim != null) anim.SetMove(1f, false, false, animGrounded);
         }
         else if (Time.time < superJumpBoostUntil)
         {
             // 超级跳冲刺持续期：保持冲刺初速沿原方向滑行,不再受水平按键影响(垂直/重力照常)。
-            if (anim != null) anim.SetMove(1f, false, false, controller.isGrounded);
+            if (anim != null) anim.SetMove(1f, false, false, animGrounded);
         }
         else
         {
@@ -299,7 +317,7 @@ public class PlayerMovement : MonoBehaviour
             if (anim != null)
             {
                 float speedNorm = Mathf.Clamp01(horizontalVel.magnitude / runSpeed);
-                anim.SetMove(speedNorm, backward, crouching, controller.isGrounded);
+                anim.SetMove(speedNorm, backward, crouching, animGrounded);
             }
         }
 
@@ -307,6 +325,58 @@ public class PlayerMovement : MonoBehaviour
         Vector3 motion = horizontalVel;
         motion.y = verticalVelocity;
         controller.Move(motion * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// 维护「动画用的落地态」。直接拿 controller.isGrounded 喂 Animator 会出问题：
+    /// 它只在 Move() 触地那一帧为真，传送（CharacterController 被禁用再启用）、
+    /// 台阶边缘、斜坡、蹲起改高度都可能让它单帧闪 false。而动画控制器里 JumpStart
+    /// 没有回 Idle 的出口，只有 JumpStart → JumpLoop → JumpLand → Idle，
+    /// 所以一次闪断就会把整套「起跳 → 滞空 → 落地」播完 —— 站在地上却做出空中落下的动作。
+    ///
+    /// 三重判据（任一成立即视为在地面）：
+    ///   ① isGrounded 为真；
+    ///   ② 距上次触地不超过 GroundedGrace（吸收单帧闪断）；
+    ///   ③ 垂直速度还没真正掉下去（|v| &lt; FallVelocity，人没在往下坠就不是在飞）。
+    /// 只有三条都不成立才判离地。
+    /// </summary>
+    private void UpdateAnimGrounded()
+    {
+        // 瞬移检测：一帧内位移超过 3m 只可能是穿门，不当成离地
+        Vector3 delta = transform.position - lastPosForTeleport;
+        if (delta.sqrMagnitude > 9f)
+        {
+            MarkGrounded();
+            lastPosForTeleport = transform.position;
+            return;
+        }
+        lastPosForTeleport = transform.position;
+
+        // 真起跳（明显向上）立刻判离地，不享受宽限——否则跳跃动画会晚 0.12s 才起
+        if (verticalVelocity > 0.5f)
+        {
+            animGrounded = false;
+            return;
+        }
+
+        if (controller.isGrounded)
+        {
+            MarkGrounded();
+            return;
+        }
+
+        if (Time.time < groundedGraceUntil) { animGrounded = true; return; }
+
+        // 还没真正往下坠（小台阶、斜坡、碰撞体高度变化）→ 仍然算在地面
+        if (verticalVelocity > -FallVelocity) { MarkGrounded(); return; }
+
+        animGrounded = false;
+    }
+
+    private void MarkGrounded()
+    {
+        animGrounded = true;
+        groundedGraceUntil = Time.time + GroundedGrace;
     }
 
     /// <summary>当前移动输入方向（世界空间，水平），无输入则朝玩家正前方。供超级跳冲刺用。</summary>
@@ -325,6 +395,10 @@ public class PlayerMovement : MonoBehaviour
         PlayerRef.Teleport(position, transform.rotation);
         horizontalVel = Vector3.zero;
         verticalVelocity = 0f;
+        // 传送后必然有一段 isGrounded=false，直接判为落地并刷新宽限，避免播起跳/落地动画
+        animGrounded = true;
+        groundedGraceUntil = Time.time + GroundedGrace;
+        lastPosForTeleport = transform.position;
     }
 
     /// <summary>
