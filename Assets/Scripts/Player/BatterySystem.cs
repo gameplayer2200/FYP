@@ -4,7 +4,6 @@ using UnityEngine;
 /// 电量系统：AI 调查员没有血量，受创掉电；低电量自动关闭部分功能保命；
 /// 只有在充电桩充回满电（100）才恢复全部功能。
 /// 降级链：≤50 锁冲刺，≤25 锁跳跃，蹲伏不锁。0 = Death01 瘫倒，强制休眠后回任意门旁重启（电量30）。
-/// G 键 = 模拟受创（测试用，怪物 AI 接入后移除）。
 /// </summary>
 public class BatterySystem : MonoBehaviour
 {
@@ -35,10 +34,6 @@ public class BatterySystem : MonoBehaviour
 
     // 手电筒耗电通道（电/秒）。Flashlight 组件设定；与环境耗电独立、叠加扣减。
     private float flashlightDrain;
-
-    [Header("调试")]
-    [Tooltip("G 键模拟受创。怪物 AI 接入后关掉。")]
-    [SerializeField] private bool allowDebugHit = true;
 
     public float Battery { get; private set; }
     public float MaxBattery { get { return maxBattery; } } // 供 UI / 充电桩判定满电，避免各处硬编码 100
@@ -166,9 +161,6 @@ public class BatterySystem : MonoBehaviour
     {
         // 起身计时到点 → 放行动画出口 + 恢复移动
         if (IsRecovering && Time.time >= recoverUntil) EndRecover();
-
-        // G 键测试受创（怪物 AI 接入后把 allowDebugHit 关掉）
-        if (allowDebugHit && !IsDead && Input.GetKeyDown(KeyCode.G)) TakeHit();
 
         // 持续耗电：停电/黑暗等世界规则 + 手电筒。充电与瘫倒期间不耗。
         float drain = ambientDrain + flashlightDrain;

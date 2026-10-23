@@ -64,7 +64,7 @@ public class FactoryExtractionTimer : MonoBehaviour
         if (!inFactory || exitDoor == null) return;
 
         locked = true;
-        exitDoor.SetOpen(false, false);   // 关门并同步给对门
+        exitDoor.SetOpen(false, false, false);   // 锁门是系统行为：关门并同步给对门，玩家不抬手
         exitDoor.SetRespondToKey(false);  // E 失效——门打不开了
         HintToast.Show(lockHint);
     }

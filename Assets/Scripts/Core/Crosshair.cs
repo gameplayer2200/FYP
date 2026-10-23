@@ -4,7 +4,7 @@ using UnityEngine;
 /// 屏幕中心准心。自动生成（无需场景摆放），OnGUI 直绘，沿用 CrtTheme 的磷光绿。
 ///
 /// 默认常显——第一人称的基本读数，也让"朝哪儿扫"有个参照；
-/// 当随身带着电磁探测器且滚轮选中它时整体亮一档，等于告诉玩家
+/// 当随身带着探测器且滚轮选中它时整体亮一档，等于告诉玩家
 /// "现在按 F 就是往准心方向扫"。
 ///
 /// 可读性优先：中心留空（不糊住屏幕正中要看的那个像素）、
@@ -32,13 +32,13 @@ public class Crosshair : MonoBehaviour
     [Tooltip("平时的不透明度")]
     [SerializeField] private float alpha = 0.80f;
 
-    [Tooltip("选中电磁探测器时的不透明度（亮一档）")]
+    [Tooltip("选中探测器时的不透明度（亮一档）")]
     [SerializeField] private float readyAlpha = 1f;
 
     [Tooltip("亮线下面垫的深色描边，浅色场景靠它把准心从背景里拉出来。0 = 不描边")]
     [SerializeField] private float outlineAlpha = 0.55f;
 
-    [Tooltip("常显。关掉后只在选中电磁探测器时出现")]
+    [Tooltip("常显。关掉后只在选中探测器时出现")]
     [SerializeField] private bool alwaysOn = true;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

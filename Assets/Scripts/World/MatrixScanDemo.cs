@@ -33,7 +33,6 @@ public class MatrixScanDemo : MonoBehaviour
     [SerializeField] private Transform targetRoot;
 
     [Header("扫描参数")]
-    [SerializeField] private KeyCode triggerKey = KeyCode.G;
     [SerializeField] private bool autoLoop = false;
     [Tooltip("扫描波最大半径（米）")]
     [SerializeField] private float maxRadius = 30f;
@@ -156,7 +155,6 @@ public class MatrixScanDemo : MonoBehaviour
     {
         if (!ready) return;
 
-        if (Input.GetKeyDown(triggerKey)) StartScan();
         if (autoLoop && phase == 0) StartScan();
 
         AdvancePhase();
@@ -263,7 +261,7 @@ public class MatrixScanDemo : MonoBehaviour
         if (!ready) return;
         string state = phase == 0 ? "待机" : phase == 1 ? "扩散" : phase == 2 ? "停留" : "收回";
         GUI.Label(new Rect(12f, 12f, 480f, 60f),
-            "[扫描特效] 按 " + triggerKey + " 触发   状态=" + state +
+            "[扫描特效] 状态=" + state +
             "   半径=" + radius.ToString("0.0") + "m / " + maxRadius.ToString("0.0") + "m" +
             (autoLoop ? "   自动循环=开" : ""));
     }

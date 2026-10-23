@@ -1412,9 +1412,9 @@ public static class MetroSceneDev
         var root = PlayerRoot();
         // 先测一根死线（看提示分支），再测带电线
         int deadIdx = (liveIdx + 1) % wireArr.Length;
-        wireArr[deadIdx].Interact(root != null ? root.gameObject : null);
+        wireArr[deadIdx].TestAndSelect();
         sb.AppendLine("probed dead wire " + deadIdx);
-        wireArr[liveIdx].Interact(root != null ? root.gameObject : null);
+        wireArr[liveIdx].TestAndSelect();
         sb.AppendLine("probed live wire " + liveIdx);
 
         var breaker = Object.FindObjectsOfType<BreakerSwitch>(true);

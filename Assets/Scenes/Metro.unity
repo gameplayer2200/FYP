@@ -13115,7 +13115,6 @@ MonoBehaviour:
   restartDelay: 3
   restartOffset: {x: 1.5, y: 0.2, z: 0}
   getUpDuration: 1.5
-  allowDebugHit: 1
 --- !u!114 &386439676
 MonoBehaviour:
   m_ObjectHideFlags: 0

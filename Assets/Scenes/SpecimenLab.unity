@@ -19156,7 +19156,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6f7f845ead87b54c9ee0e438423e3dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  acquireHint: "\u83B7\u5F97\u7535\u78C1\u63A2\u6D4B\u5668\u2014\u2014G \u77ED\u6309\u626B\u8FD1\u5904\uFF0C\u6309\u4F4F\u626B\u5168\u573A\u3002\u5B83\u4E5F\u5403\u7535"
+  acquireHint: "\u83B7\u5F97\u63A2\u6D4B\u5668\u2014\u2014\u6EDA\u8F6E\u9009\u5230\u5B83\uFF0C\u77ED\u6309 F \u626B\u8FD1\u5904\uFF0C\u6309\u4F4F F \u626B\u5168\u573A\u3002\u5B83\u4E5F\u5403\u7535"
   spin: 1
 --- !u!1 &1003929331 stripped
 GameObject:

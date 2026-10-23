@@ -95,23 +95,39 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
         SetOpen(open, true);
     }
 
-    // scheduleAutoClose=false 供配对门镜像调用：自动关计时只由被交互的那扇门排，
-    // 否则两边各排各的计时器、到期后互相触发成级联
+    /// <summary>带自动关计时的门：保留旧签名，演出默认跟随本次动作的发起方。</summary>
     public void SetOpen(bool open, bool scheduleAutoClose)
+    {
+        SetOpen(open, scheduleAutoClose, true);
+    }
+
+    /// <summary>
+    /// 门体开关的唯一入口。
+    ///
+    /// playSpell 决定**玩家的施法演出**要不要播——它与门体动画是两件事，必须能独立：
+    ///   · 玩家按 E 开门 / 按 E 关门 → true（人做的动作，抬手有反馈）
+    ///   · 自动关（到点 / 撤离锁门 / 配对门镜像） → false（没有人在推门，玩家不该跟着抬手）
+    ///
+    /// scheduleAutoClose=false 供配对门镜像调用：自动关计时只由被交互的那扇门排，
+    /// 否则两边各排各的计时器、到期后互相触发成级联。
+    /// </summary>
+    public void SetOpen(bool open, bool scheduleAutoClose, bool playSpell)
     {
         if (animating != null) { StopCoroutine(animating); animating = null; }
         if (autoCloseRoutine != null) { StopCoroutine(autoCloseRoutine); autoCloseRoutine = null; }
         IsOpen = open;
-        animating = StartCoroutine(OpenSequence(open, scheduleAutoClose));
+        animating = StartCoroutine(OpenSequence(open, scheduleAutoClose, playSpell));
     }
 
     // 完整时序：挥法 → 门旋转 → 收势；开门后计时自动关
-    private System.Collections.IEnumerator OpenSequence(bool open, bool scheduleAutoClose)
+    // playSpell=false 时整段只动门、不碰玩家动画（门自动关闭就属于这种）
+    private System.Collections.IEnumerator OpenSequence(bool open, bool scheduleAutoClose, bool playSpell)
     {
-        if (spellOpen && anim != null) anim.PlaySpellEnter();
+        bool spell = spellOpen && playSpell && anim != null;
+        if (spell) anim.PlaySpellEnter();
         yield return new WaitForSeconds(spellWindup);
         yield return StartCoroutine(RotateRoutine(open ? openLocalRot : closedLocalRot));
-        if (spellOpen && anim != null) anim.PlaySpellExit();
+        if (spell) anim.PlaySpellExit();
         yield return new WaitForSeconds(spellOutro);
         animating = null;
         if (open && scheduleAutoClose && autoCloseDelay > 0f)
@@ -122,7 +138,8 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
     {
         yield return new WaitForSeconds(autoCloseDelay);
         autoCloseRoutine = null;
-        SetOpen(false);
+        // 自动关闭 = 门自己的事，玩家不抬手（这是与"人按 E 关门"的唯一差别）
+        SetOpen(false, true, false);
     }
 
     private System.Collections.IEnumerator RotateRoutine(Quaternion target)

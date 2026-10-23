@@ -502,6 +502,8 @@ public class PortalWindow : MonoBehaviour
     ///
     /// 自动关计时只由被交互的那扇门排（scheduleAutoClose=false，见 AnywhereDoor.SetOpen 注释），
     /// 否则两边各排各的计时器，到期后互相触发成级联。
+    /// 镜像下发不播玩家施法演出（playSpell=false）：对门那头没有人在推门，
+    /// 玩家在另一边看的门跟着动就够了，绝不能让他莫名其妙抬手。
     /// force=true（目标世界刚加载完）时做一次对齐，把历史遗留的状态差抹平。
     /// </summary>
     private void SyncPairedDoor(bool force)
@@ -511,7 +513,7 @@ public class PortalWindow : MonoBehaviour
         lastDoorOpen = door.IsOpen;
         if (!changed) return;
         if (pairedDoor == null || pairedDoor.IsOpen == door.IsOpen) return;
-        pairedDoor.SetOpen(door.IsOpen, false);
+        pairedDoor.SetOpen(door.IsOpen, false, false);
     }
 
     /// <summary>

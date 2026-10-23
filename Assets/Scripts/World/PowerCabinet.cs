@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 配电箱：Metro 复明谜题的中枢。三根线里一根带电（默认每局随机）；
-/// 持万用表 E 线 = 检测带电与否并接入电闸；E 电闸 = 合闸——
+/// 持万用表时滚轮选中它、按 F 线 = 检测带电与否并接入电闸；E 电闸 = 合闸——
 /// 接带电线全站复明，接错线火花四溅、闸弹回，可重试。
 /// </summary>
 public class PowerCabinet : MonoBehaviour
@@ -44,7 +44,7 @@ public class PowerCabinet : MonoBehaviour
     {
         if (!HasSelection)
         {
-            HintToast.Show("电闸推不上去——先用万用表选一根线接进来");
+            HintToast.Show("电闸推不上去——滚轮选到万用表，按 F 把一根线接进来");
             return;
         }
         if (selectedIndex == liveIndex)

@@ -76,7 +76,7 @@ public static class MatrixScanDemoBuilder
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Selection.activeGameObject = ctrl;
 
-        Debug.Log("[MatrixScanDemoBuilder] 已生成 " + made + " 个探针 + 1 个控制器。进 Play 按 G 触发扫描。"
+        Debug.Log("[MatrixScanDemoBuilder] 已生成 " + made + " 个探针 + 1 个控制器。"
                   + (compute == null || font == null ? " 注意：字体图集或 compute 没找到，需在 Inspector 里手动补。" : ""));
     }
 

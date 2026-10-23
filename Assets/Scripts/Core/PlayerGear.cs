@@ -18,7 +18,7 @@ public static class PlayerGear
     /// <summary>手电筒是否开着（世界规则据它判定"照明中"，如黑暗加成失效）。</summary>
     public static bool FlashlightOn { get; private set; }
 
-    /// <summary>是否持有电磁探测器（探索道具，非接触式把异常扫显形）。</summary>
+    /// <summary>是否持有探测器（探索道具，非接触式把异常扫显形）。</summary>
     public static bool HasEmfDetector { get; private set; }
 
     /// <summary>获得万用表时触发一次（UI / 演出订阅）。重复获得不触发。</summary>
@@ -27,7 +27,7 @@ public static class PlayerGear
     /// <summary>手电筒开关切换时触发。</summary>
     public static event Action OnFlashlightChanged;
 
-    /// <summary>获得电磁探测器时触发一次（UI / 演出订阅）。重复获得不触发。</summary>
+    /// <summary>获得探测器时触发一次（UI / 演出订阅）。重复获得不触发。</summary>
     public static event Action OnEmfDetectorAcquired;
 
     public static void AcquireMultimeter()
@@ -57,36 +57,29 @@ public static class PlayerGear
         if (OnFlashlightChanged != null) OnFlashlightChanged();
     }
 
-    /// <summary>当前选中的道具格（0=手电筒，1=万用表，2=电磁探测器，3=异常物）。鼠标滚轮切换。</summary>
+    /// <summary>当前选中的道具格（0=手电筒，1=万用表，2=探测器）。鼠标滚轮切换。</summary>
     public static int SelectedIndex { get; private set; }
 
     /// <summary>选中格变化时触发（UI 高亮用；UI 也可以直接轮询 SelectedIndex）。</summary>
     public static event Action OnSelectionChanged;
 
-    /// <summary>滚轮切换选中格：dir&gt;0 下一个 / dir&lt;0 上一个；四格循环。</summary>
+    /// <summary>滚轮切换选中格：dir&gt;0 下一个 / dir&lt;0 上一个；三格循环。</summary>
     public static void CycleSelection(int dir)
     {
         if (dir == 0) return;
-        int next = ((SelectedIndex + (dir > 0 ? 1 : -1)) % 4 + 4) % 4;
+        int next = ((SelectedIndex + (dir > 0 ? 1 : -1)) % 3 + 3) % 3;
         if (next == SelectedIndex) return;
         SelectedIndex = next;
         if (OnSelectionChanged != null) OnSelectionChanged();
     }
 
     /// <summary>
-    /// F 键当前归哪一格用（0=手电筒，1=万用表，2=电磁探测器）。
+    /// F 键当前归哪一格用 = 就是滚轮选中的那一格。
     ///
-    /// 全项目只有 F 一个"使用道具"键，归谁是唯一真值、不让各组件各判一遍：
-    /// 手电筒是默认归属（保命键，任意选中格都能开灯）；
-    /// 一旦选中了手里真有的其它工具，F 就让位给那一件。
+    /// 全项目只有 F 一个"使用道具"键，而一次按键只准触发一件道具，
+    /// 所以这条规则必须只有一处真值：三件道具各自先问这里"F 是不是我的"，
+    /// 免得出现一次 F 同时开灯又扫描。
+    /// 手里没有那一件时不做回落——由各自组件给提示（"没有手电筒……"）。
     /// </summary>
-    public static int UseKeyOwner
-    {
-        get
-        {
-            if (SelectedIndex == 2 && HasEmfDetector) return 2;
-            if (SelectedIndex == 1 && HasMultimeter) return 1;
-            return 0;
-        }
-    }
+    public static int UseKeyOwner { get { return SelectedIndex; } }
 }

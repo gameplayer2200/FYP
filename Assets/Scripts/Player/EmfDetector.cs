@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// 探索道具·电磁探测器：把异常「扫」出来。
+/// 探索道具·探测器：把异常「扫」出来。
 ///
 /// 它驱动 FYP/ScanMatrix 那套全局量（_Global_Transition_value / _Global_Effect_center），
 /// 球面波从玩家身上向外推，把挂了 <see cref="ScanTarget"/> 的物体显形。
@@ -11,8 +11,12 @@ using UnityEngine.SceneManagement;
 ///
 /// 两档（选中探测器格后按 F）：
 ///   · 短按 —— 近距脉冲：半径小、快、省电，找手边的异常物；
-///   · 长按 —— 深度扫描：半径大、慢、费电，还额外把 envRoot 下的环境临时换上显隐材质
-///     （envRoot 留空则退化为大号脉冲；环境的原材质在收回阶段还原，不会留下副作用）。
+///   · 长按 —— 深度扫描：半径大、慢、费电，波前更宽、残留更久。
+///
+/// 一次扫描会产生两路视觉，波前严格同步（共用同一组全局量）：
+///   · 物体显形 —— 本组件把 ScanTarget 的材质换成 FYP/ScanMatrix；
+///   · 场地扫过 —— <see cref="ScanWaveOverlay"/> 叠一层全屏数字波，
+///     让地板、墙面、天花板本身被字符雨扫过去（不换材质，单纯叠画面）。
 ///
 /// F 是全项目统一的"使用道具"键：滚轮选中哪一格，F 就归哪一格
 /// （见 PlayerGear.UseKeyOwner——手电筒是默认归属，选中探测器后 F 让位给扫描）。
@@ -44,9 +48,15 @@ public class EmfDetector : MonoBehaviour
     [SerializeField] private Transform envRoot;
     [Tooltip("环境换材的渲染器上限，防止大场景一次换几千个")]
     [SerializeField] private int envMaxRenderers = 600;
-
     [Tooltip("另一个可选目标宿主：它的所有渲染器也算扫描目标（演示/临时用，正式内容请挂 ScanTarget）")]
     [SerializeField] private Transform targetRoot;
+
+    [Header("场地数字波")]
+    [Tooltip("扫描时把周围场地（墙/地/天花板）数字化扫过去。关掉只保留物体显形")]
+    [SerializeField] private bool waveOverlay = true;
+    [Tooltip("波前厚度倍率：短按窄、深扫宽，好区分两档")]
+    [SerializeField] private float waveBandShort = 0.8f;
+    [SerializeField] private float waveBandLong = 1.8f;
 
     [Header("素材（留空则从 Resources/Scan 自动加载）")]
     [SerializeField] private ComputeShader whiteNoiseGenerator;
@@ -88,6 +98,10 @@ public class EmfDetector : MonoBehaviour
     private readonly List<Renderer> envSwapped = new List<Renderer>();
     private readonly List<Material[]> envOriginals = new List<Material[]>();
 
+    // 场地数字波（全屏叠加，挂在玩家相机上）
+    private ScanWaveOverlay overlay;
+    private float activeBandScale = 1f;
+
     // ─────────────────────────────────────────────────────────────
     // 生命周期
     // ─────────────────────────────────────────────────────────────
@@ -107,6 +121,34 @@ public class EmfDetector : MonoBehaviour
         CollectTargets();
         SceneManager.sceneLoaded += OnSceneLoaded;
         ApplyGlobals();
+        EnsureOverlay();
+    }
+
+    /// <summary>
+    /// 把场地数字波挂到玩家相机上。挂在相机而不是本物体：
+    /// OnRenderImage 只有相机上的组件才会被调用。
+    /// 找不到相机或着色器不支持时静默降级，物体显形那一路照常工作。
+    ///
+    /// 玩家可能在探测器之后才加载（异世界是 Additive 装载的），所以这里不记忆"试过了"，
+    /// 每帧被 Update 调一次，等 PlayerRef.Camera 就绪即挂载；真失败才关掉开关不再重试。
+    /// </summary>
+    private void EnsureOverlay()
+    {
+        if (!waveOverlay || overlay != null) return;
+
+        var cam = PlayerRef.Camera;
+        if (cam == null) return;
+
+        overlay = cam.GetComponent<ScanWaveOverlay>();
+        if (overlay == null) overlay = cam.gameObject.AddComponent<ScanWaveOverlay>();
+        if (overlay == null) return;
+
+        if (!overlay.Setup())
+        {
+            Destroy(overlay);
+            overlay = null;
+            waveOverlay = false;   // 素材缺失或着色器不支持：别再每帧试了
+        }
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -122,6 +164,7 @@ public class EmfDetector : MonoBehaviour
         RestoreTargets();
         if (whiteNoise != null) { whiteNoise.Release(); Destroy(whiteNoise); whiteNoise = null; }
         if (scanMaterial != null) { Destroy(scanMaterial); scanMaterial = null; }
+        if (overlay != null) overlay.Clear();
         // 本组件不在了，别让全局量继续把东西按在透明状态
         Shader.SetGlobalFloat("_Global_Transition_value", 1f);
     }
@@ -134,6 +177,7 @@ public class EmfDetector : MonoBehaviour
         longFired = false;
         EndEnvSwap();
         RestoreTargets();
+        if (overlay != null) overlay.Clear();
         Shader.SetGlobalFloat("_Global_Transition_value", 1f);
     }
 
@@ -149,6 +193,7 @@ public class EmfDetector : MonoBehaviour
             AdvancePhase();
             FeedNoise();
         }
+        EnsureOverlay();   // 玩家可能在探测器之后才加载（Additive 世界），相机就绪后再挂
         ApplyGlobals();
     }
 
@@ -211,14 +256,14 @@ public class EmfDetector : MonoBehaviour
 
         if (!PlayerGear.HasEmfDetector)
         {
-            HintToast.Show("没有电磁探测器——实验室出发前记得带上");
+            HintToast.Show("没有探测器——实验室出发前记得带上");
             return;
         }
 
         var battery = BatterySystem.Instance;
         if (battery == null || battery.IsDead)
         {
-            HintToast.Show("电量耗尽——电磁探测器开不了机");
+            HintToast.Show("电量耗尽——探测器开不了机");
             return;
         }
 
@@ -227,6 +272,7 @@ public class EmfDetector : MonoBehaviour
         activeExpand = deep ? longExpand : shortExpand;
         activeHold = deep ? longHold : shortHold;
         activeRetract = deep ? longRetract : shortRetract;
+        activeBandScale = deep ? waveBandLong : waveBandShort;
 
         scanMaterial.SetFloat("_Scan_Radius_Scale", activeMaxRadius);
         scanMaterial.SetFloat("_Scan_Softness", edgeSoftness);
@@ -262,8 +308,6 @@ public class EmfDetector : MonoBehaviour
 
     private void ApplyGlobals()
     {
-        if (scanMaterial == null) return;
-
         float fraction;
         switch (phase)
         {
@@ -280,6 +324,12 @@ public class EmfDetector : MonoBehaviour
                 fraction = 0f;   // 待机＝波半径 0：挂了 ScanTarget 的物体是隐形的，得扫才现
                 break;
         }
+
+        // 场地数字波：和物体显形用同一个 fraction 换算半径，两路波前严格重合。
+        // 半径归零时 Push 会自己关掉后处理，待机没有额外开销。
+        if (overlay != null) overlay.Push(ResolveOrigin(), fraction * activeMaxRadius, activeBandScale);
+
+        if (scanMaterial == null) return;
 
         Shader.SetGlobalFloat("_Global_Transition_value", fraction);
         Shader.SetGlobalVector("_Global_Effect_center", ResolveOrigin());
@@ -453,7 +503,7 @@ public class EmfDetector : MonoBehaviour
             default: state = "待机"; break;
         }
         GUI.Label(new Rect(12f, 12f, 720f, 22f),
-            "[电磁探测器] G 短按=近距脉冲  长按" + holdThreshold.ToString("0.0") + "s=深度扫描   状态=" + state
+            "[探测器] 按 F 短按=近距脉冲  长按" + holdThreshold.ToString("0.0") + "s=深度扫描   状态=" + state
             + "   目标=" + targetSwapped.Count + "   环境=" + envSwapped.Count);
     }
 }

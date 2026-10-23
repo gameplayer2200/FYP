@@ -6,9 +6,9 @@ using UnityEngine;
 /// （MetroBlackout 读 PlayerGear.FlashlightOn）。黑暗里它救命也费电。
 /// 组件由 FlashlightPickup 在拾取时挂到玩家根上，无需场景预摆。
 ///
-/// F 是全项目统一的"使用道具"键：手电筒是它的默认归属，但滚轮选中
-/// 探测器/万用表时 F 让位给那一件（见 PlayerGear.UseKeyOwner），
-/// 否则一次按键会同时开灯又扫描。
+/// F 是全项目统一的"使用道具"键，一次只触发一件：
+/// 只有滚轮选中手电筒格（0）时 F 才开灯（见 PlayerGear.UseKeyOwner）。
+/// 选中别的道具时按 F 是那一件的事，这里完全不响应，否则一次按键会同时开灯又扫描。
 /// </summary>
 public class Flashlight : MonoBehaviour
 {

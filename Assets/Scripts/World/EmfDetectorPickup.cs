@@ -1,12 +1,12 @@
 using UnityEngine;
 
 /// <summary>
-/// 探索道具·电磁探测器拾取物：E 拾取 → PlayerGear.AcquireEmfDetector + 给玩家挂 EmfDetector 组件。
+/// 探索道具·探测器拾取物：E 拾取 → PlayerGear.AcquireEmfDetector + 给玩家挂 EmfDetector 组件。
 /// 模型：Art/Props/Exploration/EMF_Detector。
 /// </summary>
 public class EmfDetectorPickup : MonoBehaviour, IInteractable
 {
-    [SerializeField] private string acquireHint = "获得电磁探测器——滚轮选到它，短按 F 扫近处，按住 F 扫全场。它也吃电";
+    [SerializeField] private string acquireHint = "获得探测器——滚轮选到它，短按 F 扫近处，按住 F 扫全场。它也吃电";
     [Tooltip("缓慢自转，提高暗处的可发现性")]
     [SerializeField] private bool spin = true;
 
