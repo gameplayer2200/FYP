@@ -1,0 +1,5 @@
+﻿# Git LFS：大体积二进制/场景文件走 LFS，避免仓库被撑爆 & 绕开单文件 100MB 限制
+*.prefab filter=lfs diff=lfs merge=lfs -text
+*.unity  filter=lfs diff=lfs merge=lfs -text
+*.psd    filter=lfs diff=lfs merge=lfs -text
+*.blend  filter=lfs diff=lfs merge=lfs -text
