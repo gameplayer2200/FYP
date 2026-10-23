@@ -9,7 +9,7 @@
 
 - **《门阈行动 (Operation: Threshold)》**：第一人称心理恐怖游戏。玩家从实验室接单出发，推开一扇门进入异世界（层域），回收异常物，在归途门锁死前撤回实验室。
 - 当前仓库 = MVP 纵向切片 + Metro / 工厂昼夜双世界玩法闭环：**链式六世界**（实验室 ↔ Metro；实验室 ↔ 工厂昼 ↔ 工厂夜 ↔ 水淹区）、完整门系统（实时取景 + 穿行传送 + 开关同步 + `autoPair` 自动配对）、WorldStreamer 世界装卸裁决、玩家基础（电量 / 降级 / 瘫倒 / 起身）、交互与背包、CRT 终端风 HUD、接单任务板 / 电费账单 / 收容图鉴 / 值班播报。
-- 内容方向与扩展规划见 `FYP_Game_Proposal.md`（四支柱：主世界 + 三大世界 + 探索道具 + 异常体道具；单次流程 30~45 分钟）；素材许可规范见 `Docs/ASSET-SOURCING.md`。
+- 内容方向与扩展规划见 `FYP_Game_Proposal.md`（四支柱：主世界 + 三大世界 + 探索道具 + 异常体道具；单次流程 30~45 分钟）；素材许可规范见 `Docs/ASSET-SOURCING.md`，美术素材盘点（体积 / 引用 / 可回收）见 `Docs/ART-ASSETS.md`。
 
 ## 1. 环境与工具链
 
@@ -50,11 +50,20 @@ Assets/WorldLinks/            8 条门配对（WorldLink，autoPair 后只作参
                               SpecimenLab↔Metro、SpecimenLab↔FactoryDay、FactoryDay↔FactoryNight、
                               FactoryNight↔Flooded_Grounds 各正反
 Assets/Shaders/               PortalPanelProj.shader（投影屏：世界坐标投影采样，不走网格 UV）
-Assets/Resources/Sourced/     Poly Haven/ambientCG CC0 素材（模型/贴图/HDRI/字体/音效）——许可见 Docs/ASSET-SOURCING.md
+Assets/Resources/Sourced/     Poly Haven/ambientCG CC0 素材（模型/贴图/字体/音效；HDRI 已于 2026-10-23 移出）
+                              ——许可见 Docs/ASSET-SOURCING.md，清理记录见 Docs/ART-ASSETS.md
 Assets/Audio/Metro/           程序合成音效（emf_storm / arrival_pressure）
 Assets/Audio/Factory/         同款程序合成（factory_bell / factory_hum / factory_clank / factory_sting / gate_roll）
-Assets/items/                 旧素材（门模型 / Exploration objects / RandomObjects）
-Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计
+Assets/Art/                   第三方美术素材（2026-10-23 分类整理；**目录内部结构保持原样，勿按文件拆散**）
+  Worlds/                     世界包：Metro / Factory / FloodedGrounds / CountryHouse / Interrogation /
+                              SciFiMegaKit / TerrainLayers（原 `Assets/Material_Scence/`）
+  Props/                      道具模型：Doors（门）/ Exploration（探索道具）/ RandomObjects /
+                              Spaceships / Aircraft（原 `Assets/items/`）
+  Characters/MCO_Demo_Pack/   角色
+  Animations/UAL/             动画库（Clips + UAL1/UAL2，CC0 @Quaternius）
+  VFX/MatrixScan/             MIT 屏幕空间扫描特效（Scripts / Shaders/Resources / Texture / LICENSE.md）
+Assets/Material/              FYP 自制材质（Metro* / Factory* 的 .mat）
+Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计；Docs/ART-ASSETS.md 美术素材清单（体积/引用/可回收）
 HANDOVER.md                   交接总览文档（新人/接手者从这里入门，再回本手册查细节）
 GLOSSARY.md                   术语表（写代码/注释/文档必须遵守）
 FYP_Game_Proposal.md          内容提案
@@ -180,7 +189,7 @@ return ok + " :: " + (string)args[0];
   - **渐熄规则**：5 个灯组按「上层远厅→上层中段→对面隧道→隧道A远段→门区与楼梯」每 90s 熄一组（`MetroBlackout`，灯组 GO 摆在各组灯泡质心）；停电期间玩家 1 电/秒、所在区段已熄 ×1.5（`BatterySystem.SetAmbientDrain`，实验室恒 0）；世界判定为盒形（z≥29.5，避开实验室 z≤28.4）。
   - **配电室谜题**（-Z 死端）：检修平台+配电箱+红黄蓝三线（每局随机 1 根带电）+电闸；持万用表 E 线=测线+接入；合闸接对→全站复明并广播 `MetroBlackout.OnPowerRestored`，接错→火花弹回可重试。
   - **奖励级联**：尾节车厢端门解锁（`PowerLockedDoor`）+ 车厢灯点亮（`PoweredLight`）+ 门区充电桩恢复供电（`RequiresPower` 门控，停电期间提示断电）。
-  - **异常物回收**：软盘 ×2（门区箱上 + 车厢内，程序化拼装——`items/RandomObjects/floppydisk` 的 fbx/glb 资产损坏无法导入）+ 实验室收容台（case 模型，`SpecimenDeposit`）+ 右上角 HUD（`SpecimenHud`）；拾取/收容经 `Inventory` 扩展（knob 逻辑不动）。
+  - **异常物回收**：软盘 ×2（门区箱上 + 车厢内，程序化拼装——`Art/Props/RandomObjects/floppydisk` 的 fbx/glb 资产损坏无法导入）+ 实验室收容台（case 模型，`SpecimenDeposit`）+ 右上角 HUD（`SpecimenHud`）；拾取/收容经 `Inventory` 扩展（knob 逻辑不动）。
   - **异常「对面的灯」**：对面隧道死端高处，玩家 <14m 熄、>22m 亮（滞回）；门区充电桩旁常亮、隧道深处 DeepRattle/WindHowl/Taps 三处 3D 环境音。
   - **回归结论**：实验室窗 SelfTest PASS；穿门落点 (-47.89, 1.12, 132.71) 精确门槽（**抬高前**基线）。⚠️ **Metro 侧窗 SelfTest 的镜像判据 dot=−1 属已知表现**（自检只补偿 mirrorU 不补偿 mapYaw180 的 180° 映射；门系统代码与 WorldLink 零改动，以实验室窗 + 实际穿行朝向为准）。
   - **2026-10-17 抬高 +93.9（`bca6118`）后复验**：双向穿行通过——实验室→Metro 落点 (−47.89, 94.27, 132.71)、Metro→实验室落点 (3.78, 0.26, 5.12)，均精确门槽；实验室窗 SelfTest PASS；控制台 0 报错。
@@ -218,8 +227,8 @@ return ok + " :: " + (string)args[0];
   - 文档：AGENTS.md 全面同步（本条目即）；新增 `Docs/adr/0005-world-streamer.md`。
 - ✅ 第六轮：收容台根因修复 + 素材入库（2026-10-21，`104f838`）：
   - **收容台「按 E 打不开」根因**：`SpecimenDeposit.AcquireParts()` 用 `GetComponentsInChildren<Transform>(true)` 遍历，装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，而旧判据只有 `name.StartsWith("caseup")` → 认领到装饰件，盖子其实在动但玩家看不见，表现为「按 E 没反应」。修法：先 `transform.Find("caseup_low")` 精确取，兜底遍历时排除含 `deco` 的名字；`Awake` 里先把 `lid`/`clasps` 置 null，避免旧域/序列化残留干扰认领（`clasps` 同理由 `GetChild` 直取 `caseop*`）。
-  - **素材入库**：`Assets/Material_Scence/sci-fi-train/`（Sketchfab「Sci-Fi Train」`Untitled.glb` + 贴图，约 44MB）。⚠️ 来源是 Sketchfab，**与 `Docs/ASSET-SOURCING.md` §1「Sketchfab 全站」排除项冲突**（其许可 2.2(b) 禁止把素材作为裸文件再分发，而本仓库是公开 GitHub）——去留待定，见待办 4。
-  - 另有**未跟踪**目录 `Assets/Material/MatrixVFX-master/`（约 82MB 的完整外部 Unity 工程，含自带 `ProjectSettings/`、`Packages/`、3 个 `.cs`；网格来自 Global Digital Heritage，README 明写 non-commercial）——同样待决定去留。
+  - **素材入库**：`Assets/Material_Scence/sci-fi-train/`（Sketchfab「Sci-Fi Train」`Untitled.glb` + 贴图，约 44MB）。⚠️ 来源是 Sketchfab，**与 `Docs/ASSET-SOURCING.md` §1「Sketchfab 全站」排除项冲突**（其许可 2.2(b) 禁止把素材作为裸文件再分发，而本仓库是公开 GitHub）→ ✅ **2026-10-23 已整目录移出 `Assets/`**（移至仓库外 `..\FYP-asset-backup\`），公开仓库不再分发。
+  - `Assets/Material/MatrixVFX-master/`：原为约 82MB 的完整外部 Unity 工程（自带 `ProjectSettings/`、`Packages/`、3 个 `.cs`；网格来自 Global Digital Heritage，README 明写 non-commercial）→ ✅ **2026-10-23 已瘦身**：那份非商用网格从未进入本工程，只保留**屏幕空间扫描/矩阵特效**必需文件（`ScreenSpaceMatrix.cs`、`ScreenSpaceMatrixEffect.shader`、`ScreenSpaceMatrixEffectColored.shader`、`GenerateWhiteNoise.compute`、`RandomLib.cginc`、`LabColorspace.cginc`、`Texture/fonts_textures.png`、`LICENSE.md`），许可 = **MIT**（Copyright 2020 Shahriar Shahrabi，两个 shader 均 `Shader.Find` 成功且 `isSupported=True`）；顺带修掉 `#include "LabColorspace.cginc"` 与文件名 `LabColorSpace.cginc` 的**大小写不匹配**（Windows 不报错、换平台会编译失败）。
 - ✅ 第六轮：工厂昼夜玩法闭环（2026-10-22，待玩家实测）——设计 2026-10-20 拍板 + 本轮三问定稿（值班/沉睡模型 + 配撤离窗口 + 异常选自开生产线/巡检灯束）：
   - **值班/沉睡模型**：Core 静态排班钟 `FactoryShift`（每班 240s 昼⇄夜轮换，玩家离厂即暂停；谜题完成后冻结）。在班的世界醒着（机器可启动 / 夜侧深区门开放 / 异常显形），歇班的世界死寂（机器停摆、门锁死、E 只给「机器沉睡」提示）。**夜班不掉电**：工厂代码从不调用 `SetAmbientDrain`（与 Metro 差异化；手电通道照常）。
   - **谜题**：值班室排班表（主厅北墙）每局随机顺序，按序启动 3 台机器——昼侧主厅 2 台风机（z=9.3 东西墙，槽位刻意避开 Animated 叠加位）+ 夜侧深区送料机（程序化图元拼装），**必然跨昼夜往返**；错序 = 火花 + 全厂复位（排班表是唯一线索）。完成 → 排班表变锁定器：E 锁定当前班次（被锁世界永久在班且缺陷消除：锁昼=昼侧深区门也开 / 锁夜=异常平息），之后每 **60s** 可改锁（奖励=轮换控制权交给玩家）。
@@ -236,7 +245,7 @@ return ok + " :: " + (string)args[0];
   1. 玩家实测 Metro + 工厂昼夜闭环 + 三世界门动线（Metro 重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线、账单/图鉴/播报观感；工厂重点：换班节奏体感、歇班死寂的引导是否够、错序复位的挫败感、深区泵房探索动线、异常显形的惊吓度、锁定奖励的意义感）；
   2. **水淹区玩法闭环**（下一个大项）——提案：积水短路易 2 倍+抖屏、扳手关 3 个排水阀、水位下降露下层区+防水涂层；素材自带水/雾/混响/8 音效；
   3. 收容图鉴扩展：Metro 3 + 工厂 2 已就位，水淹区配 2 件 + 差异化档案（素材建议见 ASSET-SOURCING）；
-  4. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）；**素材合规待决**——`Assets/Material_Scence/sci-fi-train/`（Sketchfab Free Standard，公开仓库裸文件再分发风险，建议不入库或换 CC0）与未跟踪的 `Assets/Material/MatrixVFX-master/`（82MB 外部工程 + non-commercial 网格，建议移出 `Assets/` 或删除）。
+  4. 仓库卫生：`Docs/tools/node_modules`（418 个文件已入库）、截图目录（PortalDumps / Assets/Screenshots）的跟踪与忽略策略（snippets/ 与本地 vendor 包已入库）；**素材合规已处理（2026-10-23）**——`sci-fi-train/` 与 `MatrixVFX-master/` 已按上条处置。**素材盘点、清理记录与恢复方法见 `Docs/ART-ASSETS.md`**（2026-10-23：已把 1243 MB / 11012 文件闲置素材**移出** `Assets/` 至仓库外 `..\FYP-asset-backup\`——`_asset_staging/` 1030 MB、`MCO_Demo_Pack_v2` 136 MB、`sci-fi-train` 44 MB、`HDRIs` 19 MB、`Stylized_Alien` 14 MB；`Assets/` 由 ≈5.5 GB 降至 4.14 GB。**保留**：`Art/Props/Spaceships`+`Art/Props/Aircraft` 178 MB、世界包内 177 MB 冗余贴图、`Sourced/Textures` 1k 备用池；**分类整理**：第三方素材已统一到 `Assets/Art/`（`Worlds/` `Props/` `Characters/` `Animations/UAL/` `VFX/MatrixScan/`）——保持包内结构原样，`Assets/Resources/` 内部路径被 `Resources.Load` 字符串依赖、勿动）。
 
 ## 9. 术语速查（完整见 GLOSSARY.md）
 

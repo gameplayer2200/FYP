@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 异常物拾取物：层域中要回收的目标物（记忆核心软盘等）。E 拾取入随身收容，
 /// 带回实验室收容台（SpecimenDeposit）入账才算收益。
-/// 模型建议：items/RandomObjects/floppydisk。
+/// 模型建议：Art/Props/RandomObjects/floppydisk。
 /// </summary>
 public class SpecimenPickup : MonoBehaviour, IInteractable
 {

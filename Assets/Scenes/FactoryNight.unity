@@ -11922,6 +11922,7 @@ GameObject:
   - component: {fileID: 880829961}
   - component: {fileID: 880829963}
   - component: {fileID: 880829962}
+  - component: {fileID: 880829964}
   m_Layer: 0
   m_Name: "Specimen_\u4EA4\u63A5\u672C"
   m_TagString: Untagged
@@ -11976,6 +11977,18 @@ MonoBehaviour:
   spin: 1
   specimenName: "\u5BF9\u4E0D\u4E0A\u73ED\u7684\u4EA4\u63A5\u672C"
   flavor: "\u4E24\u4E2A\u73ED\u6B21\u4E92\u76F8\u7559\u8A00\"\u89C1\u5B57\u5982\u9762\"\uFF0C\u843D\u6B3E\u65E5\u671F\u662F\u540C\u4E00\u5929"
+--- !u!114 &880829964
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880829960}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9819e290611a3a4e9830ed54b92d9fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &882920215
 PrefabInstance:
   m_ObjectHideFlags: 0

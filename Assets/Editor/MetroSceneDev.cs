@@ -538,7 +538,7 @@ public static class MetroSceneDev
         SetText(floppy.AddComponent<InteractionLabel>(), "text", "回收异常物·软盘");
         sb.AppendLine("floppy1 ok(procedural)");
 
-        var meter = InstantiateModel("Assets/items/RandomObjects/multimeter/multimeter.glb", "道具_万用表",
+        var meter = InstantiateModel("Assets/Art/Props/RandomObjects/multimeter/multimeter.glb", "道具_万用表",
             new Vector3(-8f, 15.5f, 160.5f), 0.28f, 160f);
         if (meter != null)
         {
@@ -573,7 +573,7 @@ public static class MetroSceneDev
         {
             var prevActive = SceneManager.GetActiveScene();
             SceneManager.SetActiveScene(scene);
-            depositGo = InstantiateModel("Assets/items/RandomObjects/case/case_low.glb", "收容台",
+            depositGo = InstantiateModel("Assets/Art/Props/RandomObjects/case/case_low.glb", "收容台",
                 new Vector3(5.6f, 0.35f, 8.4f), 0.7f, -15f);
             if (depositGo != null)
             {
@@ -1855,7 +1855,7 @@ public static class MetroSceneDev
         var items = EnsureChild(root, "Items");
         if (items.Find("道具_手电筒_Metro") == null)
         {
-            var fl = InstantiateModel("Assets/items/Exploration objects/Flashlight/Flashlight.fbx", "道具_手电筒_Metro",
+            var fl = InstantiateModel("Assets/Art/Props/Exploration/Flashlight/Flashlight.fbx", "道具_手电筒_Metro",
                 new Vector3(-46.2f, 94.85f, 130.6f), 0.3f, 120f);
             if (fl != null)
             {
@@ -1901,7 +1901,7 @@ public static class MetroSceneDev
         {
             var prevActive = SceneManager.GetActiveScene();
             SceneManager.SetActiveScene(scene);
-            var fl = InstantiateModel("Assets/items/Exploration objects/Flashlight/Flashlight.fbx", "道具_手电筒_Lab",
+            var fl = InstantiateModel("Assets/Art/Props/Exploration/Flashlight/Flashlight.fbx", "道具_手电筒_Lab",
                 new Vector3(2.6f, 0.55f, 4.0f), 0.3f, 40f);
             if (fl != null)
             {

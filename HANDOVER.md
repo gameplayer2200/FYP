@@ -118,7 +118,8 @@ FYP.Editor → 全部
 15. **Git Bash 的 /tmp 与 Windows python 路径不互通**——JSON 参数用单引号内联传给 `snippets/mcp.py`，或把参数文件放进工程目录。
 16. 仓库卫生欠账：`Docs/tools/node_modules`（418 文件已入库）、截图目录跟踪策略待定（当前惯例：验证截图分批入库作证据）。
 17. **收容台认领部件别用 `GetComponentsInChildren` 的遍历顺序**：装饰件 `casedeco_low` 可能排在盖子 `caseup_low` 之前，旧判据 `name.StartsWith("caseup")` 会认领到装饰件 → 盖子看着不动、玩家以为「按 E 没反应」。现改为 `transform.Find("caseup_low")` 精确取 + 兜底排除含 `deco` 的名字，`Awake` 先把缓存置 null 防旧域残留。同类「按名字认领子物体」的逻辑都该用 `Find` 而不是遍历。
-18. **素材合规**：`Assets/Material_Scence/sci-fi-train/` 来自 Sketchfab（Free Standard 许可禁止裸文件再分发），与本仓库公开状态冲突；`Assets/Material/MatrixVFX-master/` 是未跟踪的完整外部 Unity 工程（含自带 ProjectSettings/Packages，会被当资源导入）+ non-commercial 网格。两者去留待定，新增素材前先查 `Docs/ASSET-SOURCING.md`。
+18. **素材合规**：✅ 2026-10-23 已处置——`sci-fi-train/`（Sketchfab Free Standard 禁止裸文件再分发）与 `MatrixVFX-master/` 的 non-commercial 网格全部移出 `Assets/`（备份在仓库外 `..\FYP-asset-backup\`），本工程只保留 MatrixVFX 的 **MIT** 屏幕空间特效（现 `Assets/Art/VFX/MatrixScan/`）。新增素材前先查 `Docs/ASSET-SOURCING.md`。
+19. **美术素材已统一到 `Assets/Art/`**（2026-10-23，移动走 `AssetDatabase.MoveAsset`，GUID 不变）：`Worlds/`（世界包，原 `Material_Scence/`）、`Props/`（道具，原 `items/`）、`Characters/`、`Animations/UAL/`、`VFX/MatrixScan/`。**保持第三方包内部结构原样、不要按文件拆散**；`Assets/Resources/` 内部路径被 `Resources.Load`（字体 / UI 图标 / `Scan/`）字符串依赖，**一律不要动**。新素材规范、体积与引用台账见 `Docs/ART-ASSETS.md`。
 
 ## 9. 待办路线图（按优先级）
 

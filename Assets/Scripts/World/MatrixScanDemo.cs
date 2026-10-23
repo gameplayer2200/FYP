@@ -13,8 +13,8 @@ using UnityEngine;
 /// FYP/ScanMatrix 去掉了那一行，并给球形裁切加了软边。
 ///
 /// 依赖本地素材（许可受限，见 Docs/ASSET-SOURCING.md §7.5）：
-///   Assets/Material/MatrixVFX-master/Assets/Shaders/Resources/GenerateWhiteNoise.compute
-///   Assets/Material/MatrixVFX-master/Assets/Texture/fonts_textures.png
+///   Assets/Art/VFX/MatrixScan/Shaders/Resources/GenerateWhiteNoise.compute
+///   Assets/Art/VFX/MatrixScan/Texture/fonts_textures.png
 /// 素材缺失时只打一条警告并自我禁用，不影响场景其它内容。
 ///
 /// 注意：这个着色器是「显现」型——材质上的物体在扫描波到达前是完全透明的，

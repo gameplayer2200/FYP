@@ -39,8 +39,9 @@ public static class ItemIconBaker
         if (Application.isPlaying) return "正在 Play，先停止再烘焙。";
         var sb = new StringBuilder();
         // 参数：图标名、模型资产、相机俯角/偏航（球面机位）、材质提亮系数
-        sb.AppendLine(One("flashlight", "Assets/items/Exploration objects/Flashlight/Flashlight.fbx", 20f, 70f, 1.15f));
-        sb.AppendLine(One("multimeter", "Assets/items/RandomObjects/multimeter/multimeter.fbx", 30f, 50f, 1.0f));
+        sb.AppendLine(One("flashlight", "Assets/Art/Props/Exploration/Flashlight/Flashlight.fbx", 20f, 70f, 1.15f));
+        sb.AppendLine(One("multimeter", "Assets/Art/Props/RandomObjects/multimeter/multimeter.fbx", 30f, 50f, 1.0f));
+        sb.AppendLine(One("emf", "Assets/Art/Props/Exploration/EMF_Detector/EMF_Detector.fbx", 25f, 40f, 1.25f));
         sb.AppendLine(Floppy());
         AssetDatabase.Refresh();
         return sb.ToString();

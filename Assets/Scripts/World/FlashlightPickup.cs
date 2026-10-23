@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// 探索道具·手电筒拾取物：E 拾取 → PlayerGear.AcquireFlashlight + 给玩家挂 Flashlight 组件。
-/// 模型：items/Exploration objects/Flashlight。
+/// 模型：Art/Props/Exploration/Flashlight。
 /// </summary>
 public class FlashlightPickup : MonoBehaviour, IInteractable
 {

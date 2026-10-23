@@ -9,7 +9,7 @@ using UnityEngine;
 public static class MatrixScanDemoBuilder
 {
     private const string RootName = "__扫描特效演示";
-    private const string MatDir = "Assets/Material/MatrixVFX-master/";
+    private const string MatDir = "Assets/Art/VFX/MatrixScan/";
 
     [MenuItem("FYP/扫描特效/生成演示布置", false, 40)]
     public static void Build()
@@ -31,9 +31,9 @@ public static class MatrixScanDemoBuilder
             return;
         }
 
-        var font = AssetDatabase.LoadAssetAtPath<Texture>(MatDir + "Assets/Texture/fonts_textures.png");
+        var font = AssetDatabase.LoadAssetAtPath<Texture>(MatDir + "Texture/fonts_textures.png");
         var compute = AssetDatabase.LoadAssetAtPath<ComputeShader>(
-            MatDir + "Assets/Shaders/Resources/GenerateWhiteNoise.compute");
+            MatDir + "Shaders/Resources/GenerateWhiteNoise.compute");
 
         var root = new GameObject(RootName);
         Undo.RegisterCreatedObjectUndo(root, "生成扫描特效演示");

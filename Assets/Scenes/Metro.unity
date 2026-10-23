@@ -23977,6 +23977,7 @@ GameObject:
   - component: {fileID: 760655589}
   - component: {fileID: 760655591}
   - component: {fileID: 760655590}
+  - component: {fileID: 760655592}
   m_Layer: 0
   m_Name: "Specimen_\u8F6F\u76D82"
   m_TagString: Untagged
@@ -24031,6 +24032,18 @@ MonoBehaviour:
   spin: 1
   specimenName: "\u672B\u73ED\u8F66\u7684\u884C\u8F66\u8BB0\u5F55"
   flavor: "\u6700\u540E\u4E00\u73ED\u7684\u53F8\u673A\u65E5\u5FD7\u2014\u2014\u5230\u7AD9\u65F6\u95F4\u662F\u660E\u5929"
+--- !u!114 &760655592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 760655588}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9819e290611a3a4e9830ed54b92d9fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &762622330
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -30105,6 +30118,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: aa0c8ddbd2897914f8dd3b77e3e97b34, type: 3}
       insertIndex: -1
       addedObject: {fileID: 952648853}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: aa0c8ddbd2897914f8dd3b77e3e97b34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 952648855}
   m_SourcePrefab: {fileID: 100100000, guid: aa0c8ddbd2897914f8dd3b77e3e97b34, type: 3}
 --- !u!4 &952648851 stripped
 Transform:
@@ -30145,6 +30161,18 @@ MonoBehaviour:
   spin: 1
   specimenName: "\u590D\u8BFB\u78C1\u5E26"
   flavor: "\u540C\u4E00\u53E5\u300C\u2026\u2026\u4F60\u7EC8\u4E8E\u6765\u4E86\u300D\uFF0C\u6BCF\u64AD\u4E00\u6B21\u8BED\u6C14\u90FD\u4E0D\u8010\u70E6\u4E00\u70B9"
+--- !u!114 &952648855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 952648852}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9819e290611a3a4e9830ed54b92d9fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &956736137
 GameObject:
   m_ObjectHideFlags: 0
@@ -35589,6 +35617,7 @@ GameObject:
   - component: {fileID: 1147070013}
   - component: {fileID: 1147070015}
   - component: {fileID: 1147070014}
+  - component: {fileID: 1147070016}
   m_Layer: 0
   m_Name: "Specimen_\u8F6F\u76D81"
   m_TagString: Untagged
@@ -35643,6 +35672,18 @@ MonoBehaviour:
   spin: 1
   specimenName: "\u503C\u73ED\u5458\u7684\u5907\u4EFD"
   flavor: "\u6807\u7B7E\u5199\u7740\"\u522B\u518D\u5F04\u4E22\u4E86\"\uFF0C\u53EF\u8C01\u4F1A\u5F04\u4E22\u4E00\u5757\u7ED1\u5728\u94A5\u5319\u4E0A\u7684\u8F6F\u76D8"
+--- !u!114 &1147070016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1147070012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9819e290611a3a4e9830ed54b92d9fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1148282835
 GameObject:
   m_ObjectHideFlags: 0

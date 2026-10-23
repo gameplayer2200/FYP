@@ -5,6 +5,10 @@ using UnityEngine;
 /// 开灯持续耗电（BatterySystem 独立通道），且照明中不吃黑暗区段加成
 /// （MetroBlackout 读 PlayerGear.FlashlightOn）。黑暗里它救命也费电。
 /// 组件由 FlashlightPickup 在拾取时挂到玩家根上，无需场景预摆。
+///
+/// F 是全项目统一的"使用道具"键：手电筒是它的默认归属，但滚轮选中
+/// 探测器/万用表时 F 让位给那一件（见 PlayerGear.UseKeyOwner），
+/// 否则一次按键会同时开灯又扫描。
 /// </summary>
 public class Flashlight : MonoBehaviour
 {
@@ -24,7 +28,7 @@ public class Flashlight : MonoBehaviour
     private void Update()
     {
         if (spot == null) TryCreateSpot();
-        if (Input.GetKeyDown(toggleKey)) Toggle();
+        if (Input.GetKeyDown(toggleKey) && PlayerGear.UseKeyOwner == 0) Toggle();
     }
 
     private void TryCreateSpot()

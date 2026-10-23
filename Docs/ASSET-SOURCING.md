@@ -235,6 +235,7 @@
 
 > 判定依据：Sketchfab 许可页原文抓取（条款 2.2(b)）+ MatrixVFX 仓库 README 原文（原文："The Mesh is from Global Digital Heritage and is licnesed under non commercial use"）。
 > **引用扫描（2026-10-21 实测）**：`sci-fi-train` 的 18 个 GUID、`MatrixVFX-master` 的 63 个 GUID 逐一比对全部 `.unity`/`.prefab`/`.mat`——**零外部引用**（MatrixVFX 的 14 个纹理 GUID 仅被它自己目录内的 `.mat` 引用）。所以两件都还没被任何场景用到，移出或删除不会破坏现有内容。
+> ✅ **处置结果（2026-10-23）**：`sci-fi-train/` 已整目录移出 `Assets/`（备份在仓库外 `..\FYP-asset-backup\`）；`MatrixVFX-master/` 已瘦身——非商用网格从未入库，只保留 **MIT** 的屏幕空间扫描特效，现位于 `Assets/Art/VFX/MatrixScan/`。两条记录保留为历史依据，详见 [`ART-ASSETS.md`](ART-ASSETS.md) §7/§8/§11。
 
 ---
 

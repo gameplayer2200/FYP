@@ -114,7 +114,8 @@ public class OrderBoard : MonoBehaviour
             GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("  已收容异常物 " + stored + " / 订单目标 " + targetCount), CrtTheme.Style(13, CrtTheme.Ink, false));
             y += CrtTheme.Px(21f);
             GUI.Label(new Rect(x, y, w, CrtTheme.Px(19f)), Scramble("  装备 手电筒 " + Mark(PlayerGear.HasFlashlight)
-                + " · 万用表 " + Mark(PlayerGear.HasMultimeter)), CrtTheme.Style(13, CrtTheme.Ink, false));
+                + " · 万用表 " + Mark(PlayerGear.HasMultimeter)
+                + " · 探测器 " + Mark(PlayerGear.HasEmfDetector)), CrtTheme.Style(13, CrtTheme.Ink, false));
             y += CrtTheme.Px(23f);
 
             bool done = stored >= targetCount;
