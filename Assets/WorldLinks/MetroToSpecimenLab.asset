@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 210f73c69f57bd247ba8b5b3edf9f0e1, type: 3}
+  m_Name: MetroToSpecimenLab
+  m_EditorClassIdentifier: 
+  worldSceneName: SpecimenLab
+  worldDoorName: anywhere-door-Metro-A
+  openingPath: Cube.001/Plane
+  rtHeight: 720
+  farClip: 200
+  nearClip: 0.05
+  preloadRadius: 4.5
+  mapYaw180: 1
+  mirrorU: 0
