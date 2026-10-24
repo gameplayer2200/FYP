@@ -24,17 +24,16 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: MV_Painted_Metal_Gray_World_Aligned
-  m_Shader: {fileID: -6465566751694194690, guid: 00a52aad2fe04824081e0014da1c79de,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 00a52aad2fe04824081e0014da1c79de, type: 3}
   m_Parent: {fileID: 2100000, guid: 37b3fb3afbde93d47aceff2563c5cf97, type: 2}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ModifiedSerializedProperties: 16
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _DISABLE_SSR_TRANSPARENT
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2000
   stringTagMap:
     MotionVector: User
   disabledShaderPasses:

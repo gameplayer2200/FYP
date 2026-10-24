@@ -71,6 +71,8 @@ public class OrderBoard : MonoBehaviour
             case "FactoryDay": return "工厂·昼";
             case "FactoryNight": return "工厂·夜";
             case "Flooded_Grounds": return "水淹区";
+            case "Shrine_game": return "荒废神社";
+            case "OfficePack_game": return "废弃办公层";
             default: return string.IsNullOrEmpty(sceneName) ? "层域" : sceneName;
         }
     }

@@ -43,7 +43,7 @@ Assets/Scripts/              按程序集分层（Docs/adr/0004，依赖单向�
                               SpecimenPickup（带档案）/ SpecimenDeposit（两段式）/ SpecimenHud /
                               BillPanel（电费账单）/ DutyBriefing（值班播报）
 Assets/Editor/                MetroSceneDev + FactorySceneDev（分阶段搭建+测试驱动）+ DoorLinkAutoRepair /
-                              DoorPairFixer / ItemIconBaker / LoadHitchProbe / FixHingeTool / PortalDiagnostics / SceneOptimizer
+                              DoorPairFixer / ItemIconBaker / LoadHitchProbe / FixHingeTool / PortalDiagnostics / SceneOptimizer / WorldSlotAudit（世界槽位审计+归槽，规则见 §4）
 Assets/Prefab/                player.prefab（玩家整体，场景里是其实例）+ door/（anywhere-door.prefab 基座 +
                               anywhere-door-portal.prefab + 各世界专属门 prefab）+ Tables/ + ChargeStation/Wall
 Assets/WorldLinks/            8 条门配对（WorldLink，autoPair 后只作参数兜底）：
@@ -112,6 +112,14 @@ PortalDumps/ + Assets/Screenshots/   验证截图（部分已入库、部分未�
 
 - `autoCloseDelay=10` 的含义：**E 开门后 10 秒自动关**（并同步给对门）。代码 `SetOpen(true, false)` 不排计时——测试时门会一直开着。
 - PortalWindow（八实例参数一致）：`backSlot=0`、`crossCooldown=0.6`、`crossPlaneTolerance=1.5`；`crossPlaneLead` 尚未序列化进场景（生效值 = 类默认 **0.25**；在 Inspector 调过它之后记得保存场景）；`showDebugOsd` 正式门全为 0（⚠️ 基座 `anywhere-door.prefab` 里为 1，是调试默认——从基座新建门后记得关）。
+- `AnywhereDoor.swingAxis`（2026-10-24 新增，枚举 LocalZ/LocalX/LocalY，默认 LocalZ）：门板绕哪条**本地轴**摆。八扇现役门（枢轴在本地 Z）零影响；第三方套件门按「哪条本地轴指向世界上方」实测配置。第三方门挂脚本流程见 §6 末尾。
+- **世界槽位规则（2026-10-24 定式，工具 `FYP/世界槽位/` 菜单 = `Assets/Editor/WorldSlotAudit.cs`）**：全部世界常驻同一坐标空间、靠 WorldStreamer 装卸，几何穿插只能靠「各占一片远方坐标」避免——
+  - 槽位 = **5000m 网格**，内容包围盒中心对齐槽心（x,z 均为 5000 的倍数）；新世界沿 **−X** 递进（现有：OfficePack=−20000、Shrine=−35000，后续 −30000、−40000…）；
+  - 硬约束：任意两世界实体 AABB 净距 **≥2000m**、坐标绝对值 **≤50000**（单精度浮点，越远模型抖动）；
+  - 超大世界（如 Shrine 实体盒宽 22km 的远景巨石阵）不强求槽心对齐，满足净距即可；
+  - **现状豁免**：Metro↔实验室 81m（垂直分层设计）、Flooded↔Metro 1986m（垂直隔离，差 14m 达标线）、FactoryDay 未对槽（x=−4324 历史位置，净距充足不动）；
+  - 新世界入链流程：导入场景 → 菜单 `FYP/世界槽位/审计 + 未入槽世界自动归槽` → 复跑审计全 ✅ → 再接门。
+  - ⚠️ 实测坑：整世界平移后**子渲染器的 `Renderer.bounds` 在编辑器进程内保留旧缓存**（跨工具调用仍在），世界坐标审计一律用「网格本地包围盒 × localToWorldMatrix 现算」——工具已内置此法，别再手写 bounds 扫描。
 
 ## 5. 验收与自检（动传送相关必做）
 

@@ -136,9 +136,24 @@ public static class WorldLightIsolation
     {
         int l;
         if (layerOf.TryGetValue(sceneName, out l)) return l;
+
+        // 先用「门配对工具」在 TagManager 里登记的命名图层 World_{场景名}。
+        // 否则两边各用一套编号：场景里的物体被挂到动态图层 N，而 TagManager 里 N 早已是
+        // 另一个世界的名字，排查时完全对不上。
+        l = LayerMask.NameToLayer("World_" + sceneName);
+        if (l >= 0 && !LayerTaken(l))
+        {
+            layerOf[sceneName] = l;
+            worldBits |= 1 << l;
+            Debug.Log("[WorldLightIsolation] 世界「" + sceneName + "」使用登记图层 " + l + "（World_" + sceneName + "）");
+            return l;
+        }
+
         for (l = FirstDynamicLayer; l <= LastLayer; l++)
         {
             if (LayerTaken(l)) continue;
+            // 已被别人命名占用的图层不能抢（TagManager 里的名字比动态编号更可信）
+            if (!string.IsNullOrEmpty(LayerMask.LayerToName(l))) continue;
             layerOf[sceneName] = l;
             worldBits |= 1 << l;
             Debug.Log("[WorldLightIsolation] 世界「" + sceneName + "」分配动态图层 " + l);

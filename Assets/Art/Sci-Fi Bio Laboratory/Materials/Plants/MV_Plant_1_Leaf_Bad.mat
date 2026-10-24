@@ -37,18 +37,17 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: MV_Plant_1_Leaf_Bad
-  m_Shader: {fileID: -6465566751694194690, guid: 74cfca2f5bf2b694691c241cd0cbef51,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 74cfca2f5bf2b694691c241cd0cbef51, type: 3}
   m_Parent: {fileID: 2100000, guid: 546384095b2b62742800cb58868223c8, type: 2}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ModifiedSerializedProperties: 16
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _ALPHATEST_ON
   - _DISABLE_SSR_TRANSPARENT
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2450
   stringTagMap:
     MotionVector: User
     RenderType: TransparentCutout

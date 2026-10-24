@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -226,13 +227,17 @@ public class PortalWindow : MonoBehaviour
 
         // 找不到配对门 / 门洞平面属于**配置错误**（对面那扇门被删了或挪走了），
         // 不是暂时的：置 failed 彻底放弃，否则 ready 永远为 false，Update 会每帧重试刷屏。
-        // 修好配对后重进 Play 即可（或点菜单 FYP/门配对/扫描并自动重配）。
-        destFrame = FindDoor(scene, ResolvedWorldDoorName);
+        // 修好配对后重进 Play 即可（或点菜单 FYP/门配对/一键配对并配齐）。
+        // 找门时按候选名列表逐个试（见 DerivePartnerDoorCandidates）：对面名字差一点也能连上。
+        var partnerCandidates = DerivePartnerDoorCandidates(gameObject.name, gameObject.scene.name);
+        destFrame = FindDoor(scene, partnerCandidates);
         if (destFrame == null)
         {
             Debug.LogError("[PortalWindow] 目标世界里找不到门：" + ResolvedWorldDoorName
-                           + "（" + ResolvedWorldSceneName + "）。配对已失效，本门停用。"
-                           + "请用 FYP/门配对/扫描并自动重配 修复。", this);
+                           + "（" + ResolvedWorldSceneName + "）。已尝试的名字："
+                           + string.Join(" / ", partnerCandidates.ToArray())
+                           + "。配对已失效，本门停用。"
+                           + "请用 FYP/门配对/一键配对并配齐 修复。", this);
             failed = true;
             return;
         }
@@ -286,19 +291,76 @@ public class PortalWindow : MonoBehaviour
     /// <summary>
     /// 在已加载的目标场景里按名字找门。
     /// 这里保留按名字找是**刻意的**：门配对天然跨场景，而 Unity 无法序列化指向未加载
-    /// 场景中对象的引用。名字来自 WorldLink 资产（配置数据），不是代码里的魔法字符串。
+    /// 场景中对象的引用。名字来自命名约定或 WorldLink 资产（配置数据），不是代码里的魔法字符串。
     /// 见 docs/adr/0002-cross-scene-refs-are-data.md。
+    ///
+    /// 三种匹配，从严到松：
+    /// 1) 精确名；
+    /// 2) 连字符/下划线互换后再精确匹配（场景名 `Flooded_Grounds` ↔ 门名 `Flooded-Grounds`）；
+    /// 3) 包含匹配（`anywhere-door-X` 能命中 `anywhere-door-X (1)`、`anywhere-door-X-open` 等变体）。
+    /// 注意第 3 条必须放在最后：它太宽松，先跑会把 `anywhere-door-Metro` 错配到
+    /// `anywhere-door-Metro-A` 上（同名前缀的门在同一场景里并存时就会发生）。
     /// </summary>
     private static Transform FindDoor(Scene scene, string doorName)
     {
-        string key = doorName.ToLower();
-        foreach (var root in scene.GetRootGameObjects())
+        if (string.IsNullOrEmpty(doorName)) return null;
+        return FindDoor(scene, new List<string> { doorName });
+    }
+
+    /// <summary>
+    /// 按候选名列表找门，**按列表顺序**逐个试（列表由
+    /// <see cref="DerivePartnerDoorCandidates"/> 按可能性从高到低生成）。
+    ///
+    /// 为什么需要列表：对面那扇门的名字常常"差一点"——多了个 `-A`、少了个连字符、
+    /// 或者世界改过名而门名还是旧的。旧实现只认一个标准名，差一点就判「配对已失效、
+    /// 本门停用」，于是必须跑一遍编辑器工具才能用。现在运行时自己会试几种写法，
+    /// 只要对面确实摆着一扇门就能连上；工具仍然会把名字改成标准写法。
+    ///
+    /// 每个候选名内部三级匹配，从严到松：
+    /// 1) 精确名；
+    /// 2) 连字符/下划线互换后再精确匹配（场景名 `Flooded_Grounds` ↔ 门名 `Flooded-Grounds`）；
+    /// 3) 包含匹配（`anywhere-door-X` 能命中 `anywhere-door-X (1)`、`anywhere-door-X-open` 等变体）。
+    /// 注意第 3 条**只在所有候选名的前两级都失败后**才跑：它太宽松，先跑会把
+    /// `anywhere-door-Metro` 错配到 `anywhere-door-Metro-A` 上（同名前缀的门在同一场景里并存时就会发生）。
+    /// </summary>
+    private static Transform FindDoor(Scene scene, List<string> candidates)
+    {
+        if (candidates == null || candidates.Count == 0) return null;
+        var roots = scene.GetRootGameObjects();
+
+        // 前两级：精确名 / 连字符↔下划线互换，按候选优先级逐个试
+        foreach (var name in candidates)
         {
-            // 精确名优先，其次包含匹配（anywhere-door / anywhere-door-open 等变体通吃）
-            var f = root.transform.Find(doorName);
-            if (f != null) return f;
-            foreach (var t in root.GetComponentsInChildren<Transform>(true))
-                if (t.name.ToLower().Contains(key)) return t;
+            if (string.IsNullOrEmpty(name)) continue;
+            foreach (var root in roots)
+            {
+                var f = root.transform.Find(name);
+                if (f != null) return f;
+            }
+            string swapped = name.Replace('-', '_');
+            if (swapped == name) swapped = name.Replace('_', '-');
+            if (swapped != name)
+            {
+                foreach (var root in roots)
+                {
+                    var f = root.transform.Find(swapped);
+                    if (f != null) return f;
+                }
+            }
+        }
+
+        // 第 3 级：包含匹配兜底（见上）
+        foreach (var name in candidates)
+        {
+            if (string.IsNullOrEmpty(name)) continue;
+            string key = name.ToLower();
+            string keySwapped = name.Replace('-', '_').ToLower();
+            foreach (var root in roots)
+                foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                {
+                    string n = t.name.ToLower();
+                    if (n.Contains(key) || n.Contains(keySwapped)) return t;
+                }
         }
         return null;
     }
@@ -808,40 +870,393 @@ public class PortalWindow : MonoBehaviour
 
     /// <summary>
     /// 从本门名推导目标场景名。
-    /// 规则：anywhere-door-X-A → X（"-" 替换为 "_"）；anywhere-door-X → SpecimenLab。
+    ///
+    /// ── 新约定（推荐，支持任意拓扑）────────────────────────────────
+    /// **门名里的世界就是目标世界**：`anywhere-door-FactoryNight` 放在工厂昼里 = 通往工厂夜。
+    /// 配对门在目标世界里，叫 `anywhere-door-{本门所在场景名}`。两边互相指向，天然成对。
+    /// 于是「世界间连接」不再需要 WorldLink：只要两扇门各自按目标世界命名，就能配对。
+    ///
+    /// ── 旧约定（仍兼容，星形拓扑）──────────────────────────────────
+    /// `anywhere-door-X-A` = 通往 X 的外侧门（通常在实验室）；
+    /// `anywhere-door-X` 放在世界 X 里 = 回实验室。
+    ///
+    /// 两种约定的完整判据集中在 <see cref="TryDerivePairing"/>，目标世界与配对门名
+    /// 一定出自同一分支（否则会出现"目标算对了、配对门名却按另一套约定拼"的错位）。
     /// </summary>
     private string DerivePartnerScene()
     {
-        string name = gameObject.name;
-        const string prefix = "anywhere-door-";
-        if (!name.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) return null;
-        string key = name.Substring(prefix.Length);
-        bool hasA = key.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase);
-        if (hasA)
-        {
-            key = key.Substring(0, key.Length - 2);
-            return key.Replace("-", "_");
-        }
-        return "SpecimenLab";
+        string scene, partner;
+        return TryDerivePairing(gameObject.name, gameObject.scene.name, out scene, out partner) ? scene : null;
+    }
+
+    /// <summary>门名前缀（所有传送门对象的命名约定）。</summary>
+    public const string DoorNamePrefix = "anywhere-door-";
+
+    /// <summary>起始世界（实验室）场景名：命名推导的兜底目标。</summary>
+    public const string HomeSceneName = "SpecimenLab";
+
+    /// <summary>
+    /// 门名推导的唯一判据（编辑器工具与运行时共用，避免两边规则漂移）。
+    ///
+    /// 判定顺序：
+    /// 1) **新约定**：key 解析成 Build Settings 里真实存在的场景，且不是本门所在场景 → 就是目标世界；
+    ///    配对门 = `anywhere-door-{本场景名}`（对方也按同一规则指回来）。
+    /// 2) **旧约定**：key 以 `-A` 结尾，剥掉后缀是真实场景且不是本场景 → 目标是它；
+    ///    配对门 = `anywhere-door-{剥掉后缀的 key}`（即世界 X 里那扇 `anywhere-door-X`）。
+    /// 3) **兜底**：回起始世界（实验室）；配对门 = `anywhere-door-{key}-A`。
+    ///
+    /// 第 1 条排除"本场景"是为了兼容旧门：世界 X 里那扇 `anywhere-door-X`
+    /// 字面上指向自己，实际含义是"回实验室"（走第 3 条）。
+    /// </summary>
+    /// <param name="doorName">门对象名，形如 `anywhere-door-Metro`。</param>
+    /// <param name="ownSceneName">本门所在场景名（用于排除"指向自己"）。</param>
+    /// <param name="scene">推导出的目标世界场景名。</param>
+    /// <param name="partnerDoor">推导出的目标世界里那扇门的对象名。</param>
+    /// <returns>名字符合约定返回 true；不以门名前缀开头返回 false。</returns>
+    public static bool TryDerivePairing(string doorName, string ownSceneName,
+                                        out string scene, out string partnerDoor)
+    {
+        scene = null;
+        partnerDoor = null;
+        var cands = DerivePairingCandidates(doorName, ownSceneName);
+        if (cands.Count == 0) return false;
+        scene = cands[0].scene;
+        partnerDoor = cands[0].partnerDoor;
+        return true;
     }
 
     /// <summary>
-    /// 从本门名推导配对门名。
-    /// 规则：anywhere-door-X-A ↔ anywhere-door-X。
+    /// 一次配对推导的候选方案。
+    ///
+    /// 为什么要有"候选"而不是单条规则：门名天然有歧义——
+    /// `anywhere-door-FactoryNight-A` 既可以读成「去 FactoryNight（-A 是外侧门标记）」，
+    /// 也可以读成「去一个叫 FactoryNight-A 的世界（不存在）」；而 `anywhere-door-Metro-A`
+    /// 在实验室里是「去 Metro」，同样的字符串放在 Metro 里就该是「回实验室」。
+    /// 单靠规则先后顺序必然有一类门判错（旧实现就是旧约定压过新约定，
+    /// 导致 `工厂昼/anywhere-door-FactoryNight-A` 去找根本不存在的 `anywhere-door-FactoryNight`）。
+    ///
+    /// 这里改成：把所有说得通的读法都列出来，再用**互指对称性**打分——
+    /// 好的配对一定是"对面那扇门按同一套规则也指回我"。对称的那条得分最高，
+    /// 于是 `-A` 这类后缀到底算不算后缀，由拓扑自己回答，不需要人工规定优先级。
+    /// </summary>
+    private sealed class PairingCandidate
+    {
+        public string scene;
+        public string partnerDoor;
+        public string why;
+        public int rank;
+    }
+
+    /// <summary>按得分从高到低返回所有说得通的配对方案（第 0 条即 <see cref="TryDerivePairing"/> 的结果）。</summary>
+    private static List<PairingCandidate> DerivePairingCandidates(string doorName, string ownSceneName)
+    {
+        var result = new List<PairingCandidate>();
+        if (string.IsNullOrEmpty(doorName)) return result;
+        if (!doorName.StartsWith(DoorNamePrefix, System.StringComparison.OrdinalIgnoreCase)) return result;
+        string key = doorName.Substring(DoorNamePrefix.Length);
+        if (string.IsNullOrEmpty(key)) return result;
+
+        var cands = new List<PairingCandidate>();
+
+        // ① 新约定：名字 = 目标世界，对面叫 `anywhere-door-{本场景}`
+        string asScene = ResolveSceneName(key);
+        if (asScene != null && asScene != ownSceneName)
+            cands.Add(new PairingCandidate
+            {
+                scene = asScene,
+                partnerDoor = DoorNamePrefix + ownSceneName,
+                why = "新约定"
+            });
+
+        // ② 带 -A 后缀的两种读法
+        if (key.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string stripped = key.Substring(0, key.Length - 2);
+            string w = ResolveSceneName(stripped);
+            if (w != null && w != ownSceneName)
+            {
+                // ②-a 把 -A 当"多余的残留"：仍然按新约定配对
+                cands.Add(new PairingCandidate
+                {
+                    scene = w,
+                    partnerDoor = DoorNamePrefix + ownSceneName,
+                    why = "新约定（-A 视为残留）"
+                });
+                // ②-b 把 -A 当旧约定标记：世界 X 里那扇同名的门
+                cands.Add(new PairingCandidate
+                {
+                    scene = w,
+                    partnerDoor = DoorNamePrefix + stripped,
+                    why = "旧约定（-A = 外侧门）"
+                });
+            }
+        }
+
+        // ③ 兜底：回起始世界
+        cands.Add(new PairingCandidate
+        {
+            scene = HomeSceneName,
+            partnerDoor = DoorNamePrefix + key + "-A",
+            why = "回起始世界"
+        });
+
+        // ── 打分 ──
+        foreach (var c in cands)
+        {
+            if (string.Equals(c.scene, ownSceneName, System.StringComparison.Ordinal)) c.rank -= 100;  // 自配对，最差
+            string backScene, backDoor;
+            if (ResolvePairingOnce(c.partnerDoor, c.scene, out backScene, out backDoor)
+                && string.Equals(backScene, ownSceneName, System.StringComparison.Ordinal)
+                && SameDoorName(backDoor, doorName))
+                c.rank += 50;                                   // 互指 = 拓扑自洽，最优
+            if (string.Equals(c.scene, HomeSceneName, System.StringComparison.Ordinal)
+                && asScene != null) c.rank -= 5;                // 能认出新世界却退回实验室，降权
+            result.Add(c);
+        }
+        result.Sort((a, b) => b.rank.CompareTo(a.rank));
+        return result;
+    }
+
+    /// <summary>把门名（或世界名片段）解析成真实场景名；失败返回 null。供编辑器工具复用，避免两边判定漂移。</summary>
+    public static string ResolveSceneNamePublic(string key) { return ResolveSceneName(key); }
+
+    /// <summary>两个门名是否指向"同一扇门"（宽松比较，见 <see cref="SameDoorName"/>）。</summary>
+    public static bool SameDoorNamePublic(string a, string b) { return SameDoorName(a, b); }
+
+    /// <summary>门名归一化（去前缀、小写、`-`→`_`、剥 `-A` 与世界名尾巴）。</summary>
+    public static string NormalizeDoorKeyPublic(string doorName) { return NormalizeDoorKey(doorName); }
+
+    /// <summary>
+    /// 两个门名是否指向"同一扇门"。判据刻意宽松——去前缀、大小写不敏感、
+    /// 连字符↔下划线互换、去掉 `-A` / `_game` 这类尾巴后相同，或一方是另一方的前缀。
+    ///
+    /// 为什么不能直接比字符串：互指检查要能容忍真实工程里到处存在的"差一点"——
+    /// 工厂昼那扇通往工厂夜的门叫 `anywhere-door-FactoryNight-A`，而工厂夜那扇
+    /// 回工厂昼的门按约定该找 `anywhere-door-FactoryNight`；两者是同一扇门的两端，
+    /// 名字却差一个后缀。严格比较会让这类门永远拿不到"互指"分，被判成单向门。
+    /// </summary>
+    public static bool SameDoorName(string a, string b)
+    {
+        string ka = NormalizeDoorKey(a);
+        string kb = NormalizeDoorKey(b);
+        if (ka.Length == 0 || kb.Length == 0) return false;
+        if (string.Equals(ka, kb, System.StringComparison.Ordinal)) return true;
+        return ka.StartsWith(kb, System.StringComparison.Ordinal)
+            || kb.StartsWith(ka, System.StringComparison.Ordinal);
+    }
+
+    /// <summary>门名归一化：去前缀、转小写、`-`→`_`、剥掉 `-A`/`_a` 与世界名尾巴。</summary>
+    private static string NormalizeDoorKey(string doorName)
+    {
+        if (string.IsNullOrEmpty(doorName)) return string.Empty;
+        string s = doorName;
+        if (s.StartsWith(DoorNamePrefix, System.StringComparison.OrdinalIgnoreCase))
+            s = s.Substring(DoorNamePrefix.Length);
+        s = s.Replace('-', '_').ToLowerInvariant();
+        if (s.EndsWith("_a")) s = s.Substring(0, s.Length - 2);
+        string[] tails = { "_game", "_scene", "_level" };
+        foreach (var t in tails)
+            if (s.EndsWith(t, System.StringComparison.Ordinal))
+            { s = s.Substring(0, s.Length - t.Length); break; }
+        return s;
+    }
+
+    /// <summary>
+    /// 单次、无打分的推导（只走"新约定 → 旧约定 → 兜底"的固定顺序）。
+    /// 仅用于给 <see cref="DerivePairingCandidates"/> 做互指检测——必须是纯函数且不递归，
+    /// 否则对称性检查会自己调用自己无限展开。
+    /// </summary>
+    private static bool ResolvePairingOnce(string doorName, string ownSceneName,
+                                           out string scene, out string partnerDoor)
+    {
+        scene = null;
+        partnerDoor = null;
+        if (string.IsNullOrEmpty(doorName)) return false;
+        if (!doorName.StartsWith(DoorNamePrefix, System.StringComparison.OrdinalIgnoreCase)) return false;
+        string key = doorName.Substring(DoorNamePrefix.Length);
+        if (string.IsNullOrEmpty(key)) return false;
+
+        string asScene = ResolveSceneName(key);
+        if (asScene != null && asScene != ownSceneName)
+        {
+            scene = asScene;
+            partnerDoor = DoorNamePrefix + ownSceneName;
+            return true;
+        }
+        if (key.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string stripped = key.Substring(0, key.Length - 2);
+            string w = ResolveSceneName(stripped);
+            if (w != null && w != ownSceneName)
+            {
+                scene = w;
+                partnerDoor = DoorNamePrefix + stripped;
+                return true;
+            }
+        }
+        scene = HomeSceneName;
+        partnerDoor = DoorNamePrefix + key + "-A";
+        return true;
+    }
+
+    /// <summary>
+    /// 目标世界里"可能是对面那扇门"的所有候选名（按可能性从高到低）。
+    ///
+    /// 运行时找门时按这个列表逐个试：标准名找不到就试 `-A` / `A` 变体，
+    /// 再试连字符↔下划线互换。这样"名字差一点"的门在**运行时**也能连上，
+    /// 不必等到跑一遍编辑器工具才能用（工具仍然会把它改成标准名）。
+    /// </summary>
+    public static List<string> DerivePartnerDoorCandidates(string doorName, string ownSceneName)
+    {
+        var names = new List<string>();
+        var cands = DerivePairingCandidates(doorName, ownSceneName);
+        for (int i = 0; i < cands.Count; i++)
+        {
+            string p = cands[i].partnerDoor;
+            if (string.IsNullOrEmpty(p)) continue;
+            AddName(names, p);
+            AddName(names, p + "-A");                 // 对面多了个 -A 后缀
+            AddName(names, p + "A");                  // 少了个连字符
+            AddName(names, p.Replace('-', '_'));      // 连字符 ↔ 下划线
+            AddName(names, p.Replace('_', '-'));
+            if (p.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase))
+                AddName(names, p.Substring(0, p.Length - 2));   // 对面少了 -A
+        }
+        return names;
+    }
+
+    private static void AddName(List<string> names, string n)
+    {
+        if (string.IsNullOrEmpty(n)) return;
+        if (!names.Contains(n)) names.Add(n);
+    }
+
+    /// <summary>
+    /// 工程里可装载的场景名集合（Build Settings 的运行时视图）。
+    ///
+    /// 为什么要自己建表：门名推导必须能区分"名字里的这段是真实世界"还是"只是门名的一部分"
+    /// （`anywhere-door-Metro-A` 的 `Metro-A` 不是世界，`Metro` 才是）。
+    /// 而 `Application.CanStreamedLevelBeLoaded` 在**编辑器非 Play 模式下不可靠**
+    /// （实测对已在 Build Settings 里的场景也返回 false），会让所有门都退回"回实验室"，
+    /// 于是编辑器工具与运行时得出两套不同结论。改用 `SceneUtility.GetScenePathByBuildIndex`
+    /// 逐个取路径，编辑器与运行时都成立。
+    /// </summary>
+    private static HashSet<string> buildSceneNames;
+
+    private static bool IsBuildScene(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        EnsureSceneCache();
+        return buildSceneNames.Contains(name);
+    }
+
+    /// <summary>建场景名表（惰性，只建一次）。</summary>
+    private static void EnsureSceneCache()
+    {
+        if (buildSceneNames != null) return;
+        buildSceneNames = new HashSet<string>(System.StringComparer.Ordinal);
+        int n = SceneManager.sceneCountInBuildSettings;
+        for (int i = 0; i < n; i++)
+        {
+            string path = SceneUtility.GetScenePathByBuildIndex(i);
+            if (string.IsNullOrEmpty(path)) continue;
+            string s = System.IO.Path.GetFileNameWithoutExtension(path);
+            if (!string.IsNullOrEmpty(s)) buildSceneNames.Add(s);
+        }
+    }
+
+    /// <summary>
+    /// 丢弃场景名缓存。Build Settings 变动后必须调用，否则推导还按旧表走
+    /// （编辑器工具补完新世界要立刻重算，不能等到下次域重载）。
+    /// </summary>
+    public static void InvalidateSceneCache()
+    {
+        buildSceneNames = null;
+    }
+
+    /// <summary>
+    /// 额外登记一批"已知世界"场景名，供推导时解析。
+    /// 用途：编辑器工具在**只读检查**时不会真把场景写进 Build Settings，
+    /// 但报告必须能说出"这扇门该连哪个新世界"，否则新拖进来的世界永远显示
+    /// "退回实验室"。工具调用方用完要 <see cref="InvalidateSceneCache"/> 复位。
+    /// </summary>
+    public static void RegisterKnownScenes(System.Collections.Generic.IEnumerable<string> sceneNames)
+    {
+        if (sceneNames == null) return;
+        if (buildSceneNames == null) buildSceneNames = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var s in sceneNames)
+            if (!string.IsNullOrEmpty(s)) buildSceneNames.Add(s);
+    }
+
+    /// <summary>
+    /// 把门名里的 key 解析成真实场景名。三级，从严到松：
+    /// 1) 字面（`Metro` → `Metro`）；
+    /// 2) 连字符换成下划线（`Flooded-Grounds` → `Flooded_Grounds`）；
+    /// 3) **模糊匹配**：世界改过名而门名没跟着改时（`Shrine_game` → 场景已改叫 `Shrine`，
+    ///    `OfficePack_game` → `OfficePack`），按"去掉 `_game`/`_scene`/`Scene_` 这类尾巴后
+    ///    相同"或"一方是另一方的前缀"来认。
+    ///
+    /// 只认 Build Settings 里可加载的场景，免得把打错的名字当成合法世界去装载。
+    /// 第 3 条刻意放在最后且要求**唯一命中**：宁可判失败让人去改名字，也不能在
+    /// `FactoryDay` / `FactoryNight` 这种长得很像的世界之间猜错。
+    /// </summary>
+    private static string ResolveSceneName(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return null;
+        if (IsBuildScene(key)) return key;
+        string underscored = key.Replace('-', '_');
+        if (underscored != key && IsBuildScene(underscored)) return underscored;
+
+        // 3) 模糊匹配（世界改名后的旧门名）
+        EnsureSceneCache();
+        string norm = NormalizeSceneKey(underscored);
+        string only = null;
+        int hits = 0;
+        foreach (var s in buildSceneNames)
+        {
+            if (string.Equals(NormalizeSceneKey(s), norm, System.StringComparison.OrdinalIgnoreCase))
+            { only = s; hits++; }
+        }
+        if (hits == 1) return only;
+
+        // 前缀匹配：`Shrine_game` → `Shrine`（归一化后互为前缀，且唯一）
+        only = null;
+        hits = 0;
+        foreach (var s in buildSceneNames)
+        {
+            string ns = NormalizeSceneKey(s);
+            if (ns.Length == 0) continue;
+            if (norm.StartsWith(ns, System.StringComparison.OrdinalIgnoreCase)
+                || ns.StartsWith(norm, System.StringComparison.OrdinalIgnoreCase))
+            { only = s; hits++; }
+        }
+        return hits == 1 ? only : null;
+    }
+
+    /// <summary>
+    /// 场景名归一化：去掉 `_game` / `_scene` / `Scene_` 这类"这只是一个场景"的尾巴，
+    /// 再转小写。用于让"改过名的世界"和"没跟着改的门名"能对上。
+    /// </summary>
+    private static string NormalizeSceneKey(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return string.Empty;
+        string s = name.Trim();
+        string[] tails = { "_game", "-game", "_scene", "-scene", "_level", "-level" };
+        foreach (var t in tails)
+            if (s.EndsWith(t, System.StringComparison.OrdinalIgnoreCase))
+            { s = s.Substring(0, s.Length - t.Length); break; }
+        if (s.StartsWith("Scene_", System.StringComparison.OrdinalIgnoreCase)) s = s.Substring(6);
+        if (s.StartsWith("scene_", System.StringComparison.OrdinalIgnoreCase)) s = s.Substring(6);
+        return s.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// 从本门名推导配对门名（与 <see cref="DerivePartnerScene"/> 同源，保证不会错位）。
     /// </summary>
     private string DerivePartnerDoor()
     {
-        string name = gameObject.name;
-        const string prefix = "anywhere-door-";
-        if (!name.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) return null;
-        string key = name.Substring(prefix.Length);
-        bool hasA = key.EndsWith("-A", System.StringComparison.OrdinalIgnoreCase);
-        if (hasA)
-        {
-            key = key.Substring(0, key.Length - 2);
-            return prefix + key;
-        }
-        return prefix + key + "-A";
+        string scene, partner;
+        return TryDerivePairing(gameObject.name, gameObject.scene.name, out scene, out partner) ? partner : null;
     }
 
     /// <summary>

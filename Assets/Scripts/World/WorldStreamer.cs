@@ -99,6 +99,20 @@ public static class WorldStreamer
     /// </summary>
     private static readonly Dictionary<string, AsyncOperation> preloadedOps = new Dictionary<string, AsyncOperation>();
 
+    /// <summary>
+    /// 预载串行闸：true 时同一时刻只允许**一个**世界处于 pending（progress &lt; 0.9）。
+    ///
+    /// 为什么需要：LoadSceneAsync 是异步的，只限制"同一帧发起一个"没有用——
+    /// 隔一帧再发起第二个，两个世界照样在后台同时读盘 + 反序列化，主线程被两份
+    /// 反序列化工作交替打断，表现为一整段持续掉帧，而不是一个可定位的尖峰。
+    /// 实测日志：玩家走到实验室门区时 FactoryDay 与 Metro 同一帧进入预载，
+    /// 紧接着 FactoryNight 与 Flooded_Grounds 也进来了——四个世界并发。
+    ///
+    /// 串行后：总耗时相近（都是读盘+反序列化），但任何时刻只有一份工作压在主线程上，
+    /// 帧时间曲线从"一段持续低谷"变成"几个短尖峰 + 中间正常帧"。
+    /// </summary>
+    public static bool SerializePreload = true;
+
     /// <summary>已放行激活、等场景真正就绪的世界（同帧最多放行一个，见 TickPreloadAndActivation）。</summary>
     private static readonly HashSet<string> activating = new HashSet<string>();
     private static int activateGateFrames;   // activating 持续帧数：迟迟不就绪时的兜底放行
@@ -251,13 +265,16 @@ public static class WorldStreamer
         // 一帧一件事：同一帧最多发起一个新世界的装载，且世界里还有激活在途就先不发起新装载——
         // 装载与激活的重活错开，开局"N 个世界连发"的复合卡顿就不会出现（一个一个来）。
         bool startedThisTick = false;
-        foreach (string name in wanted)
+        foreach (string name in LoadOrder())
         {
             // 注意必须排除 preloaded：预载完成的场景 isLoaded 仍为 false，
             // 漏了这条会在下一帧再次 BeginLoad，把同一世界装载两遍。
             if (IsLoadedNow(name) || pending.Contains(name) || preloaded.Contains(name)
                 || unloading.Contains(name) || blocked.Contains(name)) continue;
             if (startedThisTick || activating.Count > 0) break;   // 一个一个来（见上）
+            // 预载串行闸：已有世界在预载中就先不发新的（见 SerializePreload 注释）。
+            // 这一条才是真正的串行——上面 startedThisTick 只管"同一帧"，异步装载照样并发。
+            if (SerializePreload && pending.Count > 0) break;
             if (CountLoaded() < MaxLoadedWorlds) { BeginLoad(name); startedThisTick = true; continue; }
             string victim = PickWeakestVictim();
             if (victim == null) continue;   // 全都受保护/正被需要：暂缓，下一帧再试
@@ -268,7 +285,38 @@ public static class WorldStreamer
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 延迟激活：预载完成 → 等玩家走近 → 激活
+    // 装载排队顺序
+    //
+    // wanted 是 HashSet，遍历顺序不确定；串行装载后"先装谁"变成了实质问题——
+    // 先装远处世界会让站在近处门前的玩家干等。按「离玩家的最近门距离」升序排：
+    // 越近越先装，玩家真的走向某扇门时，那个世界已经排在最前面。
+    //
+    // 常驻世界（ResidentWorlds）不参与距离排序的优先权：它们没有"必须马上要"的语义，
+    // 统一排在按需世界之后（距离视为 +∞），让玩家的实际去向优先。
+    // ─────────────────────────────────────────────────────────────
+    private static readonly List<string> loadOrderBuf = new List<string>();
+
+    private static List<string> LoadOrder()
+    {
+        loadOrderBuf.Clear();
+        foreach (string name in wanted)
+        {
+            // 常驻世界只在"没有按需世界"时才轮到；这里先用距离排序，
+            // 但常驻且当前无距离记录的排到最后（nearestDist 里没有它 → 用 float.MaxValue）。
+            loadOrderBuf.Add(name);
+        }
+        if (loadOrderBuf.Count <= 1) return loadOrderBuf;
+
+        // 排序键：有距离的按距离升序；没距离的（纯常驻、无关联门）排最后。
+        loadOrderBuf.Sort((a, b) =>
+        {
+            float da = nearestDist.TryGetValue(a, out float va) ? va : float.MaxValue;
+            float db = nearestDist.TryGetValue(b, out float vb) ? vb : float.MaxValue;
+            return da.CompareTo(db);
+        });
+        return loadOrderBuf;
+    }
+
     //
     // 三件事：
     //   1) 轮询 progress，到 0.9 就从 pending 转入 preloaded（此时场景**未**激活）；

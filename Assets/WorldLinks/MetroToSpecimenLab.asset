@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: MetroToSpecimenLab
   m_EditorClassIdentifier: 
   worldSceneName: SpecimenLab
-  worldDoorName: anywhere-door-Metro
+  worldDoorName: anywhere-door-Metro-A
   openingPath: Cube.001/Plane
   rtHeight: 720
   farClip: 200
   nearClip: 0.05
-  preloadRadius: 15
+  preloadRadius: 4.5
   mapYaw180: 1
   mirrorU: 0

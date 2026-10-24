@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - CinemachineIgnored
   layers:
   - Default
   - TransparentFX
@@ -17,14 +18,14 @@ TagManager:
   - World_FactoryNight
   - World_Flooded
   - World_Other
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - World_country house
+  - World_Flooded_Grounds
+  - World_OfficePack_game
+  - World_Shrine_game
+  - World_Scene_Laboratory
+  - World_OfficePack
+  - World_Shrine
+  - World_Laboratory
   - 
   - 
   - 

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SpecimenLabToMetro
   m_EditorClassIdentifier: 
   worldSceneName: Metro
-  worldDoorName: anywhere-door-Metro-A
+  worldDoorName: anywhere-door-Metro
   openingPath: Cube.001/Plane
   rtHeight: 720
   farClip: 200

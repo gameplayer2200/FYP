@@ -7,11 +7,18 @@ using UnityEngine;
 /// </summary>
 public class AnywhereDoor : MonoBehaviour, IInteractable
 {
+    // 铰链轴：门板绕哪条本地轴摆。任意门套件（现役八扇）枢轴在本地 Z；
+    // 第三方套件门的网格枢轴各异，按实测「哪条本地轴指向世界上方」配置
+    private enum SwingAxis { LocalZ, LocalX, LocalY }
+
     [Header("开门设置")]
     [SerializeField] private float openAngle = 90f;   // 开门角度（度，绕本地 Z 轴）
+    [SerializeField] private SwingAxis swingAxis = SwingAxis.LocalZ; // 摆动轴（默认 Z = 任意门套件枢轴约定）
     [SerializeField] private float duration = 0.5f;   // 开/关耗时（秒）
     [SerializeField] private float autoCloseDelay = 10f; // 开门后自动关闭延时（秒），0 = 不自动关
     [SerializeField] private bool respondToKey = true;   // 是否参与交互（远端展示门设 false）
+    [SerializeField] private bool locked = false;        // 锁死：按 E 不开门、只弹 lockedHint（装饰门/封闭区用）
+    [SerializeField] private string lockedHint = "这扇门无法打开"; // 锁死时按 E 的提示文案
     [SerializeField] private bool spellOpen = true;      // 开门时播放施法演出
     [SerializeField] private bool startOpen = false;     // 初始即为开态（demo 常开门用，无动画直接摆到开）
 
@@ -52,7 +59,7 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
     private void Awake()
     {
         closedLocalRot = transform.localRotation;
-        openLocalRot = closedLocalRot * Quaternion.Euler(0f, 0f, openAngle);
+        openLocalRot = closedLocalRot * SwingDelta(openAngle);
         IsOpen = false;
         if (startOpen) { transform.localRotation = openLocalRot; IsOpen = true; }
         // 交互可发现性保障：InteractionRunner 靠物理扫描找交互物，
@@ -73,6 +80,7 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
 
     public void Interact(GameObject player)
     {
+        if (locked) { HintToast.Show(lockedHint); return; }
         if (!respondToKey) return;
         if (anim == null && player != null) anim = player.GetComponent<PlayerAnimatorProxy>();
         Toggle();
@@ -87,7 +95,18 @@ public class AnywhereDoor : MonoBehaviour, IInteractable
     public void ConfigureOpenAngle(float angle)
     {
         openAngle = angle;
-        openLocalRot = closedLocalRot * Quaternion.Euler(0f, 0f, openAngle);
+        openLocalRot = closedLocalRot * SwingDelta(openAngle);
+    }
+
+    // 摆动增量旋转：按配置的铰链轴生成（默认 Z 兼容任意门套件八扇现役门）
+    private Quaternion SwingDelta(float angle)
+    {
+        switch (swingAxis)
+        {
+            case SwingAxis.LocalX: return Quaternion.Euler(angle, 0f, 0f);
+            case SwingAxis.LocalY: return Quaternion.Euler(0f, angle, 0f);
+            default: return Quaternion.Euler(0f, 0f, angle);
+        }
     }
 
     public void SetOpen(bool open)

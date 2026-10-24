@@ -81,6 +81,20 @@ public class DutyBriefing : MonoBehaviour
                     "积水区域注意短路风险（调查中）。",
                     "沿高处行进，保存电量。",
                 };
+            case "Shrine_game":
+                return new[]
+                {
+                    "值班日志 · 荒废神社",
+                    "该层域无当班记录，回收目标待登记。",
+                    "地形开阔、遮蔽少，保持警惕。",
+                };
+            case "OfficePack_game":
+                return new[]
+                {
+                    "值班日志 · 废弃办公层",
+                    "多层结构，地下室与楼上均可通行。",
+                    "该层域尚未建档，异常类型未知。",
+                };
             default:
                 return new[] { "值班日志 · 未知层域", "无当班记录。保持谨慎。" };
         }
