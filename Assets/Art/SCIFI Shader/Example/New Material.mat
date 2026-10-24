@@ -1,0 +1,345 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-9211865625168581192
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  version: 7
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: New Material
+  m_Shader: {fileID: 4800000, guid: 2af73301c2fe95d478134042fb0b59e2, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - _EMISSION_ON
+  - _FRESNEL_ON
+  - _LINES_ON
+  - _NOISE_ON
+  - _PROJECTION_ON
+  - _RIM_ON
+  - _SCANLINE_ON
+  - _SCANNING_ON
+  - _SQUAREGRID_ON
+  - _VIGNETTE_ON
+  - _WIREFRAME_ON
+  m_InvalidKeywords:
+  - _ALPHABLEND_ON
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 3000
+  stringTagMap:
+    RenderType: Transparent
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CircuitTex:
+        m_Texture: {fileID: 2800000, guid: 0a00007b6de2062479336992533360b0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DataStreamTex:
+        m_Texture: {fileID: 2800000, guid: 1cfe0100fe9e1694abcd4909355832c2, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailAlbedoMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DistortionMap:
+        m_Texture: {fileID: 2800000, guid: 1b34e704eb9915e40b2d305bf3c48342, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 2800000, guid: 6e0258a50010f1e4c8442ee6a782f216, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _InterfaceTex:
+        m_Texture: {fileID: 2800000, guid: c9fb8f19a6d340341979d3f4bb141028, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: 53ce0b87e20a3d44fb3d3f68b6f098ca, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MetallicGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseMap:
+        m_Texture: {fileID: 2800000, guid: 656bec78f34cda243b3cd40425ec8af0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OcclusionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ParallaxMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SpecGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlphaClip: 0
+    - _AlphaToMask: 0
+    - _BandingBrightness: 1
+    - _BandingContrast: 1
+    - _BandingSaturation: 1
+    - _BeamCount: 3
+    - _BeamDistortion: 0
+    - _BeamShift: 0
+    - _BeamSpeed: 2
+    - _BeamWidth: 0.05
+    - _Blend: 0
+    - _BlendMode: 1
+    - _BlendModePreserveSpecular: 1
+    - _BumpScale: 1
+    - _ChromaticIntensity: 0.05
+    - _ChromaticMode: 0
+    - _ChromaticOffset: 0.5
+    - _CircuitDetail: 1
+    - _CircuitDistortion: 0
+    - _CircuitIntensity: 0.5
+    - _CircuitSpeed: 0.5
+    - _ClearCoatMask: 0
+    - _ClearCoatSmoothness: 0
+    - _ColorBands: 3
+    - _ColorShiftHue: 1
+    - _ColorShiftIntensity: 0.5
+    - _ColorShiftSpeed: 1
+    - _ColorShiftStartHue: 0
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DataStreamDensity: 1
+    - _DataStreamGlow: 1
+    - _DataStreamIntensity: 0.5
+    - _DataStreamSpeed: 1
+    - _DataStreamTiling: 1
+    - _DepthDistance: 1
+    - _DepthFadeWidth: 0.5
+    - _DepthGradient: 1
+    - _DepthIntersectionThreshold: 0.1
+    - _DetailAlbedoMapScale: 1
+    - _DetailNormalMapScale: 1
+    - _DistortionAnimation: 0
+    - _DistortionDirectionality: 0.5
+    - _DistortionIntensity: 0.1
+    - _DistortionSpeed: 1
+    - _DistortionTiling: 1
+    - _DstBlend: 10
+    - _DstBlendAlpha: 0
+    - _EdgeDistortion: 0
+    - _EdgeEmission: 1
+    - _EdgeNoise: 0
+    - _EdgePower: 1
+    - _EdgeSharpness: 5
+    - _EdgeThickness: 0.01
+    - _EmissionAreaScale: 1
+    - _EmissionDetail: 1
+    - _EmissionIntensity: 1
+    - _EmissionPulse: 0
+    - _EmissionPulseSpeed: 1
+    - _EnableBeam: 0
+    - _EnableChromatic: 0
+    - _EnableCircuit: 0
+    - _EnableColorBanding: 0
+    - _EnableColorShift: 0
+    - _EnableDataStream: 0
+    - _EnableDepth: 0
+    - _EnableDistortion: 0
+    - _EnableEdges: 0
+    - _EnableEmission: 1
+    - _EnableFresnel: 1
+    - _EnableGlitch: 0
+    - _EnableHexGrid: 0
+    - _EnableInterface: 0
+    - _EnableLines: 1
+    - _EnableNoise: 1
+    - _EnableProjection: 1
+    - _EnablePulse: 0
+    - _EnableRim: 1
+    - _EnableScanLine: 1
+    - _EnableScanning: 1
+    - _EnableSquareGrid: 1
+    - _EnableVignette: 1
+    - _EnableVolumetric: 0
+    - _EnableWireframe: 1
+    - _EnvironmentReflections: 1
+    - _FlickerOffset: 0
+    - _FlickerPattern: 0
+    - _FresnelColorVariation: 0
+    - _FresnelExponent: 1
+    - _FresnelIntensity: 0.9
+    - _FresnelPower: 2
+    - _FresnelSharpness: 1
+    - _GlitchColorIntensity: 0.3
+    - _GlitchDistortion: 0.1
+    - _GlitchFrequency: 2
+    - _GlitchHorizontalIntensity: 1
+    - _GlitchIntensity: 0.1
+    - _GlitchJump: 0.2
+    - _GlitchSpeed: 5
+    - _GlossMapScale: 0
+    - _Glossiness: 0
+    - _GlossyReflections: 0
+    - _HexDistortion: 0
+    - _HexEmission: 1
+    - _HexIntensity: 0.5
+    - _HexRotation: 0
+    - _HexSize: 10
+    - _HologramFlickerIntensity: 0.07
+    - _HologramFlickerSpeed: 0.7
+    - _HologramIntensity: 1.3
+    - _HologramOpacity: 0.6
+    - _InterfaceGlow: 1
+    - _InterfaceIntensity: 0.5
+    - _InterfaceScanlines: 0
+    - _InterfaceScrollX: 0
+    - _InterfaceScrollY: 0
+    - _InterfaceSpeed: 1
+    - _InterfaceTiling: 1
+    - _LineDistortion: 0
+    - _LineFadeDistance: 0
+    - _LineHighlightFrequency: 0
+    - _LineIntensity: 0.2
+    - _LineSpacing: 30
+    - _LineSpeed: 1
+    - _LineVariation: 0
+    - _LineWidth: 0.5
+    - _Metallic: 0
+    - _NoiseContrast: 1
+    - _NoiseIntensity: 0.05
+    - _NoiseSaturation: 0.5
+    - _NoiseSpeed: 0.5
+    - _NoiseTiling: 2
+    - _OcclusionStrength: 1
+    - _Parallax: 0.005
+    - _ProjectionAngleMultiplier: 1
+    - _ProjectionDistortion: 0
+    - _ProjectionFadeDistance: 0.4
+    - _ProjectionFlicker: 0.1
+    - _ProjectionHeight: 1.7
+    - _ProjectionIntensity: 1.3
+    - _ProjectionSpread: 0.7
+    - _PulseAmplitude: 0.2
+    - _PulseDistortion: 0
+    - _PulseExp: 2
+    - _PulseSpeed: 1
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
+    - _RimFlutter: 0
+    - _RimFlutterSpeed: 1
+    - _RimIntensity: 0.8
+    - _RimPower: 2.5
+    - _ScanLineAmount: 20
+    - _ScanLineDeform: 0
+    - _ScanLineShiftSpeed: 0
+    - _ScanLineSpeed: 1
+    - _ScanLineWidth: 0.1
+    - _ScanningFade: 0.5
+    - _ScanningIntensity: 0.9
+    - _ScanningSpeed: 0.6
+    - _ScanningWidth: 0.08
+    - _ShaderType: 3
+    - _Smoothness: 0.5
+    - _SmoothnessTextureChannel: 0
+    - _SpecularHighlights: 1
+    - _SquareDistortion: 0
+    - _SquareEdgeWidth: 0.05
+    - _SquareIntensity: 0.3
+    - _SquareSize: 20
+    - _SrcBlend: 5
+    - _SrcBlendAlpha: 1
+    - _Surface: 0
+    - _VignetteIntensity: 0.5
+    - _VignettePower: 2
+    - _VignetteSpeed: 0
+    - _VolumetricDistance: 5
+    - _VolumetricFalloff: 1
+    - _VolumetricIntensity: 1
+    - _VolumetricNoise: 0.5
+    - _VolumetricSpeed: 1
+    - _WireframeDensity: 2
+    - _WireframeGlow: 1
+    - _WireframeSmoothing: 0.01
+    - _WireframeThickness: 0.02
+    - _WorkflowMode: 1
+    - _ZWrite: 0
+    m_Colors:
+    - _BandingDirection: {r: 0, g: 1, b: 0, a: 0}
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BeamColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _ChromaticCenter: {r: 0.5, g: 0.5, b: 0, a: 0}
+    - _CircuitColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _Color: {r: 0.2, g: 0.4, b: 0.9, a: 0.6}
+    - _DataStreamColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _DataStreamScrollDir: {r: 0, g: 1, b: 0, a: 0}
+    - _DepthColor: {r: 0, g: 0.5, b: 1, a: 1}
+    - _EdgeColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FresnelColor: {r: 0.8, g: 0.5, b: 0.4, a: 1}
+    - _HexColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _InterfaceColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _LineColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _NoiseMovement: {r: 1, g: 1, b: 0, a: 0}
+    - _ProjectionColor: {r: 0.3, g: 0.5, b: 1, a: 0.4}
+    - _PulseCenter: {r: 0.5, g: 0.5, b: 0, a: 0}
+    - _PulseColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _RimColor: {r: 0.3, g: 0.5, b: 1, a: 1}
+    - _ScanLineColor: {r: 0, g: 0.8, b: 1, a: 1}
+    - _ScanningColor: {r: 0.3, g: 0.9, b: 0.6, a: 1}
+    - _ScanningDirection: {r: 0, g: 1, b: 0, a: 0}
+    - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _SquareColor: {r: 0.3, g: 0.5, b: 1, a: 1}
+    - _VignetteCenter: {r: 0.5, g: 0.5, b: 0, a: 0}
+    - _VignetteColor: {r: 0.8, g: 0.5, b: 0.4, a: 1}
+    - _VolumetricColor: {r: 0, g: 0.5, b: 1, a: 0.2}
+    - _WireframeColor: {r: 0.3, g: 0.9, b: 0.5, a: 1}
+  m_BuildTextureStacks: []

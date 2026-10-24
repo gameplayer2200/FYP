@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 2af73301c2fe95d478134042fb0b59e2
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _MainTex: {fileID: 2800000, guid: 53ce0b87e20a3d44fb3d3f68b6f098ca, type: 3}
+  - _EmissionMap: {fileID: 2800000, guid: 6e0258a50010f1e4c8442ee6a782f216, type: 3}
+  - _DistortionMap: {fileID: 2800000, guid: 1b34e704eb9915e40b2d305bf3c48342, type: 3}
+  - _NoiseMap: {fileID: 2800000, guid: 656bec78f34cda243b3cd40425ec8af0, type: 3}
+  - _DataStreamTex: {fileID: 2800000, guid: 1cfe0100fe9e1694abcd4909355832c2, type: 3}
+  - _InterfaceTex: {fileID: 2800000, guid: c9fb8f19a6d340341979d3f4bb141028, type: 3}
+  - _CircuitTex: {fileID: 2800000, guid: 0a00007b6de2062479336992533360b0, type: 3}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
