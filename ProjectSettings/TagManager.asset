@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - CinemachineIgnored
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - FirstPersonBody
+  - World_Metro
+  - World_FactoryDay
+  - World_FactoryNight
+  - World_Flooded
+  - World_Other
+  - 
+  - World_Flooded_Grounds
+  - 
+  - 
+  - 
+  - World_OfficePack
+  - World_Shrine
+  - World_Laboratory
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
