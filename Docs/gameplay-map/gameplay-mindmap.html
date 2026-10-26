@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>门阈行动 · 玩法思维导图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#06110B;
+    --panel:#0A1A11;
+    --panel2:#0D2216;
+    --line:#1C4630;
+    --ink:#CFF6DE;
+    --ink-dim:#8CC7A6;
+    --ink-mute:#63A37F;
+    --phos:#45F88D;
+    --phos-soft:#2FBF6E;
+    --mag:#FF6FB5;
+    --amber:#FFC24B;
+  }
+  @page { size: 297mm 210mm; margin: 0; }
+  html, body { margin:0; padding:0; background: var(--bg); }
+  * { box-sizing: border-box; }
+  body{
+    font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+
+  .page{
+    position:relative; width:297mm; height:210mm;
+    background:var(--bg);
+    page-break-after:always;
+    break-after:page;
+  }
+  .page:last-child{ page-break-after:auto; break-after:auto; }
+  .page::after{
+    content:""; position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 50% 40%, rgba(69,248,141,0) 62%, rgba(0,0,0,0.30) 100%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.016) 0 1px, rgba(0,0,0,0) 1px 4px);
+  }
+  .inner{ position:relative; width:100%; height:100%; padding:9mm 10mm 8mm; display:flex; flex-direction:column; }
+  .body{ flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:4.5mm; }
+
+  .phead{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:0.35mm solid var(--line); padding-bottom:2.4mm; margin-bottom:2mm;
+  }
+  .phead .doc{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:7.5pt; letter-spacing:0.22em; color:var(--ink-mute); }
+  .phead .chap{ font-size:9.5pt; font-weight:700; color:var(--phos); letter-spacing:0.08em; }
+  .phead .num{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:8pt; color:var(--ink-mute); margin-left:4mm; }
+
+  .card{
+    background:var(--panel); border:0.3mm solid var(--line); border-radius:2.2mm;
+    padding:3.2mm 3.6mm; position:relative;
+  }
+  .card h4{ margin:0 0 1.2mm; font-size:9.5pt; font-weight:700; color:#E9FFF1; letter-spacing:0.02em; }
+  .card h4 .en{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:6.8pt; color:var(--ink-mute); font-weight:400; margin-left:1.6mm; letter-spacing:0.06em; }
+  .card p{ margin:0; font-size:7.6pt; line-height:1.55; color:var(--ink-dim); }
+  .card p b{ color:var(--ink); font-weight:700; }
+  .grid{ display:grid; grid-template-columns:repeat(12,1fr); gap:4mm; grid-auto-flow:dense; }
+  .c3{ grid-column:span 3; } .c4{ grid-column:span 4; } .c6{ grid-column:span 6; }
+  .c8{ grid-column:span 8; } .c12{ grid-column:span 12; }
+
+  /* 思维导图页 */
+  .mmwrap{ position:relative; flex:1; min-height:0; }
+  .mmwrap svg.wires{ position:absolute; left:0; top:0; width:100%; height:100%; }
+  .mm-center{
+    position:absolute; left:0; top:36mm; width:56mm; height:76mm;
+    background:linear-gradient(160deg,#0D2A1A,#081710); border:0.45mm solid var(--phos-soft);
+    border-radius:3mm; padding:4.6mm 4.2mm; box-shadow:0 0 9mm rgba(69,248,141,0.10);
+  }
+  .mm-center h3{ margin:0; font-size:18pt; font-weight:900; color:#F2FFF7; letter-spacing:0.04em; }
+  .mm-center .sub{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:6.8pt; color:var(--phos); letter-spacing:0.2em; margin:1.6mm 0 3.2mm; }
+  .mm-center .cyc{ font-size:7.8pt; line-height:1.85; color:var(--ink-dim); }
+  .mm-center .cyc b{ color:var(--phos); font-weight:700; }
+  .lane{ position:absolute; left:78mm; width:199mm; height:25mm;
+    background:var(--panel); border:0.3mm solid var(--line); border-left:0.9mm solid var(--phos-soft);
+    border-radius:2mm; padding:2.6mm 3.4mm; }
+  .lane.l-mag{ border-left-color:var(--mag); }
+  .lane h4{ margin:0 0 1.6mm; font-size:11pt; font-weight:900; color:#EFFFF5; }
+  .lane h4 .w{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:6.6pt; font-weight:400; color:var(--ink-mute); letter-spacing:0.12em; margin-left:2.4mm; }
+  .leaves{ display:flex; flex-wrap:wrap; gap:1.4mm; }
+  .leaves span{ font-size:7.8pt; color:var(--ink-dim); background:#0D2417; border:0.25mm solid #1D4A31;
+    border-radius:1mm; padding:0.6mm 2mm; line-height:1.4; }
+  .leaves span b{ color:var(--ink); font-weight:700; }
+
+  /* 拓扑页 */
+  .topo{ position:relative; height:86mm; background:var(--panel); border:0.3mm solid var(--line); border-radius:2.4mm; }
+  .topo svg{ position:absolute; left:0; top:0; width:100%; height:100%; }
+  .wnode{ position:absolute; width:44mm; border-radius:2mm; border:0.35mm solid var(--line);
+    background:var(--panel2); padding:2.4mm 2.8mm; }
+  .wnode .nm{ font-size:10.5pt; font-weight:900; color:#EFFFF5; }
+  .wnode .en{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:6.2pt; color:var(--ink-mute); letter-spacing:0.08em; margin-top:0.4mm; }
+  .wnode .rl{ font-size:7.2pt; color:var(--ink-dim); line-height:1.45; margin-top:1.2mm; }
+  .wnode.home{ border-color:var(--phos-soft); box-shadow:0 0 7mm rgba(69,248,141,0.12); }
+
+  /* 封面 */
+  .cvr{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 96mm; gap:8mm; }
+  .cvr-left{ padding-top:15mm; }
+  .kicker{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:8pt; letter-spacing:0.34em; color:var(--phos); margin-bottom:7mm; }
+  .kicker::before{ content:""; display:inline-block; width:9mm; height:0.5mm; background:var(--phos); vertical-align:middle; margin-right:3mm; }
+  h1.title{ margin:0; font-size:56pt; font-weight:900; color:#F4FFF8; letter-spacing:0.045em; line-height:1.06; }
+  .chip-img{ display:inline-block; width:17mm; height:11.5mm; border-radius:6mm; vertical-align:-1.2mm;
+    margin:0 2.5mm; background-image:url(assets_lite/chip_door.jpg); background-size:cover; background-position:center;
+    border:0.4mm solid var(--mag); box-shadow:0 0 6mm rgba(255,111,181,0.25); }
+  .title-en{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:10.5pt; letter-spacing:0.5em; color:var(--ink-mute); margin-top:4mm; }
+  .pitch{ font-size:12.5pt; line-height:1.7; color:var(--ink); margin-top:8mm; max-width:150mm; }
+  .pitch b{ color:var(--phos); font-weight:700; }
+  .cvr-meta{ display:flex; gap:2.6mm; margin-top:9mm; flex-wrap:wrap; }
+  .cvr-meta span{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:7.6pt; color:var(--ink-dim);
+    border:0.3mm solid var(--line); border-radius:1.2mm; padding:1.4mm 3mm; background:var(--panel); }
+  .cvr-right{ display:flex; flex-direction:column; gap:3.6mm; padding-top:15mm; min-height:0; }
+  .summary{ background:var(--panel); border:0.35mm solid var(--line); border-left:1mm solid var(--phos); border-radius:2.4mm; padding:5mm 5.4mm; }
+  .summary h5{ margin:0 0 2.6mm; font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:7.5pt; letter-spacing:0.26em; color:var(--phos); }
+  .summary p{ margin:0 0 2.2mm; font-size:8.4pt; line-height:1.66; color:var(--ink-dim); }
+  .summary p:last-child{ margin-bottom:0; }
+  .summary p b{ color:var(--ink); }
+  .loop{ flex:1; background:var(--panel); border:0.35mm solid var(--line); border-radius:2.4mm; padding:4.4mm 5mm;
+         display:flex; flex-direction:column; justify-content:space-between; }
+  .loop h5{ margin:0; font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:7.5pt; letter-spacing:0.26em; color:var(--mag); }
+  .loop .step{ display:flex; align-items:baseline; gap:2.6mm; }
+  .loop .step i{ font-style:normal; font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:7pt; color:var(--phos); width:6mm; }
+  .loop .step b{ font-size:9.5pt; font-weight:900; color:#EFFFF5; }
+  .loop .step span{ font-size:7.4pt; color:var(--ink-dim); margin-left:1.4mm; }
+  .loop .arrow{ color:var(--ink-mute); font-size:8pt; padding-left: 8.6mm; font-family:"JetBrains Mono","Noto Sans SC",monospace; }
+
+  /* 场景页 */
+  .shot{ width:100%; height:42mm; border-radius:1.8mm; border:0.3mm solid var(--line); background:#07130C; }
+  .shot img{ width:100%; height:100%; object-fit:cover; border-radius:1.6mm; display:block; }
+  .scap{ font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:6.6pt; color:var(--ink-mute); letter-spacing:0.06em; margin-top:1.4mm; }
+
+  /* 术语表 */
+  .terms{ display:grid; grid-template-columns:1fr 1fr; gap:2.8mm 6mm; }
+  .terms .t{ display:grid; grid-template-columns:28mm 1fr; gap:2.6mm; align-items:baseline;
+    border-bottom:0.25mm dashed #1A3D2B; padding:1.7mm 0; }
+  .terms .t b{ font-size:8.8pt; color:var(--phos); font-weight:700; }
+  .terms .t i{ font-style:normal; font-size:7.8pt; color:var(--ink-dim); line-height:1.5; }
+  .keys{ display:grid; grid-template-columns:repeat(8,1fr); gap:2.4mm; }
+  .keys .k{ background:var(--panel); border:0.3mm solid var(--line); border-radius:1.8mm; padding:2.4mm 2mm; text-align:center; }
+  .keys .k b{ display:block; font-family:"JetBrains Mono","Noto Sans SC",monospace; font-size:9pt; color:#F2FFF7; }
+  .keys .k span{ font-size:7pt; color:var(--ink-dim); }
+
+  @media screen{
+    html{ background:#02100A; }
+    body{ zoom:0.55; }
+    .page{ margin:6mm auto; box-shadow:0 4mm 12mm rgba(0,0,0,0.6); }
+  }
+</style>
+</head>
+<body>
+
+<!-- P1 封面 -->
+<div class="page">
+  <div class="inner">
+    <div class="cvr">
+      <div class="cvr-left">
+        <div class="kicker">FIRST-PERSON PSYCHOLOGICAL HORROR · UNITY 2022.3</div>
+        <h1 class="title">门<span class="chip-img"></span>阈行动</h1>
+        <div class="title-en">OPERATION : THRESHOLD</div>
+        <p class="pitch">在实验室接单，推开一扇门进入层域，在规则压迫下回收异常物——并于<b>归途门锁死之前</b>撤回。电量即生命值，黑暗即倒计时。</p>
+        <div class="cvr-meta">
+          <span>5 场景 · 链式门拓扑</span><span>4 对门 · 实时取景穿行</span><span>6 大玩法分支 · 31 项玩法</span>
+        </div>
+      </div>
+      <div class="cvr-right">
+        <div class="summary">
+          <h5>OVERVIEW / 总览</h5>
+          <p><b>玩法循环：</b>实验室整备 → 推门进入层域 → 回收异常物 → 撤离窗口内归返 → 收容入账与电费结算 → 休整再出发。</p>
+          <p><b>场景链：</b>实验室 ⇄ Metro 站；实验室 ⇄ 工厂·昼 ⇄ 工厂·夜 ⇄ 水淹区。门内可见对面世界的实时取景，跨过门平面即传送。</p>
+          <p><b>本册：</b>玩法思维导图与关卡线性切换为主线，场景截图集中一页速览。基于 2026-10-26 可玩版本编制。</p>
+        </div>
+        <div class="loop">
+          <h5>CORE LOOP / 核心循环</h5>
+          <div class="step"><i>01</i><b>接单</b><span>订单板领取回收任务</span></div>
+          <div class="arrow">↓</div>
+          <div class="step"><i>02</i><b>推门</b><span>实时取景 · 穿行传送</span></div>
+          <div class="arrow">↓</div>
+          <div class="step"><i>03</i><b>回收</b><span>层域内寻找异常物</span></div>
+          <div class="arrow">↓</div>
+          <div class="step"><i>04</i><b>撤离</b><span>600s 窗口内归返</span></div>
+          <div class="arrow">↓</div>
+          <div class="step"><i>05</i><b>结算</b><span>图鉴 · 账单 · 播报</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- P2 玩法思维导图（纯导图，无图片） -->
+<div class="page">
+  <div class="inner">
+    <div class="phead">
+      <span class="doc">OPERATION:THRESHOLD / 玩法思维导图</span>
+      <span><span class="chap">核心玩法 · 思维导图</span><span class="num">02 / 06</span></span>
+    </div>
+    <div class="mmwrap">
+      <svg class="wires" viewBox="0 0 277 181" preserveAspectRatio="none">
+        <path d="M 57 74 C 66 74, 68 13, 77 13"  stroke="#2FBF6E" stroke-width="0.55" fill="none"/>
+        <path d="M 57 74 C 66 74, 68 43, 77 43"  stroke="#FF6FB5" stroke-width="0.55" fill="none"/>
+        <path d="M 57 74 C 66 74, 68 73, 77 73"  stroke="#2FBF6E" stroke-width="0.55" fill="none"/>
+        <path d="M 57 74 C 66 74, 68 103, 77 103" stroke="#2FBF6E" stroke-width="0.55" fill="none"/>
+        <path d="M 57 74 C 66 74, 68 133, 77 133" stroke="#2FBF6E" stroke-width="0.55" fill="none"/>
+        <path d="M 57 74 C 66 74, 68 163, 77 163" stroke="#FF6FB5" stroke-width="0.55" fill="none"/>
+        <circle cx="57" cy="74" r="1.3" fill="#45F88D"/>
+        <circle cx="77" cy="13"  r="1.1" fill="#2FBF6E"/><circle cx="77" cy="43"  r="1.1" fill="#FF6FB5"/>
+        <circle cx="77" cy="73"  r="1.1" fill="#2FBF6E"/><circle cx="77" cy="103" r="1.1" fill="#2FBF6E"/>
+        <circle cx="77" cy="133" r="1.1" fill="#2FBF6E"/><circle cx="77" cy="163" r="1.1" fill="#2FBF6E"/>
+      </svg>
+      <div class="mm-center">
+        <h3>门阈行动</h3>
+        <div class="sub">CORE LOOP / 玩法循环</div>
+        <div class="cyc">
+          <b>接单</b> · 订单板领任务<br>
+          <b>推门</b> · 实时取景穿行<br>
+          <b>回收</b> · 层域内取异常物<br>
+          <b>撤离</b> · 600s 窗口内归返<br>
+          <b>结算</b> · 图鉴 / 账单 / 播报
+        </div>
+      </div>
+      <div class="lane" style="top:0;">
+        <h4>实验室 · 整备与结算<span class="w">SPECIMENLAB</span></h4>
+        <div class="leaves"><span><b>接单任务板</b>（按世界切换形态）</span><span><b>收容台两段式</b> 开盖再收容</span><span><b>收容图鉴</b> 档案卡</span><span><b>电费账单</b> 四类记账</span><span><b>值班播报</b> 打字机</span><span>恒不耗电 · 瘫倒重启点</span></div>
+      </div>
+      <div class="lane l-mag" style="top:30mm;">
+        <h4>门系统 · 推门与撤离<span class="w">ANYWHERE-DOOR</span></h4>
+        <div class="leaves"><span><b>实时取景</b> 门内见对面世界</span><span><b>穿行传送</b> 提前 0.25m 触发</span><span><b>开关同步</b> 双向 1~2 帧</span><span><b>E 开门 10s 自动关</b></span><span><b>撤离窗口</b> 归零锁门</span><span>WorldStreamer 装卸</span></div>
+      </div>
+      <div class="lane" style="top:60mm;">
+        <h4>Metro 站 · 渐熄与谜题<span class="w">METRO / BLACKOUT</span></h4>
+        <div class="leaves"><span><b>灯组渐熄</b> 每 90s 熄一组 ×5</span><span><b>停电掉电</b> 1 电/s · 黑暗 ×1.5</span><span><b>配电室谜题</b> 三线测电合闸</span><span><b>奖励级联</b> 车厢解锁 + 充电桩</span></div>
+      </div>
+      <div class="lane" style="top:90mm;">
+        <h4>Metro 站 · 异常<span class="w">ANOMALIES</span></h4>
+        <div class="leaves"><span><b>电磁风暴</b> 灯组乱闪 + HUD 乱码</span><span><b>幽灵进站</b> 风压骤停死寂</span><span><b>对面的灯</b> 永远到不了</span><span><b>粉笔箭头</b> 前人痕迹</span><span>异常物 ×3（软盘 ×2 · 复读磁带）</span></div>
+      </div>
+      <div class="lane" style="top:120mm;">
+        <h4>工厂 · 昼夜轮班<span class="w">FACTORY SHIFT</span></h4>
+        <div class="leaves"><span><b>排班钟</b> 每 240s 昼夜换班</span><span><b>歇班死寂</b> 机器沉睡门锁死</span><span><b>排班表谜题</b> 按序启动三台机器</span><span><b>锁定器</b> 锁定班次消除缺陷</span><span><b>深区泵房</b> 夜班开放</span><span>异常物 ×2（考勤卡 · 交接本）</span></div>
+      </div>
+      <div class="lane l-mag" style="top:150mm;">
+        <h4>玩家系统<span class="w">PLAYER SYSTEMS</span></h4>
+        <div class="leaves"><span><b>电量 = 生命值</b> 双通道耗电</span><span><b>降级链</b> ≤50 锁冲刺 ≤25 锁跳</span><span><b>瘫倒</b> 异常物散失一半</span><span><b>手电筒 F</b> +0.5 电/s</span><span><b>背包</b> 底部道具栏 · 容量 5</span><span><b>蓄力跳</b> 耗电 1</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- P3 关卡线性切换（纯拓扑，无图片） -->
+<div class="page">
+  <div class="inner">
+    <div class="phead">
+      <span class="doc">OPERATION:THRESHOLD / 玩法思维导图</span>
+      <span><span class="chap">关卡线性切换 · 门链拓扑</span><span class="num">03 / 06</span></span>
+    </div>
+    <div class="body">
+      <div class="topo">
+        <svg viewBox="0 0 277 86" preserveAspectRatio="none">
+          <defs>
+            <marker id="ah" viewBox="0 0 4 4" refX="3.4" refY="2" markerWidth="3.4" markerHeight="3.4" orient="auto-start-reverse">
+              <path d="M0,0 L4,2 L0,4 z" fill="#2FBF6E"/>
+            </marker>
+            <marker id="ahm" viewBox="0 0 4 4" refX="3.4" refY="2" markerWidth="3.4" markerHeight="3.4" orient="auto-start-reverse">
+              <path d="M0,0 L4,2 L0,4 z" fill="#FF6FB5"/>
+            </marker>
+          </defs>
+          <path d="M 50 30 C 84 30, 96 17, 122 17" stroke="#FF6FB5" stroke-width="0.6" fill="none" marker-start="url(#ahm)" marker-end="url(#ahm)"/>
+          <path d="M 50 38 C 84 38, 94 55, 122 55" stroke="#2FBF6E" stroke-width="0.6" fill="none" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <path d="M 168 55 L 186 55" stroke="#2FBF6E" stroke-width="0.6" fill="none" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <path d="M 232 55 L 246 55" stroke="#2FBF6E" stroke-width="0.6" fill="none" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <text x="70" y="9"  font-size="2.7" fill="#FF6FB5" font-family="JetBrains Mono, monospace">Metro-A &#8596; Metro</text>
+          <text x="62" y="46" font-size="2.7" fill="#63A37F" font-family="JetBrains Mono, monospace">FactoryDay-A &#8596; FactoryDay</text>
+          <text x="167" y="62" font-size="2.6" fill="#63A37F" font-family="JetBrains Mono, monospace">FactoryNight</text>
+          <text x="230.5" y="60" font-size="2.5" fill="#63A37F" font-family="JetBrains Mono, monospace">Flooded-</text>
+          <text x="230.5" y="64.5" font-size="2.5" fill="#63A37F" font-family="JetBrains Mono, monospace">Grounds</text>
+          <text x="6" y="82" font-size="2.8" fill="#8CC7A6" font-family="Noto Sans SC, sans-serif">门对命名 anywhere-door-X（-A 在来路侧）· 撤离归零锁门、回实验室复位 · E 开门 10s 自动关 · 穿行冷却 0.6s</text>
+        </svg>
+        <div class="wnode home" style="left:4mm; top:22mm;"><div class="nm">实验室</div><div class="en">SPECIMENLAB · 起始世界</div><div class="rl">安全屋 · 整备 / 收容 / 瘫倒重启</div></div>
+        <div class="wnode" style="left:122mm; top:1mm;"><div class="nm">Metro 站</div><div class="en">METRO · 渐熄层域</div><div class="rl">灯组渐熄 · 配电室谜题 · 异常 ×4</div></div>
+        <div class="wnode" style="left:122mm; top:44mm;"><div class="nm">工厂 · 昼</div><div class="en">FACTORY DAY · 在班醒着</div><div class="rl">排班钟 240s · 排班表谜题</div></div>
+        <div class="wnode" style="left:186mm; top:44mm;"><div class="nm">工厂 · 夜</div><div class="en">FACTORY NIGHT</div><div class="rl">异常显形 · 深区泵房 · 锁定器</div></div>
+        <div class="wnode" style="left:246mm; top:44mm; width:27mm;"><div class="nm">水淹区</div><div class="en">FLOODED</div><div class="rl">链尾 · 美术壳</div></div>
+      </div>
+      <div class="grid">
+        <div class="card c4">
+          <h4>门 = 实体，传送门 = 行为<span class="en">DOOR / PORTAL</span></h4>
+          <p>门是可交互实体（E 开关，动画约 2.6s）；传送门是门框内板的<b>实时取景投影</b>——把对面世界渲染进门洞，跨过门平面 0.25m 提前面即传送，落点恒在对门门槽内、朝向保持行进方向。</p>
+        </div>
+        <div class="card c4">
+          <h4>撤离窗口 · 全局唯一一口钟<span class="en">EXTRACTION</span></h4>
+          <p>进入层域武装 <b>600s</b>，HUD ≤120s 红色闪烁；归零关门并锁死 E 键（门关 = 穿行被拦）；玩家回实验室即复位解锁。多层域共存靠「复位须在实验室、锁门须在本层」两道守卫。</p>
+        </div>
+        <div class="card c4">
+          <h4>门链规则与装卸<span class="en">WORLDSTREAMER</span></h4>
+          <p>命名约定 <b>-A 后缀在来路侧</b>，运行时按门名自动配对；门开着的世界与玩家当前世界永不卸载，同时存活上限 5 个。走近 15m 预载、远离卸载，光照随世界隔离。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- P4 场景一览（全册唯一的截图页） -->
+<div class="page">
+  <div class="inner">
+    <div class="phead">
+      <span class="doc">OPERATION:THRESHOLD / 玩法思维导图</span>
+      <span><span class="chap">对应场景 · 截图与介绍</span><span class="num">04 / 06</span></span>
+    </div>
+    <div class="body">
+      <div class="grid">
+        <div class="card c4">
+          <div class="shot"><img src="assets_lite/scene_lab.jpg" alt=""></div>
+          <div class="scap">SpecimenLab.unity · 安全屋</div>
+          <h4 style="margin-top:1.2mm;">实验室<span class="en">SPECIMENLAB</span></h4>
+          <p>唯一没有异常的世界：黑色天空盒下的孤立科研设施。门口取手电筒、订单板接单，归来把异常物送进<b>两段式收容台</b>；恒不耗电，也是瘫倒重启落点。房内两扇门通往 Metro 与工厂·昼。</p>
+        </div>
+        <div class="card c4">
+          <div class="shot"><img src="assets_lite/scene_metro.jpg" alt=""></div>
+          <div class="scap">Metro.unity · 上层站厅（青绿雾 15~170）</div>
+          <h4 style="margin-top:1.2mm;">Metro 站<span class="en">METRO</span></h4>
+          <p>阈限站厅 + 隧道，抬高 +93.9m 垂直分层。核心规则「<b>渐渐熄灭</b>」：五灯组每 90s 熄一组；停电 1 电/s、黑暗 ×1.5。解法 = 死端配电室三线谜题，通关全站复明并解锁车厢与充电桩。</p>
+        </div>
+        <div class="card c4">
+          <div class="shot"><img src="assets_lite/scene_facday.jpg" alt=""></div>
+          <div class="scap">FactoryDay.unity · 主厅与风机</div>
+          <h4 style="margin-top:1.2mm;">工厂 · 昼<span class="en">FACTORY DAY</span></h4>
+          <p>排班钟每 <b>240s</b> 昼夜轮换；在班的世界醒着，歇班的世界死寂（机器沉睡、门锁死）。谜题 = 按值班排班表顺序启动昼侧两风机 + 夜侧送料机，必然跨昼夜往返；错序全厂复位。</p>
+        </div>
+        <div class="card c6">
+          <div class="shot"><img src="assets_lite/scene_facnight.jpg" alt=""></div>
+          <div class="scap">FactoryNight.unity · 夜 = 昼 + (14797, 0, 0) 镜像布局</div>
+          <h4 style="margin-top:1.2mm;">工厂 · 夜<span class="en">FACTORY NIGHT</span></h4>
+          <p>夜班<b>异常显形</b>：自开的生产线与巡检灯束只在这一侧苏醒；谜题完成后排班表变<b>锁定器</b>——锁定班次消除缺陷（锁昼开门 / 锁夜平息异常），此后每 60s 可改锁。深区泵房夜班开放，交接本藏于木箱。夜班不掉电，压迫感来自轮换而非黑暗。</p>
+        </div>
+        <div class="card c6">
+          <div class="shot"><img src="assets_lite/scene_flood.jpg" alt=""></div>
+          <div class="scap">Flooded_Grounds.unity · 地形与 16 盏灯（抬高 y+2134）</div>
+          <h4 style="margin-top:1.2mm;">水淹区<span class="en">FLOODED_GROUNDS</span></h4>
+          <p>链式门终点站：从工厂·夜深处推门而来，落在积水与浓雾占据的地面。当前为<b>美术壳</b>——地形、水、雾与 16 盏环境灯就位，素材自带 8 个环境音效与混响；玩法闭环为下一大项（提案：积水短路 ×2 耗电、扳手关 3 个排水阀、防水涂层增益）。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- P5 玩法系统速览（纯文字） -->
+<div class="page">
+  <div class="inner">
+    <div class="phead">
+      <span class="doc">OPERATION:THRESHOLD / 玩法思维导图</span>
+      <span><span class="chap">玩家系统与结算 · 速览</span><span class="num">05 / 06</span></span>
+    </div>
+    <div class="body">
+      <div class="grid">
+        <div class="card c4">
+          <h4>电量 = 生命值<span class="en">BATTERY</span></h4>
+          <p>双通道独立叠加：环境通道（层域规则）+ 手电通道（+0.5 电/s）；受创也扣电。BillingLedger 按<b>照明 / 环境 / 机动 / 受创</b>四类记账，收容入账时生成电费账单。</p>
+        </div>
+        <div class="card c4">
+          <h4>降级链<span class="en">DEGRADE</span></h4>
+          <p>电量 ≤50 锁冲刺、≤25 锁跳跃，蹲伏永不关闭，保留机动下限，把资源压力转成路线决策；实验室恒不耗电，工厂夜班不掉电。</p>
+        </div>
+        <div class="card c4">
+          <h4>瘫倒与起身<span class="en">COLLAPSE</span></h4>
+          <p>电量归零强制休眠，起身动画（Dead → GetUp → Idle）后在实验室重启；惩罚 = 携带的异常物与档案散失一半（队尾先丢，已收容不动）。</p>
+        </div>
+        <div class="card c4">
+          <h4>手电筒 · 探索道具<span class="en">FLASHLIGHT / F</span></h4>
+          <p>实验室门旁与 Metro 门区各一处拾取物，F 开关；开灯照明中不吃黑暗 ×1.5，灯锥强制逐像素渲染并附近场补偿点光。万用表为 Metro 配电室谜题道具。</p>
+        </div>
+        <div class="card c4">
+          <h4>背包与交互<span class="en">INVENTORY / E</span></h4>
+          <p>底部道具栏 + 物品图标，异常物容量 5、拾取范围 1.5m；全游戏<b>唯一交互键 E</b>，由交互中枢裁决最近交互物（门的交互范围 3m），两段式收容台先开盖再入账。</p>
+        </div>
+        <div class="card c4">
+          <h4>结算三层<span class="en">SETTLEMENT</span></h4>
+          <p><b>收容图鉴</b>：#001 起逐条档案卡（名称 + 档案文案）；<b>电费账单</b>：入账时居中弹 ~6.5s 四类明细；<b>值班播报</b>：进层域打字机播报当班规则。HUD 按世界切换整备 / 订单双形态。</p>
+        </div>
+        <div class="card c12">
+          <h4 style="margin-bottom:2mm;">键位速览<span class="en">CONTROLS</span></h4>
+          <div class="keys">
+            <div class="k"><b>WASD</b><span>移动</span></div>
+            <div class="k"><b>Shift</b><span>冲刺（≤50 锁定）</span></div>
+            <div class="k"><b>Ctrl</b><span>蹲伏</span></div>
+            <div class="k"><b>Space</b><span>跳 · 蓄力跳</span></div>
+            <div class="k"><b>E</b><span>唯一交互键</span></div>
+            <div class="k"><b>F</b><span>手电筒</span></div>
+            <div class="k"><b>Tab</b><span>订单板详情</span></div>
+            <div class="k"><b>Esc</b><span>释放鼠标</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- P6 术语与数值（纯文字） -->
+<div class="page">
+  <div class="inner">
+    <div class="phead">
+      <span class="doc">OPERATION:THRESHOLD / 玩法思维导图</span>
+      <span><span class="chap">术语与速查</span><span class="num">06 / 06</span></span>
+    </div>
+    <div class="body">
+      <div class="card c12" style="padding:5mm 6mm;">
+        <h4 style="margin-bottom:3.4mm;">术语速查<span class="en">GLOSSARY</span></h4>
+        <div class="terms">
+          <div class="t"><b>世界</b><i>即 Unity 场景；实验室为起始世界，其余皆异世界。</i></div>
+          <div class="t"><b>层域</b><i>设计口径的「异世界」称谓，用于文案与规则描述。</i></div>
+          <div class="t"><b>门</b><i>可交互实体：门框 + 门板 + 门洞，E 键开关。</i></div>
+          <div class="t"><b>传送门</b><i>门的运行时行为：实时取景 + 穿行传送 + 开关同步。</i></div>
+          <div class="t"><b>电量</b><i>生命值等价物；双通道耗电、降级链直至瘫倒。</i></div>
+          <div class="t"><b>瘫倒</b><i>电量归零后的强制休眠与重启（非死亡）。</i></div>
+          <div class="t"><b>异常</b><i>层域中违反常理的事件（渐熄、幽灵进站、风暴等）。</i></div>
+          <div class="t"><b>异常物</b><i>要回收的目标物 Specimen，带档案文案。</i></div>
+          <div class="t"><b>交互中枢</b><i>玩家身上唯一持有 E 键的组件，裁决最近交互物。</i></div>
+          <div class="t"><b>撤离</b><i>限时开门机制：窗口归零锁门，回实验室复位。</i></div>
+        </div>
+      </div>
+      <div class="card c6">
+        <h4>关键数值<span class="en">NUMBERS</span></h4>
+        <p style="line-height:1.95;">撤离窗口 <b>600s</b>（≤120s 红闪）· 渐熄 <b>90s × 5 组</b> · 停电 1 电/s（黑暗 ×1.5）· 换班 <b>240s</b> · 锁定改锁 60s · E 开门 10s 自动关 · 穿行冷却 0.6s · 异常物容量 <b>5</b> · 拾取 1.5m / 交互 3m · 手电 +0.5 电/s</p>
+      </div>
+      <div class="card c6">
+        <h4>关于本册<span class="en">COLOPHON</span></h4>
+        <p style="line-height:1.95;">内容基于 2026-10-26 可玩版本与项目实测截图编制；完整截图图鉴与逐玩法截图卡另存于富版手册（build/gameplay-mindmap-rich.pdf）。玩法范围以当前可玩版本为准，不含提案中的未来扩展。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
