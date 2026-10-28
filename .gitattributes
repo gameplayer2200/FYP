@@ -1,5 +1,8 @@
-﻿# Git LFS：大体积二进制/场景文件走 LFS，避免仓库被撑爆 & 绕开单文件 100MB 限制
+# Git LFS：大体积二进制/场景文件走 LFS，避免仓库被撑爆 & 绕开单文件 100MB 限制
 *.prefab filter=lfs diff=lfs merge=lfs -text
 *.unity  filter=lfs diff=lfs merge=lfs -text
 *.psd    filter=lfs diff=lfs merge=lfs -text
 *.blend  filter=lfs diff=lfs merge=lfs -text
+
+# 解包静态合批生成的独立网格（每个物件一份，走 LFS 避免撑爆仓库）
+Assets/Art/PakoneSoft/Mesh/Extracted/*.asset filter=lfs diff=lfs merge=lfs -text
