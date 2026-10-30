@@ -18,7 +18,7 @@
 | Unity | **2022.3.62f3c1**（Windows；用 Unity Hub 打开仓库根目录） |
 | 分支 | `main` |
 | 场景（Build Settings 顺序） | `Assets/Scenes/SpecimenLab.unity`（起始/实验室）→ 第三方样例 `country house` → `Assets/Scenes/Metro.unity` → `Assets/Scenes/FactoryDay.unity` → `Assets/Scenes/FactoryNight.unity` → `Assets/Scenes/Flooded_Grounds.unity`（后四者 = 异世界） |
-| 编辑器自动化 | 已装 **MCP for Unity**（v10.3.1-beta.8，本地包 `Packages/com.coplaydev.unity-mcp`，经 `file:` 引用——**勿改回 git URL**，UPM 在本机解析 git 包会报 `not in a git directory`）。**通道是 stdio**（Unity 注册表 `MCPForUnity.UseHttpTransport = 0`，插件不回连 8080），DSH 侧经 `uvx --from mcpforunityserver mcp-for-unity --transport stdio` 接入、工具名 `mcp__unity__*`（49 个）；`manage_editor` 的合法 action 只有 telemetry_status/telemetry_ping/play/pause/stop/set_active_tool/add_tag/remove_tag/add_layer/remove_layer/deploy_package/restore_package/undo/redo（**没有 get_state**）。日志 `Library/MCPForUnity/Logs/`；用法见 §6 |
+| 编辑器自动化 | 已装 **MCP for Unity**（包内 `package.json` = v10.3.1-beta.11，本地包 `Packages/com.coplaydev.unity-mcp`，经 `file:` 引用——**勿改回 git URL**，UPM 在本机解析 git 包会报 `not in a git directory`；MCP server 侧 PyPI 包 `mcpforunityserver` = 10.3.0）。**通道是 stdio**（Unity 注册表 `MCPForUnity.UseHttpTransport` 写 0，插件不回连 8080，桥监听 `127.0.0.1:6400`），DSH 侧直接跑常驻 uv tool `C:\Users\14763\.local\bin\mcp-for-unity.exe --transport stdio`、工具名 `mcp__unity__*`（**48 个**）；`manage_editor` 的合法 action 只有 telemetry_status/telemetry_ping/play/pause/stop/set_active_tool/add_tag/remove_tag/add_layer/remove_layer/deploy_package/restore_package/undo/redo（**没有 get_state**）。日志 `Library/MCPForUnity/Logs/`；安装与排障见 §6 |
 
 关键提交（新→旧）：`104f838` 第六轮（sci-fi-train 素材入库 + 收容台 casedeco 根因修复）→ `0c909e0` 新增 HANDOVER.md → `e4e2d03` 第五轮结算反馈层（电费账单/收容图鉴/值班播报）+ 文档补账 → `0f3d68a` 第三/四轮（撤离窗口+手电筒+粉笔箭头+HUD 按世界切换）→ 队友六连（`85a91fb` CRT UI+CC0 素材库 / `345e4ec` 背包交互+收容台两段式 / `e725eae` 图标+验证截图 / `e13c571` autoPair+玩家 prefab 化 / `b3248f1` 起身动画+门配对工具 / `bbd4050` 链式布局落盘）→ `5cf464f` 接单板+电磁风暴/幽灵进站 → `22226b6` Metro 渐熄闭环 → `bca6118` Metro 抬高 +93.9 → `31185c2` 门收尾（判定提前/门同步/出向修正/SelfTest）。
 
@@ -146,12 +146,49 @@ return ok + " :: " + (string)args[0];
 4. 门外折返、绕门框蹭走：不误触发；门关着不能穿；
 5. 开 / 关任一门：对面 1~2 帧内同步；
 6. 双窗内容：Metro 侧窗内显示 Lab 世界（明亮）；Lab 侧窗内是 Metro 房间（本身是暗场景，偏暗正常）；
-7. 控制台无报错（基线见 §7.5）。
+7. 控制台无报错（基线：§7 第 5 条——只有 6 条历史 missing-script 警告，无 error）。
 
 ## 6. Unity MCP 工作流（agent 专用）
 
-> 2026-10-21 更新：**主通道是 DSH 的 MCP 客户端（stdio）**——Unity 插件监听 `127.0.0.1:6400`，由 `uvx --from mcpforunityserver mcp-for-unity --transport stdio` 桥接，agent 侧直接用 `mcp__unity__*` 工具（49 个），**不必手写 JSON-RPC**。
+> 2026-10-29 更新：**主通道是 DSH 的 MCP 客户端（stdio）**——Unity 插件监听 `127.0.0.1:6400`，由常驻 uv tool `C:\Users\14763\.local\bin\mcp-for-unity.exe --transport stdio` 桥接，agent 侧直接用 `mcp__unity__*` 工具（48 个），**不必手写 JSON-RPC**。完整安装 / 排障步骤见 §6.0。
 > ⚠️ 8080 的 HTTP 直连**已不可用**（Unity 注册表 `MCPForUnity.UseHttpTransport = 0`，插件不回连 8080，桥日志刷 `No Unity plugin reconnected within 20.00s`，`tools/call` 恒返回 `no_unity_session`）；下文 curl 段落仅在把 Unity 切回 HTTP 传输后才有效，保留作参考。
+
+### 6.0 从零接入（2026-10-29 实测通过的完整步骤）
+
+1. **装 MCP server（一次性）**——本机没装 uvx，用 DSH 打包的 uv：
+   ```bash
+   "D:\DSH\DSH NEXT\resources\app.asar.unpacked\node_modules\@dataiku\uv-win32-x64\bin\uv.exe" tool install mcpforunityserver
+   ```
+   产物：`C:\Users\14763\.local\bin\mcp-for-unity.exe`（MCP server）与 `unity-mcp.exe`（配套 CLI，走 HTTP 8080，与本通道无关）。uv 会警告该目录不在 PATH——用绝对路径即可，**别为此改系统 PATH**。
+2. **让 Unity 侧的 stdio 桥自启**——包里 `EditorConfigurationCache` 的 `UseHttpTransport` 默认取 `true`（HTTP），于是 `StdioBridgeHost.ShouldAutoStartBridge()` 返回 false、6400 端口不会监听。写注册表（EditorPrefs 在 `HKCU\Software\Unity Technologies\Unity Editor 5.x`，**键名后缀 `_h<djb2 变体哈希>`**）：
+   - `MCPForUnity.UseHttpTransport_h3850471145` = DWORD `0`（强制 stdio）
+   - `MCPForUnity.AutoStartOnLoad_h2539145689` = DWORD `0`（不起 HTTP）
+   - `MCPForUnity.ResumeStdioAfterReload_h3690782296` = DWORD `1`（域重载后恢复桥）
+   哈希算法：`h=5381; foreach c: h = ((h*33) ^ c) & 0xFFFFFFFF`（不是 java 的 `h*31+c`，也不是 fnv）。
+3. **在 DSH profile 注册 server**——`C:\Users\14763\.dsh\profiles\desktop\cordis.patch.yml` 的 `- insert:` 列表里加：
+   ```yaml
+   - id: mcp-unity
+     name: "@deepseek-ai/dsh-mcp-client"
+     config:
+       serverName: unity
+       transport: stdio
+       command: 'C:\Users\14763\.local\bin\mcp-for-unity.exe'
+       args: ['--transport', 'stdio']
+       env:
+         HTTP_PROXY: ''
+         HTTPS_PROXY: ''
+         http_proxy: ''
+         https_proxy: ''
+         NO_PROXY: 'localhost,127.0.0.1,::1,.local'
+         no_proxy: 'localhost,127.0.0.1,::1,.local'
+       toolCallTimeoutMs: 300000
+       failOnStartupError: false
+   ```
+   ⚠️ **`env` 段不可省**：本机全局有 `http_proxy=http://127.0.0.1:7897`（Clash 未开），server 内 httpx 解析会抛 `ValueError: invalid literal for int() with base 10: ':1]'`（`normalize_port`）→ stdio server 静默失败（stdout 零输出）。这是"工具列表里没有 unity 工具"最常见的根因。
+4. **启动编辑器**：`D:\Unity\Hub\Tuanjie\Hub\Editor\2022.3.62f3\Editor\Unity.exe -projectPath "D:\FYP\FYP"`（Tuanjie/团结 Hub 的安装路径，不是 `C:\Program Files\Unity`）。约 2 分钟后 `127.0.0.1:6400` 进入 LISTENING，`mcp__unity__*` 可用。
+5. **验收**：`read_mcp_resource mcpforunity://instances` 应返回单实例 `FYP@<hash>`（port 6400、status running）；`mcpforunity://editor/state` 的 `advice.ready_for_tools=true`；跑一句 `execute_code` 确认。
+
+排障口诀：**端口空 → 查第 2 步的 EditorPrefs；端口有但工具缺失 → 查第 3 步的 env/命令路径；工具有但调用报错 → 查 `Library/MCPForUnity/Logs/`。**
 
 - **主路径（stdio，当前）**：直接调 `mcp__unity__<工具名>`（如 `mcp__unity__execute_code`、`mcp__unity__read_console`）。参数与旧 JSON-RPC 的 `arguments` 完全一致。
 - **旧路径（HTTP 传输才可用，留作参考）**：每次调用 = initialize → notifications/initialized → tools/call；响应可能是 SSE `data:` 行或纯 JSON，两者都要兼容：

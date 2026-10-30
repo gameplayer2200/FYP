@@ -91,7 +91,7 @@ FYP.Editor → 全部
 
 ## 7. 开发工具与自动化
 
-- **Unity MCP**（编辑器自动化，端口 8080）：本地包 `Packages/com.coplaydev.unity-mcp`（`file:` 引用，**勿改回 git URL**）。用 MCP JSON-RPC（POST /mcp）调用，现成调用器 `snippets/mcp.py`（initialize 握手 + tools/call 一发一收，兼容 SSE/纯 JSON）；工具与片段用法见 **AGENTS.md §6**（含 curl 模板）。
+- **Unity MCP**（编辑器自动化，**stdio 通道**）：本地包 `Packages/com.coplaydev.unity-mcp`（`file:` 引用，**勿改回 git URL**）。Unity 侧 stdio 桥监听 `127.0.0.1:6400`，DSH 侧常驻 server `C:\Users\14763\.local\bin\mcp-for-unity.exe --transport stdio`，agent 直接用 `mcp__unity__*` 工具（48 个）。⚠️ **8080 的 HTTP 直连已废弃**（`MCPForUnity.UseHttpTransport` 写 0，插件不回连）；`snippets/mcp.py` 那套 JSON-RPC 调用器只在切回 HTTP 时才有意义。完整安装/排障见 **AGENTS.md §6.0**。
 - **测试驱动模式**：编辑器失焦 Play 不推进——计时类逻辑用 `snippets/` 反射驱动片段；确定性断言**直接调静态方法**（如 `ExtractionClock.Tick(2.6f)`），别指望手调 N 帧 Update 凑时间（Update 里 `Time.deltaTime` 是真实帧长，帧数与秒数不可换算）。
 - **分阶段搭建**：`Assets/Editor/MetroSceneDev.cs` 与 `Assets/Editor/FactorySceneDev.cs`（勘察 Report/Shot + Stage 幂等搭建 + FixPass 视觉修正 + PT_* Play 测试）——新世界照这个模式写。
 - **贴墙物件定位铁律**：目测坐标必埋墙（工厂北墙内面实测 z=36.0、annex 南墙内面 z=−83.4，均与直觉差 0.5m+）——一律 `Physics.Raycast` 探到真实墙面再悬挑 0.1~0.3m。
