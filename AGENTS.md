@@ -63,7 +63,7 @@ Assets/Art/                   第三方美术素材（2026-10-23 分类整理；
   Animations/UAL/             动画库（Clips + UAL1/UAL2，CC0 @Quaternius）
   VFX/MatrixScan/             MIT 屏幕空间扫描特效（Scripts / Shaders/Resources / Texture / LICENSE.md）
 Assets/Material/              FYP 自制材质（Metro* / Factory* 的 .mat）
-Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计；Docs/ART-ASSETS.md 美术素材清单（体积/引用/可回收）
+Docs/adr/0001~0005            设计决策记录；Docs/tools/ 提案生成脚本（node）；Docs/ASSET-SOURCING.md 素材审计；Docs/ART-ASSETS.md 美术素材清单（体积/引用/可回收）；**Docs/ENEMY-AI.md 敌人 AI（食尸鬼）实现说明**
 HANDOVER.md                   交接总览文档（新人/接手者从这里入门，再回本手册查细节）
 GLOSSARY.md                   术语表（写代码/注释/文档必须遵守）
 FYP_Game_Proposal.md          内容提案
@@ -286,6 +286,14 @@ return ok + " :: " + (string)args[0];
   - **复验（2026-10-22）**：PT 解谜全链（错序拒绝→按序三台→锁定→冻结→双侧门开）/ 锁流转（冷却拦截→改锁→异常平息）/ 撤离（武装→归零锁门→回家复位）全过；实验室开局穿门落点 (−4324.00, 0.06, −0.02) 精确门槽、presence/InHome 正确、HUD 订单视图含排班行（截图 `Assets/Screenshots/screenshot-20261022-231134.png`）；Metro 进站武装/回家复位回归通过；控制台 0 报错。
   - 已知测试环境伪象：从工厂直接 Play 时 `WorldPresence.Home` 未初始化（InHome 恒真、播报不触发、撤离钟会被误复位）——实验室正常开局不受影响，验证工厂动线请从 SpecimenLab 起 Play。
   - 夜侧照明教训：离屏渲染比实机暗很多，异常物一律带局部补光 + 自发光（Metro 软盘同款先例）；挂钟时针/分针静止重合在 12 点属正常（游玩时随班次分开）。
+- ✅ 敌人 AI（食尸鬼 Ghoul）落地（2026-10-30/31，逐轮按玩家实测反馈迭代；完整说明见 **`Docs/ENEMY-AI.md`**）：
+  - **文件**：`Assets/Scripts/World/EnemyGhoul.cs`（FYP.World，约 1345 行，全部中文注释 + Tooltip）、`Assets/Scripts/Core/NoiseBus.cs`（FYP.Core 静态听觉总线，解耦 Player→World）、`Assets/Prefab/Enemy/GhoulEnemy.prefab`（**拖进任意场景即可用**）。素材是用户导入的商店包 `Assets/Prefab/Enemy/Ghoul.prefab`（legacy `Animation`，无 Animator/无 Collider，走 in-place 动画，位移全由 NavMeshAgent 驱动）。
+  - **体型/速度按用户要求**：可见体型 = 玩家的 **1.5 倍**（3.0 m，`Ghoul` 子物体 scale 0.423 / localY 0.645，CapsuleCollider 3.0×0.6）；`patrolSpeed 1.6` / `chaseSpeed 3.2` = 玩家走 2 / 跑 4 的 **0.8 倍**。
+  - **导航**：无可用的编辑器烘焙 NavMesh（7 个场景的 `NavMeshSettings` 全指向悬空 guid `d2fc871308fdb5747b1bc6b5cefdaf00`）→ **运行时按场景烘焙**（`NavMeshBuilder`，静态 `s_bakedData` 每场景一份、多只敌人共享；150×150 约 30 ms、300×300 约 175 ms）。烘焙用**独立小号代理** `bakeAgentRadius 0.35 / height 2.0 / climb 0.6`，与 3 m 体型解耦。
+  - **踩过的根因（别回退）**：① `agentClimb 0.4 < 门口 0.55 m 台阶` → 导航面在门口断成两岛，「进不了门也出不了门」（`climb=0.6` 即 `PathComplete`，另有 `directApproachRange=12` 的贴脸直冲兜底）；② `SamplePosition(10 m)` 会把敌人吸到 y≈9.97 的**屋面** → 改为 `GroundPointBelow`（向下 `RaycastAll` 取最低点）+ 1.5 m 吸附 + 推迟一帧；③ 蒙皮包围盒不是每帧刷新，**逐帧按 bounds 锁地会来回抖** → 改为按剪辑固定补偿（Idle 0.03 / Walk −0.15 / Run 0.01 / Attack1 −0.19，按 `localScale.y / 0.27` 换算）；④ `PathPartial` 也触发补烘 → 每次追击连烘 3 次卡顿，改成只在目标超范围时补烘 + 2 s 节流。
+  - **感知**：视觉扇形 ±35°（`viewAngle 70`）/ 视距 35 m + 贴身 5 m 内不看角度 + 单次射线遮挡；**发现节奏**（`detectTimeNear .6` → `detectTimeFar 2.2`，蹲下 ×1.7）累积到 1 才锁定，不再 0 帧发现；**听觉**（`NoiseBus`，走路 0.55 / 奔跑 1.0 / 蹲行 0.2，`hearRange 18 m × 响度`）→ 只进入 `Search` 去查看，不直接锁定；蹲下把视距压到 0.5、贴身半径压到 0.45（判定用 `controller.height ≤ 1.5`，不读私有 `crouching` 字段）。
+  - **状态机** `Patrol / Search / Chase`：丢视线 3 s → 走到**最后可见点**搜索 7 s（到点原地左右扫视 ±55°、90°/s）→ 超时回巡逻；攻击前摇 0.45 s 结束时**复核距离（≤1.3×attackRange）+ 视线**，跑开或躲掩体后不掉电。
+  - **实测验过**：20 m 正视约 1.9 s 锁定 → 追到 6.9 m；丢视线 3 s 转 `Search`、到位环视、7 s 后回 `Patrol`；`Emit(0.6)` 9.4 m 外触发 `Search`（目标点等于噪音点），0.2 响度与 30 m 外忽略；前摇中瞬移 6 m 外**未掉电**；双向穿门（屋内外）均 `PathComplete`；控制台 0 error。
 - ⏳ 待办（按优先级）：
   1. 玩家实测 Metro + 工厂昼夜闭环 + 三世界门动线（Metro 重点：E 键自然交互、90s 节奏体感、黑暗 ×1.5 的掉电压力、车厢奖励动线、账单/图鉴/播报观感；工厂重点：换班节奏体感、歇班死寂的引导是否够、错序复位的挫败感、深区泵房探索动线、异常显形的惊吓度、锁定奖励的意义感）；
   2. **水淹区玩法闭环**（下一个大项）——提案：积水短路易 2 倍+抖屏、扳手关 3 个排水阀、水位下降露下层区+防水涂层；素材自带水/雾/混响/8 音效；

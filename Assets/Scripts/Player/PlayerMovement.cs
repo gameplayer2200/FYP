@@ -60,6 +60,9 @@ public class PlayerMovement : MonoBehaviour
     private float standHeight;
     private Vector3 standCenter;
 
+    // 脚步噪音：按累计行走距离触发，不是每帧广播（敌人经 NoiseBus 听）
+    private float noiseDistanceAccum;
+
     // 动画用的落地态（见 ComputeAnimGrounded）。
     // controller.isGrounded 只在 Move() 真正触地的那一帧为真：传送（PlayerRef.Teleport 会
     // 禁用再启用 CharacterController）、台阶边缘、斜坡、蹲起改碰撞体高度都会让它单帧闪 false。
@@ -387,7 +390,34 @@ public class PlayerMovement : MonoBehaviour
         Vector3 motion = horizontalVel;
         motion.y = verticalVelocity;
         controller.Move(motion * Time.deltaTime);
+
+        // ── 脚步噪音上报（敌人经 NoiseBus 听觉感知）─────────────────────
+        // 响度约定：蹲行 0.2（多数敌人听不见）/ 走路 0.55 / 奔跑 1.0。
+        // 按累计行走距离触发，避免每帧广播；出门落地那一下顺手也算一记。
+        float speedNow = horizontalVel.magnitude;
+        if (controller.isGrounded && speedNow > 0.25f)
+        {
+            float loudness = crouching
+                ? CrouchNoise
+                : (speedNow > (walkSpeed + runSpeed) * 0.5f ? RunNoise : WalkNoise);
+
+            noiseDistanceAccum += speedNow * Time.deltaTime;
+            float stride = crouching ? 1.1f : 0.8f; // 蹲着步子短，触发距离换算成更稀疏
+            if (noiseDistanceAccum >= stride)
+            {
+                noiseDistanceAccum = 0f;
+                NoiseBus.Emit(transform.position, loudness);
+            }
+        }
+        else
+        {
+            noiseDistanceAccum = 0f;
+        }
     }
+
+    private const float CrouchNoise = 0.2f;
+    private const float WalkNoise = 0.55f;
+    private const float RunNoise = 1f;
 
     /// <summary>
     /// 维护「动画用的落地态」。直接拿 controller.isGrounded 喂 Animator 会出问题：

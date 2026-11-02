@@ -4,19 +4,40 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// 「食尸鬼」敌人：在层域里沿巡逻点巡回，视野内看见玩家即转入追击。
-/// **用法 = 把 Assets/Prefab/Enemy/GhoulEnemy.prefab 拖进任意场景**：根节点自带 NavMeshAgent +
-/// CapsuleCollider + 本脚本，Ghoul 模型已是正确缩放；只需在 Inspector 里调巡逻点（局部坐标，
-/// 会跟随实例的位移与旋转）即可定路线。一份预制件可在一个场景拖多只，互不干扰。
-/// 工程里 7 个场景的 NavMeshSettings 都指向已丢失的资产（从未烘焙过），所以每个场景首次进入 Play、
-/// 或该场景被 WorldStreamer 加载时，会按**本场景全部敌人**巡逻点的并集现场烘焙一份 NavMesh（每场景一份）。
-/// 动画是 legacy Animation（Ghoul.prefab 自带，不是 Animator）：Idle/Walk/Run 循环，Attack1 单次。
-/// 不使用 root motion——Ghoul 的动画全是 in-place，位移一律由 NavMeshAgent 驱动。
+/// 「食尸鬼」敌人：在层域里满地图漫游，**发现节奏 + 视野扇形 + 贴身感知 + 听觉**四路感知玩家，
+/// 看见即追击、跟丢后去最后可见点搜索、超时回巡逻，够近就挥击（BatterySystem.TakeHit）。
+///
+/// <para><b>用法</b>：把 <c>Assets/Prefab/Enemy/GhoulEnemy.prefab</c> 拖进任意场景即可，无需任何手动配置。
+/// 根节点自带 NavMeshAgent + CapsuleCollider + 本脚本，Ghoul 模型已按「玩家的 1.5 倍」缩放；
+/// 默认 <see cref="roamWholeScene"/> = 开，会在本场景烘焙出的 NavMesh 上随机挑可达点漫游（不是原地打转）。
+/// 想固定路线就关掉漫游、在 <see cref="patrolPoints"/> 里填**局部坐标**（摆 4 个点绕圈，2 个点来回）。</para>
+///
+/// <para><b>为什么自己烘 NavMesh</b>：工程里 7 个场景的 NavMeshSettings 都指向已丢失的资产 guid
+/// （<c>d2fc871308fdb5747b1bc6b5cefdaf00</c>，Assets 下没有对应文件，从仓库建立至今从未烘焙过），
+/// 所以每个场景首次进入 Play、或该场景被 WorldStreamer 加载时，用 <c>NavMeshBuilder</c> 现收现烘一份
+/// （每个场景一份，静态 <c>s_bakedData</c> 缓存 NavMeshDataInstance；多只敌人共享同一次烘焙）。
+/// 烘焙用**独立的小号代理尺寸**（bakeAgentRadius/Height/Climb），与 3 m 高的可见体型解耦——见下方
+/// <see cref="bakeAgentClimb"/> 的注释，这是「进不了门」那个 bug 的根因。</para>
+///
+/// <para><b>动画</b>：legacy <c>Animation</c>（Ghoul.prefab 自带，不是 Animator，没有 Avatar/Controller）。
+/// Idle/Walk/Run 循环、Attack1 单次（运行期把 wrapMode 改成 Clamp）。<b>不使用 root motion</b>——
+/// Ghoul 的四个剪辑实测都是 in-place（hips 只在原地微动、无位移曲线），位移一律由 NavMeshAgent 驱动。</para>
+///
+/// <para><b>踩过的坑（改代码前务必读，别回退）</b>：
+/// ① 脚底高度不是常数——每个剪辑的最低点不同（Idle -0.043 / Walk +0.154 / Run -0.014 / Attack1 末帧 +0.191，
+///    相对根节点，按 0.27 基准缩放实测），所以用「按剪辑固定补偿 + 运行时按缩放换算」，而不是每帧读
+///    <c>SkinnedMeshRenderer.bounds</c>（蒙皮包围盒不是每帧刷新，按它逐帧纠正会来回抖）。
+/// ② 落点吸附不能用大半径 <c>NavMesh.SamplePosition</c>——10 m 半径会把敌人吸到 y≈9.97 的**屋面**上；
+///    现在先用 <see cref="GroundPointBelow"/> 取真实地面，再用 1.5 m 半径吸附。
+/// ③ 刚 <c>AddNavMeshData</c> 的 NavMesh 当帧查不到，必须等一帧（<c>snapPending</c>）。
+/// ④ 门洞走不通：climb 默认 0.4 < 门口 0.55 m 台阶 → 导航面在门口断成两岛；现在 climb 提到 0.6，
+///    另加 <see cref="directApproachRange"/> 的「贴脸直冲」兜底（寻路 Partial 且直线可见时脱离 agent 直接走）。
+/// ⑤ <c>NavMeshPath</c> 不能在字段初始化器里 new（Unity 会报 InitializeNavMeshPath 不允许），要在 Awake 里建。</para>
 /// </summary>
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyGhoul : MonoBehaviour
 {
-    private enum State { Patrol, Chase }
+    private enum State { Patrol, Search, Chase }
 
     [Header("巡逻")]
     [Tooltip("**整张地图漫游（默认开）**：在本场景烘焙出的 NavMesh 上随机挑可达点巡游，不设点也能满地图走；" +
@@ -54,6 +75,34 @@ public class EnemyGhoul : MonoBehaviour
     [Tooltip("玩家碰撞体高度低于这个值即判定为蹲下（站立 2.0 / 蹲下 1.2）")]
     [SerializeField] private float crouchDetectHeight = 1.5f;
 
+    [Header("感知 — 发现节奏")]
+    [Tooltip("贴身距离下锁定玩家所需的秒数（不是 0 帧发现：玩家闪一下不会被立刻锁死）")]
+    [SerializeField] private float detectTimeNear = 0.6f;
+    [Tooltip("视距边缘处锁定玩家所需的秒数（越远越慢）")]
+    [SerializeField] private float detectTimeFar = 2.2f;
+    [Tooltip("看不见玩家时怀疑值每秒衰减多少")]
+    [SerializeField] private float suspicionDecay = 0.55f;
+    [Tooltip("蹲下时发现耗时的倍率（越大越难被发现）")]
+    [SerializeField] private float crouchDetectScale = 1.7f;
+
+    [Header("搜索（丢失视线后）")]
+    [Tooltip("冲到「最后看见玩家的位置」并在原地环视的总时长（秒）")]
+    [SerializeField] private float searchDuration = 7f;
+    [Tooltip("搜索时的移动速度相对于追击速度的比例")]
+    [SerializeField] private float searchSpeedScale = 0.7f;
+    [Tooltip("搜索时原地环视的转身速度（度/秒）")]
+    [SerializeField] private float searchLookSpeed = 90f;
+    [Tooltip("环视时左右各偏多少度")]
+    [SerializeField] private float searchLookAngle = 55f;
+
+    [Header("听觉")]
+    [Tooltip("响度 1.0 的声音最远能听到多少米（其他响度按比例缩短）")]
+    [SerializeField] private float hearRange = 18f;
+    [Tooltip("低于这个响度的声音直接忽略（比如蹲着挪动的细微声响）")]
+    [SerializeField] private float hearMinLoudness = 0.25f;
+    [Tooltip("听到声音后给搜索状态的额外时长（秒）")]
+    [SerializeField] private float searchDurationFromNoise = 5f;
+
     [Header("追击")]
     [Tooltip("追击速度 = 玩家奔跑速度(4 m/s) × 0.8：追得上走路的玩家，跑起来的玩家能甩开它")]
     [SerializeField] private float chaseSpeed = 3.2f;
@@ -88,6 +137,20 @@ public class EnemyGhoul : MonoBehaviour
     [SerializeField] private string spottedHint = "有东西看见你了";
     [Tooltip("首次发现时抬升的张力（TensionMeter.Add）")]
     [SerializeField] private float spottedTension = 0.12f;
+
+    [Header("音效（留空则静音，不会报错）")]
+    [Tooltip("呼吸/低吼循环：按距离与状态调节音量，贴得越近越响")]
+    [SerializeField] private AudioClip breathClip;
+    [Tooltip("发现玩家时的吼叫（一次性）")]
+    [SerializeField] private AudioClip alertClip;
+    [Tooltip("脚步（一次性，按移动速度触发）")]
+    [SerializeField] private AudioClip stepClip;
+    [Tooltip("呼吸的最大音量（贴近时）")]
+    [SerializeField] private float breathMaxVolume = 0.55f;
+    [Tooltip("呼吸开始能听见的距离（米）")]
+    [SerializeField] private float breathHearDistance = 22f;
+    [Tooltip("脚步的音量")]
+    [SerializeField] private float stepVolume = 0.7f;
 
     [Header("运行时烘焙 NavMesh")]
     [Tooltip("整图漫游时铺开的场地边长（米）——越大巡视范围越广，烘焙也越慢")]
@@ -230,6 +293,107 @@ public class EnemyGhoul : MonoBehaviour
     private float chaseStartedAt;
     private float animSpeedOverride;
 
+    // 怀疑值 0~1：看见玩家后累积到 1 才真正锁定（越近越快，蹲下更慢）
+    private float suspicion;
+    // 搜索状态：去哪找、找到什么时候、环视基准朝向
+    private Vector3 searchTarget;
+    private float searchUntil;
+    private float searchBaseYaw;
+    private float searchLookSign = 1f;
+    private float nextLookFlipAt;
+    private bool searchLookInit;
+    // 音效
+    private AudioSource breathSource;
+    private AudioSource fxSource;
+    private float nextStepAt;
+
+    private void OnEnable()
+    {
+        // 玩家脚步等动静经 NoiseBus（FYP.Core）中转，敌人只订阅，不认识 PlayerMovement
+        NoiseBus.OnNoise += HandleNoise;
+        EnsureAudio();
+    }
+
+    private void OnDisable()
+    {
+        NoiseBus.OnNoise -= HandleNoise;
+        if (breathSource != null) breathSource.Stop();
+    }
+
+    /// <summary>
+    /// 听到动静：过去看看（进入搜索），而不是直接锁定追击。
+    /// 响度决定能传多远：hearRange * loudness。
+    /// </summary>
+    private void HandleNoise(NoiseBus.Noise noise)
+    {
+        if (!isActiveAndEnabled) return;
+        if (state == State.Chase) return;              // 已经在追了，不用理噪声
+        if (noise.Loudness < hearMinLoudness) return;  // 太轻（蹲着挪）听不见
+
+        float range = hearRange * Mathf.Clamp01(noise.Loudness);
+        if (Vector3.Distance(noise.Position, transform.position) > range) return;
+
+        // 声音不覆盖视觉记忆：lastSeenPosition 只由真正看见时刷新
+        EnterSearch(noise.Position, searchDurationFromNoise);
+    }
+
+    private void EnsureAudio()
+    {
+        if (breathSource == null)
+        {
+            breathSource = gameObject.AddComponent<AudioSource>();
+            breathSource.playOnAwake = false;
+            breathSource.loop = true;
+            breathSource.spatialBlend = 1f;
+            breathSource.rolloffMode = AudioRolloffMode.Linear;
+            breathSource.minDistance = 3f;
+            breathSource.maxDistance = Mathf.Max(5f, breathHearDistance);
+            breathSource.volume = 0f;
+            breathSource.clip = breathClip;
+            if (breathClip != null) breathSource.Play();
+        }
+
+        if (fxSource == null)
+        {
+            fxSource = gameObject.AddComponent<AudioSource>();
+            fxSource.playOnAwake = false;
+            fxSource.spatialBlend = 1f;
+            fxSource.rolloffMode = AudioRolloffMode.Linear;
+            fxSource.minDistance = 2f;
+            fxSource.maxDistance = 45f;
+        }
+    }
+
+    private void PlayOneShot(AudioClip clip, float volume)
+    {
+        if (clip == null || fxSource == null) return;
+        fxSource.PlayOneShot(clip, volume);
+    }
+
+    /// <summary>呼吸/脚步：呼吸按距离与状态淡入淡出，脚步按移动速度定间隔。</summary>
+    private void TickAudio()
+    {
+        if (breathSource != null && breathClip != null)
+        {
+            Transform player = PlayerRef.Root;
+            float dist = player != null ? Vector3.Distance(transform.position, player.position) : 999f;
+            float near = 1f - Mathf.Clamp01(dist / Mathf.Max(1f, breathHearDistance));
+            float target = breathMaxVolume * near * near; // 平方衰减，近了才明显
+            if (state == State.Chase) target = Mathf.Max(target, breathMaxVolume * 0.6f);
+
+            breathSource.volume = Mathf.Lerp(breathSource.volume, target, Time.deltaTime * 2.5f);
+            if (!breathSource.isPlaying) breathSource.Play();
+        }
+
+        if (stepClip == null || fxSource == null) return;
+
+        float speed = Mathf.Max(agent != null ? agent.velocity.magnitude : 0f, animSpeedOverride);
+        if (speed < 0.25f || Time.time < nextStepAt) return;
+
+        PlayOneShot(stepClip, stepVolume);
+        nextStepAt = Time.time + (speed > (patrolSpeed + chaseSpeed) * 0.5f ? 0.38f : 0.62f);
+    }
+
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -361,18 +525,137 @@ public class EnemyGhoul : MonoBehaviour
         {
             lastSeenAt = Time.time;
             lastSeenPosition = seenPoint;
-            if (state != State.Chase) EnterChase();
-        }
-        else if (state == State.Chase && Time.time - lastSeenAt > loseSightTime)
-        {
-            EnterPatrol(); // 就地继续巡逻（不回到出生点）
         }
 
-        if (state == State.Chase) TickChase(canSee);
-        else TickPatrol();
+        // 看见不等于立刻锁定：怀疑值累积到 1 才真正进入追击
+        TickSuspicion(canSee);
+
+        if (state == State.Chase)
+        {
+            // 丢失视线 → 先去最后看见的位置找一圈，而不是原地开始漫游
+            if (!canSee && Time.time - lastSeenAt > loseSightTime) EnterSearch(lastSeenPosition, searchDuration);
+            else TickChase(canSee);
+        }
+        else if (state == State.Search)
+        {
+            TickSearch();
+        }
+        else
+        {
+            TickPatrol();
+        }
 
         TickAnimation();
         TickFootOffset();
+        TickAudio();
+    }
+
+    /// <summary>
+    /// 怀疑值：看见就按「距离 / 是否蹲下」的速率累积，看不见就衰减。
+    /// 累积满 1 才 EnterChase——这样玩家从掩体后闪一下不会被瞬间锁死，
+    /// 而贴到它脸上的时候仍然几乎立刻被发现（detectTimeNear）。
+    /// </summary>
+    private void TickSuspicion(bool canSee)
+    {
+        if (canSee && PlayerRef.Root != null)
+        {
+            float dist = Vector3.Distance(transform.position, PlayerRef.Root.position);
+            float far = Mathf.Max(proximityRadius + 0.01f, viewDistance);
+            float t = Mathf.InverseLerp(proximityRadius, far, dist);
+            float need = Mathf.Lerp(detectTimeNear, detectTimeFar, t);
+
+            if (IsPlayerCrouching()) need *= Mathf.Max(1f, crouchDetectScale);
+            if (state == State.Search) need *= 0.4f; // 已经在找它了，再看见几乎立刻确认
+
+            suspicion = Mathf.Clamp01(suspicion + Time.deltaTime / Mathf.Max(0.05f, need));
+        }
+        else
+        {
+            suspicion = Mathf.Clamp01(suspicion - Time.deltaTime * suspicionDecay);
+        }
+
+        if (suspicion >= 1f && state != State.Chase) EnterChase();
+    }
+
+    // ───────────────────────────── 搜索 ─────────────────────────────
+
+    /// <summary>丢视线/听到声音时的搜索：先走过去，再原地左右环视，超时才回巡逻。</summary>
+    private void EnterSearch(Vector3 point, float duration)
+    {
+        ExitDirectApproach();
+        state = State.Search;
+        searchTarget = point;
+        searchUntil = Time.time + Mathf.Max(1f, duration);
+        searchLookInit = false;
+        suspicion = Mathf.Max(suspicion, 0.4f);
+        nextRepathAt = 0f;
+
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.updateRotation = true;
+            agent.isStopped = false;
+            agent.speed = chaseSpeed * Mathf.Clamp01(searchSpeedScale);
+        }
+    }
+
+    private void TickSearch()
+    {
+        if (agent == null) return;
+
+        if (Time.time >= searchUntil)
+        {
+            EnterPatrol();
+            return;
+        }
+
+        Vector3 flat = searchTarget - transform.position;
+        flat.y = 0f;
+        bool arrived = flat.magnitude <= Mathf.Max(0.5f, arriveRadius);
+
+        if (!arrived)
+        {
+            if (Time.time >= nextRepathAt)
+            {
+                if (!agent.enabled) agent.enabled = true;
+                agent.isStopped = false;
+                agent.speed = chaseSpeed * Mathf.Clamp01(searchSpeedScale);
+                agent.updateRotation = true;
+                agent.SetDestination(searchTarget);
+                nextRepathAt = Time.time + repathInterval;
+            }
+            return;
+        }
+
+        // 到了：停下原地左右扫视，像在找人
+        agent.isStopped = true;
+        agent.updateRotation = false;
+        LookAround();
+    }
+
+    /// <summary>
+    /// 到了「最后看见玩家/听到声音」的位置之后原地扫视：以到达时的朝向为基准，
+    /// 每隔 0.9~1.7 s 左右翻转一次，最多偏 ±55°，用 90°/s 转过去（慢慢扭头，比瞬间转身可信）。
+    /// </summary>
+    private void LookAround()
+    {
+        if (!searchLookInit)
+        {
+            searchLookInit = true;
+            searchBaseYaw = transform.eulerAngles.y;
+            nextLookFlipAt = Time.time + 1.2f;
+        }
+
+        if (Time.time >= nextLookFlipAt)
+        {
+            searchLookSign = -searchLookSign;
+            nextLookFlipAt = Time.time + Random.Range(0.9f, 1.7f);
+        }
+
+        float targetYaw = searchBaseYaw + searchLookSign * searchLookAngle;
+        Quaternion want = Quaternion.Euler(0f, targetYaw, 0f);
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation, want, searchLookSpeed * Time.deltaTime);
     }
 
     /// <summary>
@@ -403,6 +686,10 @@ public class EnemyGhoul : MonoBehaviour
         return transform.TransformPoint(patrolPoints[index]);
     }
 
+    /// <summary>
+    /// 巡逻态的总入口：先看是否还在到点停顿里，再按 roamWholeScene 选「整图漫游」或「巡逻点巡回」。
+    /// 此处不处理感知——看见了会在更外层的 TickSuspicion 里把状态推成 Chase。
+    /// </summary>
     private void TickPatrol()
     {
         if (Time.time < pauseUntil)
@@ -504,6 +791,11 @@ public class EnemyGhoul : MonoBehaviour
 
     // ───────────────────────────── 追击 ─────────────────────────────
 
+    /// <summary>
+    /// 追击态每帧：①玩家跑出 giveUpDistance 直接放弃；②够近且看得见就停下挥击；
+    /// ③玩家跑出烘焙范围时补烘（有节流，别让它每帧烘）；④按 repathInterval 重设目标
+    /// （不是每帧 SetDestination——那样路径会抖、性能也白花）；⑤寻路走不通就切「贴脸直冲」。
+    /// </summary>
     private void TickChase(bool canSee)
     {
         Transform player = PlayerRef.Root;
@@ -669,6 +961,10 @@ public class EnemyGhoul : MonoBehaviour
         transform.position = p;
     }
 
+    /// <summary>
+    /// 挥击：冷却到了才起手，播 Attack1（单次）+ 记攻击结束时间，然后交给
+    /// <see cref="AttackHitRoutine"/> 在前摇末尾结算伤害（那里会再复核距离与视线）。
+    /// </summary>
     private void TryAttack(Transform player)
     {
         if (!attackEnabled || Time.time < nextAttackAt) return;
@@ -695,6 +991,13 @@ public class EnemyGhoul : MonoBehaviour
         yield return new WaitForSeconds(attackHitDelay);
         if (player == null) yield break;
 
+        // 命中必须在落手这一帧复核：前摇 0.45s 内玩家完全可能已经跑开或缩到掩体后，
+        // 否则会出现「隔着墙/隔着两米被打掉 20 电」的不讲理伤害。
+        Vector3 flat = player.position - transform.position;
+        flat.y = 0f;
+        if (flat.magnitude > attackRange * 1.3f) yield break;
+        if (!CanSeePlayer(out _)) yield break;
+
         BatterySystem battery = player.GetComponent<BatterySystem>();
         if (battery != null && !battery.IsDead) battery.TakeHit();
     }
@@ -706,6 +1009,19 @@ public class EnemyGhoul : MonoBehaviour
         nextRepathAt = 0f;
         rebakeTries = 0;
         chaseStartedAt = Time.time;
+        searchLookInit = false;
+        suspicion = 1f;
+
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.updateRotation = true;
+            agent.isStopped = false;
+            agent.speed = chaseSpeed;
+        }
+
+        // 惊觉表现：先吼一声，玩家才有反应时间
+        PlayOneShot(alertClip, 1f);
 
         if (!spottedHintShown)
         {
@@ -723,7 +1039,15 @@ public class EnemyGhoul : MonoBehaviour
         attackAnimUntil = 0f;
         attackStateUntil = 0f;
         roamTargetValid = false; // 回到巡逻后重新挑一个漫游点
-        if (agent != null) agent.updateRotation = true;
+        searchLookInit = false;
+        suspicion = Mathf.Min(suspicion, 0.25f); // 没找到人，留一点点警觉
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.updateRotation = true;
+            agent.isStopped = false;
+            agent.speed = patrolSpeed;
+        }
     }
 
     // ───────────────────────────── 感知 ─────────────────────────────
@@ -785,6 +1109,7 @@ public class EnemyGhoul : MonoBehaviour
         return cc != null && cc.height <= crouchDetectHeight;
     }
 
+    /// <summary>水平朝向玩家（只转 yaw、不低头抬头，避免模型前倾/后仰）。</summary>
     private void FaceTowards(Vector3 worldPosition)
     {
         Vector3 flat = worldPosition - transform.position;
