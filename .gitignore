@@ -137,3 +137,54 @@ Docs/gameplay-map/build/
 # FBX 导入器自动生成的内嵌贴图目录（可由 .fbx 重建）
 *.fbm/
 *.fbm.meta
+
+# ══════════════════════════════════════════════════════════════════════════
+# DSGS（DeepSeek Game Studios）框架载荷 —— 机器级，不入库
+# ══════════════════════════════════════════════════════════════════════════
+# 以下各项均为 ~/.dsh/DSGS/ 载荷的逐字节副本（2026-11-04 逐文件比对确认），
+# 由 `dsgs-init` 铺设、可随时重新生成，且不含任何针对本游戏的决策。
+# 项目自己的 DSGS 产物不在此列、正常入库：project.yaml、production/、
+# CLAUDE.md、Docs/engine-reference/unity/，以及 .claude 下被改写的四个文件。
+
+/.dsh/
+/dsh-src/
+/DSGS Skill Testing Framework/
+/.dsgs-installed.json
+/LICENSE
+/tools/
+# ↑ 整个 tools/ 目前 100% 是框架的构建/安装脚本。若以后要往里放自己的工具，
+#   在此加一行 `!/tools/<你的文件>` 放行，否则会被静默忽略。
+
+# 框架铺进本项目 Docs/ 的通用文档（与载荷副本逐字节相同）
+/Docs/CLAUDE.md
+/Docs/COLLABORATIVE-DESIGN-PRINCIPLE.md
+/Docs/PLAN-NEXT.md
+/Docs/WORKFLOW-GUIDE.md
+/Docs/migration-guide-v1.1.md
+/Docs/skill-flow-diagrams.md
+/Docs/architecture/
+/Docs/registry/
+
+# 本项目不使用的引擎参考（godot / unreal 为载荷原样）
+/Docs/engine-reference/README.md
+/Docs/engine-reference/godot/
+/Docs/engine-reference/unreal/
+
+# 内置 agent 团队：整体是载荷副本，但下列文件记录了本项目的既定事实，
+# 单独放行 —— 重装时不能被静默覆盖（UPGRADING.md 明确警告过这一点）。
+/.claude/*
+!/.claude/docs/
+/.claude/docs/*
+!/.claude/docs/technical-preferences.md
+!/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/unity-specialist.md
+!/.claude/agents/unity-addressables-specialist.md
+!/.claude/agents/unity-dots-specialist.md
+
+# ── 本地/派生态（框架自己要求忽略的部分）────────────────────────────
+# UPGRADING.md：Check production/session-state/ exists and is gitignored
+/project.local.yaml
+/production/session-state/
+/reports/
+/test-results/
