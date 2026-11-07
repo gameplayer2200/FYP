@@ -74,6 +74,11 @@ Patrol ──怀疑值满 1──> Chase ──丢视线超过 loseSightTime─�
 - 瞄准点从 1.0 m 降到 0.6 m（矮掩体后面更安全）
 - 判定方式：`PlayerRef.Controller.height <= crouchDetectHeight(1.5)` —— **不去读 `PlayerMovement` 的私有 `crouching` 字段**（跨程序集私有字段不该被外部依赖）
 
+**脚步响度（`PlayerMovement.cs:418-420`，`NoiseBus` 约定）**：
+蹲行 `CrouchNoise` **0.2** —— 低于 `hearMinLoudness` 0.25，所以**蹲走在听觉上完全不存在**（这是整套潜行循环的支点：蹲下不只缩短视距，而是彻底安静）；
+走路 `WalkNoise` 0.55（约 10 m 内被听见，`18 × 0.55`）；奔跑 `RunNoise` 1.0（满 18 m）。
+按**累计行走距离**触发（蹲 1.1 m 一次、站立 0.8 m 一次），不是每帧广播；出门落地那一下也算一记。
+
 **发现节奏（`TickSuspicion`）**：看见不等于立刻锁定。
 
 ```
