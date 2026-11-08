@@ -63,11 +63,13 @@ public class FactoryTimeSwap : MonoBehaviour
     private void OnEnable()
     {
         FactoryShift.OnPhaseFlipped += HandleFlip;
+        FactoryShift.OnPhaseWarning += HandleWarning;
     }
 
     private void OnDisable()
     {
         FactoryShift.OnPhaseFlipped -= HandleFlip;
+        FactoryShift.OnPhaseWarning -= HandleWarning;
         if (Instance == this) Instance = null;
     }
 
@@ -99,6 +101,40 @@ public class FactoryTimeSwap : MonoBehaviour
         hasPending = true;
         deferUntil = Time.time + maxDefer;
         TrySwapNow();
+    }
+
+    /// <summary>
+    /// 换班前预警（OnPhaseWarning）：把目标层着色器变体的一次性编译成本挪到预警窗口里。
+    ///
+    /// 卡顿的根因（FrameHitchWatchdog 实测）：第一次切换到某层时，该层材质的 shader 变体
+    /// 要现场编译，约 39ms——正好砸在换班那一帧。提前在预警的 5 秒里离屏渲一帧目标层，
+    /// 编译就发生在玩家还在等挂钟响的时候；真到切换时只剩改一次坐标 + 换遮罩，<2ms。
+    /// </summary>
+    private void HandleWarning()
+    {
+        Transform to = FactoryShift.Current == FactoryShift.Phase.Night ? dayRoot : nightRoot;
+        if (to == null) { ResolveRoots(); to = FactoryShift.Current == FactoryShift.Phase.Night ? dayRoot : nightRoot; }
+        if (to == null) return;
+        StartCoroutine(WarmLayer(to));
+    }
+
+    private System.Collections.IEnumerator WarmLayer(Transform layerRoot)
+    {
+        var cam = PlayerRef.Camera != null ? PlayerRef.Camera : Camera.main;
+        if (cam == null) yield break;
+
+        int targetBit = layerRoot.name == "Night" ? (1 << 9) : (1 << 8);
+        int oldMask = cam.cullingMask;
+        if ((oldMask & targetBit) != 0) yield break;
+
+        var rt = RenderTexture.GetTemporary(256, 256, 16);
+        var oldTarget = cam.targetTexture;
+        cam.cullingMask = oldMask | targetBit;
+        cam.targetTexture = rt;
+        cam.Render();
+        cam.targetTexture = oldTarget;
+        cam.cullingMask = oldMask;
+        RenderTexture.ReleaseTemporary(rt);
     }
 
     private void Update()
