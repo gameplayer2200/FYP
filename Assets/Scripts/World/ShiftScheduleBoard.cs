@@ -8,7 +8,7 @@ using UnityEngine;
 public class ShiftScheduleBoard : MonoBehaviour, IInteractable
 {
     [Tooltip("机器显示名（下标 = 机器编号：0/1=昼侧主厅，2=夜侧深区）——与 MachinePowerSwitch.displayName 一致")]
-    [SerializeField] private string[] machineNames = { "一号风机", "二号风机", "深区送料机" };
+    [SerializeField] private string[] machineNames = { "一号风机", "二号风机" };
 
     [Tooltip("读表提示时长（秒）——顺序信息长，给足阅读时间")]
     [SerializeField] private float hintDuration = 7f;
@@ -21,9 +21,18 @@ public class ShiftScheduleBoard : MonoBehaviour, IInteractable
     {
         if (!FactoryShift.PuzzleSolved)
         {
+            // 顺序长度一律跟着 Order 走，不再写死下标。
+            //
+            // 2026-11-08 删掉夜侧深区送料机、MachineCount 由 3 降到 2 之后，这里还留着
+            // order[2]，于是每次按 E 读表都抛 IndexOutOfRangeException（读表=谜题唯一线索）。
             var order = FactoryShift.PeekOrder();
-            string line = "今日排班：" + NameOf(order[0]) + " → " + NameOf(order[1]) + " → " + NameOf(order[2]);
-            if (FactoryShift.StartedMachines > 0)
+            string line = "今日排班：";
+            for (int i = 0; i < order.Length; i++)
+            {
+                if (i > 0) line += " → ";
+                line += NameOf(order[i]);
+            }
+            if (FactoryShift.StartedMachines > 0 && FactoryShift.StartedMachines < order.Length)
                 line += "（已启动 " + FactoryShift.StartedMachines + "/" + FactoryShift.MachineCount
                     + "，下一台 " + NameOf(order[FactoryShift.StartedMachines]) + "）";
             HintToast.Show(line, hintDuration);

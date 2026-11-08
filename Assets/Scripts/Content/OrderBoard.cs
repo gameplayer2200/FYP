@@ -80,8 +80,12 @@ public class OrderBoard : MonoBehaviour
         {
             case "SpecimenLab": return "实验室";
             case "Metro": return "Metro 站";
-            case "FactoryDay": return "工厂·昼";
-            case "FactoryNight": return "工厂·夜";
+            // 昼夜合并进同一个 Factory 场景后，场景名不再区分昼夜——
+            // 显示名跟随 FactoryShift.Current，玩家看到的仍是"工厂·昼/夜"。
+            case "Factory":
+            case "FactoryDay":
+            case "FactoryNight":
+                return FactoryShift.Current == FactoryShift.Phase.Day ? "工厂·昼" : "工厂·夜";
             case "Flooded_Grounds": return "水淹区";
             case "Shrine": return "荒废神社";
             case "OfficePack": return "废弃办公层";
@@ -294,7 +298,8 @@ public class OrderBoard : MonoBehaviour
 
     private static bool IsFactoryWorld(string sceneName)
     {
-        return sceneName == "FactoryDay" || sceneName == "FactoryNight";
+        // Factory 是昼夜合并后的场景名；FactoryDay/FactoryNight 留作旧存档兼容
+        return sceneName == "Factory" || sceneName == "FactoryDay" || sceneName == "FactoryNight";
     }
 
     /// <summary>订单详情按世界区分：工厂讲班次规则，Metro 讲站台动线（serialized detailText）。</summary>
@@ -302,9 +307,9 @@ public class OrderBoard : MonoBehaviour
     {
         if (IsFactoryWorld(WorldPresence.Current))
         {
-            return "排班钟每 4 分钟换班，歇班的世界死寂：机器停摆、深区门锁。\n"
+            return "排班钟每 90 秒强制换班——时间到了就把你拽到另一层，没有选择权。\n"
                 + "白班机器可启动但深区门锁死；夜班门全开但异常显形。\n"
-                + "按值班室排班表顺序启动 3 台机器，可锁定想要的昼夜（冷却 60 秒可改）。";
+                + "按值班室排班表顺序启动 3 台机器，之后可锁定昼夜（冷却 60 秒可改）。";
         }
         return detailText;
     }

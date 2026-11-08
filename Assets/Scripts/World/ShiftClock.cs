@@ -22,6 +22,8 @@ public class ShiftClock : MonoBehaviour
     [SerializeField] private string flipToDayHint = "换班了——白班开始";
     [SerializeField] private string flipToNightHint = "换班了——夜班开始";
     [SerializeField] private string lockHint = "排班钟停了——{0}被锁定了";
+    [Tooltip("换班预警文案（钟声之后、指针走最后一圈时给）")]
+    [SerializeField] private string warnHint = "钟在响——还有 {0} 秒换班";
 
     private MaterialPropertyBlock mpb;
     private static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
@@ -30,12 +32,21 @@ public class ShiftClock : MonoBehaviour
     {
         FactoryShift.OnPhaseFlipped += HandleFlip;
         FactoryShift.OnLockChanged += HandleLockChanged;
+        FactoryShift.OnPhaseWarning += HandleWarning;
     }
 
     private void OnDisable()
     {
         FactoryShift.OnPhaseFlipped -= HandleFlip;
         FactoryShift.OnLockChanged -= HandleLockChanged;
+        FactoryShift.OnPhaseWarning -= HandleWarning;
+    }
+
+    private void HandleWarning()
+    {
+        if (controller == null || !controller.PlayerInZone) return; // 只提醒玩家所在的世界
+        if (chime != null) chime.Play();
+        HintToast.Show(warnHint.Replace("{0}", Mathf.CeilToInt(FactoryShift.WarningSeconds).ToString()), 3f);
     }
 
     private void Update()

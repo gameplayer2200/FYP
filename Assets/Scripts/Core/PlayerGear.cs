@@ -101,6 +101,21 @@ public static class PlayerGear
         OrderTerminalOn = false;
     }
 
+    /// <summary>是否持有换班怀表（工厂道具：按 F 强制昼夜互换）。</summary>
+    public static bool HasShiftWatch { get; private set; }
+
+    public static event Action OnShiftWatchAcquired;
+
+    public static void AcquireShiftWatch()
+    {
+        if (HasShiftWatch) return;
+        HasShiftWatch = true;
+        if (OnShiftWatchAcquired != null) OnShiftWatchAcquired();
+    }
+
+    /// <summary>换班怀表所在的格位（原本是空位）。</summary>
+    public const int ShiftWatchSlot = 4;
+
     /// <summary>道具格总数（手电筒 / 万用表 / 探测器 / 任务提示板 / 备用空位）。</summary>
     public const int SlotCount = 5;
 

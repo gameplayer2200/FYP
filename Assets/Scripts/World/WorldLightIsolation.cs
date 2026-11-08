@@ -33,6 +33,9 @@ public static class WorldLightIsolation
         { "Flooded_Grounds", "World_Flooded" },
     };
 
+    /// <summary>昼夜合并成单场景的场景名。这个场景里 Day/Night 两层各自用固定图层。</summary>
+    private const string SplitFactoryScene = "Factory";
+
     private const int FirstDynamicLayer = 11;   // 0~6 是项目既有图层，7~10 留给内置世界
     private const int LastLayer = 31;
 
@@ -77,6 +80,12 @@ public static class WorldLightIsolation
 
         public int objs, lit, prb;
         public double ms;               // 累计耗时（跨帧），用于日志
+
+        // 合并场景（Factory）专用：根 Transform → 该根子树应该用的图层。
+        // 空表示普通作业（全场景一个 layer）。
+        public readonly Dictionary<Transform, int> splitLayers = new Dictionary<Transform, int>();
+        // 当前 DFS 节点继承的图层；stack 里存的就是 (节点, 图层) 的展开形式。
+        public readonly Dictionary<Transform, int> inherited = new Dictionary<Transform, int>();
     }
 
     private static readonly List<IsolationJob> jobs = new List<IsolationJob>();
@@ -97,6 +106,21 @@ public static class WorldLightIsolation
             if (!s.isLoaded) continue;
             loadedNow.Add(s.name);
             if (s.name == homeWorld) continue;
+
+            // 昼夜合并后的 Factory：它不是一个世界，是上下两层。
+            // 按场景名分层会把整个场景刷成同一层，两层的灯互相照——
+            // 所以这里对每个根对象单独分层（Day→World_FactoryDay、Night→World_FactoryNight），
+            // 其余根（门等）跟 Day 同层。
+            if (s.name == SplitFactoryScene)
+            {
+                if (!applied.Contains(s.name) && !HasJob(s.name))
+                {
+                    applied.Add(s.name);
+                    BeginApplySplitFactory(s);
+                }
+                continue;
+            }
+
             int layer = EnsureLayer(s.name);
             if (layer < 0) continue;
             if (applied.Contains(s.name)) continue;
@@ -123,6 +147,40 @@ public static class WorldLightIsolation
     {
         for (int i = 0; i < jobs.Count; i++) if (jobs[i].sceneName == sceneName) return true;
         return false;
+    }
+
+    /// <summary>
+    /// 合并场景的分层作业：同一个场景内，Day 根 → World_FactoryDay、Night 根 → World_FactoryNight。
+    ///
+    /// 为什么不复用 BeginApplyWorld：那个作业一个 sceneName 配一个 layer，整个场景统一刷。
+    /// 这里需要"同一场景内按根对象分派不同图层"，所以压在栈上的是 (Transform, layer) 对。
+    /// 实现上复用同一套 DFS/分帧机制，只是每个节点先从字典里查出自己该去哪个层。
+    /// </summary>
+    private static void BeginApplySplitFactory(Scene scene)
+    {
+        int dayLayer = LayerMask.NameToLayer("World_FactoryDay");
+        int nightLayer = LayerMask.NameToLayer("World_FactoryNight");
+        if (dayLayer < 0 || nightLayer < 0)
+        {
+            Debug.LogWarning("[WorldLightIsolation] 缺 World_FactoryDay/World_FactoryNight 图层——Factory 退化为按场景名分层");
+            int fallback = EnsureLayer(scene.name);
+            if (fallback >= 0) BeginApplyWorld(scene, fallback);
+            return;
+        }
+        worldBits |= 1 << dayLayer;
+        worldBits |= 1 << nightLayer;
+
+        var job = new IsolationJob { sceneName = scene.name, layer = dayLayer };
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            if (root == null) continue;
+            // 只有 Day/Night 两个根会带自己的图标；其余（门等）跟 Day 走
+            int layer = root.name == "Night" ? nightLayer : dayLayer;
+            job.splitLayers[root.transform] = layer;
+            job.stack.Add(root.transform);
+        }
+        jobs.Add(job);
+        LoadDiag.Begin();
     }
 
     /// <summary>建作业：把根对象压进 DFS 栈（很便宜），其余都在推进时按预算做。</summary>
@@ -174,12 +232,16 @@ public static class WorldLightIsolation
                 var c = job.current[job.ci++];
                 if (c is Renderer || c is Terrain)
                 {
-                    if (c != null && c.gameObject.layer != job.layer) { c.gameObject.layer = job.layer; job.objs++; }
+                    int want = CurrentLayerOf(job, c.transform);
+                    if (want < 0) want = job.layer;
+                    if (c != null && c.gameObject.layer != want) { c.gameObject.layer = want; job.objs++; }
                 }
                 else if (c is Light)
                 {
                     var l = c as Light;
-                    if (l != null && l.cullingMask != bit) { l.cullingMask = bit; job.lit++; }
+                    int nl = CurrentLayerOf(job, c.transform);
+                    int nbit = nl >= 0 ? (1 << nl) : bit;
+                    if (l != null && l.cullingMask != nbit) { l.cullingMask = nbit; job.lit++; }
                 }
                 else if (c is ReflectionProbe)
                 {
@@ -210,16 +272,33 @@ public static class WorldLightIsolation
 
             // 子节点全部入栈（DFS 顺序无所谓，只求每帧量恒定）
             int n = t.childCount;
+            int childLayer = CurrentLayerOf(job, t);
             for (int i = 0; i < n; i++)
             {
                 var ch = t.GetChild(i);
-                if (ch != null) job.stack.Add(ch);
+                if (ch == null) continue;
+                if (job.splitLayers.Count > 0 && childLayer >= 0)
+                    job.inherited[ch] = childLayer;
+                job.stack.Add(ch);
             }
 
             job.ms += sw.Elapsed.TotalMilliseconds - lastMs;
             lastMs = sw.Elapsed.TotalMilliseconds;   // 继续跑：下一段增量从这里算起，避免重复累加
             if (sw.Elapsed.TotalMilliseconds >= budgetMs) return;
         }
+    }
+
+    /// <summary>
+    /// 这个节点该用哪个图层。普通作业返回 job.layer；
+    /// 合并场景（Factory）返回它继承到的 Day/Night 图层。
+    /// </summary>
+    private static int CurrentLayerOf(IsolationJob job, Transform t)
+    {
+        if (job.splitLayers.Count == 0) return job.layer;
+        int l;
+        if (job.splitLayers.TryGetValue(t, out l)) return l;
+        if (job.inherited.TryGetValue(t, out l)) return l;
+        return -1;
     }
 
     /// <summary>取一个 Transform 自身挂着的 4 种关注组件，写进固定槽（零分配）。</summary>
