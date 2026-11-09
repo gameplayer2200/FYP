@@ -229,3 +229,74 @@ legacy `Animation`（不是 Animator），四个可用剪辑：`Idle` 3.75 s / `
 发现 26 m 处约 1.9 s 锁定 → 追到 6.9 m；丢视线 3 s 转 `Search` 并走到最后可见点、原地环视、7 s 后回 `Patrol`；
 `NoiseBus.Emit` 0.6 响度 9.4 m 外 → `Search`（目标点精确等于噪音点），0.2 响度与 30 m 外均被忽略；
 挥击前摇中把玩家瞬移 6 m 外 → 电量 30 掉到 0 之外**没有掉电**（复核拦截生效）；控制台 0 error。
+
+---
+
+## 12. 第二只敌人：蜘蛛型（Arachnid）与爬墙
+
+第二只敌人用的是 `Assets/Prefab/Enemy/enemy2/` 里的 Arachnid 素材包，与第一只共用同一份 `Assets/Scripts/World/EnemyGhoul.cs`（同一套状态机/感知/听觉/漫游），只在预制件上拨开关。
+
+### 12.1 文件与尺寸
+
+| 文件 | 说明 |
+|---|---|
+| `Assets/Prefab/Enemy/enemy2/ArachnidEnemy.prefab` | 成品，拖进地图即用（`canClimb=true`） |
+| `Assets/Prefab/Enemy/enemy2/Arachnid.prefab` | 模型（原 `SKM_ArachnidAlienHead_Lite.prefab`） |
+| `Assets/Prefab/Enemy/enemy2/ArachnidEnemy.controller` | 4 状态动画机：`Idle`(WalkFW@0.35) / `Walk`(WalkFW) / `Run`(WalkFW4@1.25) / `Attack`(Attack4) |
+| `Assets/Prefab/Enemy/enemy2/ArachnidMaterial.mat` | 自建 Built-in Standard 材质（原包是 URP/HDRP，本工程没装 URP，直接用会粉红） |
+
+- 体型：模型原生高 0.64 m，`Arachnid` 子物体 `localScale = 2.5` → 实测 1.61 m ≈ 玩家 2.0 m 的 **0.8 倍**；`localPosition.y = 0.475`（= 0.19 × 2.5）让脚底贴地。
+- 速度：`patrolSpeed = 1.8`（0.9 × 玩家走 2）、`chaseSpeed = 3.6`（0.9 × 玩家跑 4）。
+- 碰撞/导航：`CapsuleCollider` center (0, 0.8, 0) / h 1.6 / r 0.5；`NavMeshAgent` h 1.6 / r 0.4。
+
+### 12.2 爬墙：四个判定条件
+
+`TickChase` 里、**在「贴脸直冲」分支之前**调 `TryStartClimb()`（顺序错了就永远轮不到爬墙——直冲分支会 return）：
+
+1. `player.y - transform.position.y >= climbMinHeight`（玩家真的在上面）；
+2. 与玩家的水平距离 ≥ 0.3 m；
+3. `FindClimbableWall` 命中一面**竖直**的面（`|normal.y| <= 0.35`）——注意射线要**从身体后方 1.2 m 起打**：NavMeshAgent 会把身体顶进墙里，从身体中心往前打时起点落在墙体内部，物理射线不打背面，会永远判成「前面没墙」；
+4. `MeasureWallTop` 量出的墙高落在 `[climbMinHeight, climbMaxHeight]`。
+
+两个量墙的坑：
+- **必须沿垂直墙面方向量**（`-into`），不能朝玩家方向量——斜着量的距离随角度变化，会把 3.9 m 的墙量成 1.1 m。
+- 墙上有**窗洞**时正对窗洞那一列会立刻探空，所以 `MeasureWallTop` 沿墙切线取 `-0.7 / 0 / +0.7` **三列**各量一次取最高。
+
+### 12.3 攀爬姿势（「脚要贴墙」）
+
+`ApplyClimbPose()`：`Quaternion.LookRotation(Vector3.up, climbNormal)`。
+
+即让局部 **+Y（原本朝上）对准墙面法线**——身体翻转 90°，脚的平面压住墙面、头朝上爬。旧写法 `LookRotation(-normal, up)` 是直立面朝墙，脚在下方悬空。
+
+- `climbFeetGap = 0.12`：贴墙姿势下脚掌与墙面的间隙（0.05~0.2 之间调）。
+- `climbStickDistance = 0.55` 只给「直立爬」用；两者不要混。
+- 想关掉翻转变直立爬：`climbAlignBody = false`。
+
+### 12.4 翻上墙头落地
+
+`FinishClimb(true)` 的顺序是：先向墙内挪 `climbMantleDistance(1.1)` + 上抬 0.6 m → `GroundPointBelow(target, false)`（**取最高命中**，站墙头而不是穿到楼下）→ `TryWarpToNavMeshNear(1.5f)`；失败就 `ReBakeToInclude(transform.position)` 把墙头/屋面烘进导航，再 `TryWarpToNavMeshNear(2.5f)` 试一次。
+
+- `TryWarpToNavMeshNear` 有两条闸：高度差 ≤ 1.5 m，且**不许往下超过 0.6 m**（否则会从屋檐掉进房间）。
+- **这里绝对不能调 `SnapToNavMesh()`**：那个按「最低地面」吸附，会把站在屋顶的身体一路拽回楼下。
+- 两次 Warp 都失败（屋面没有导航面）时，置 `directMode = true` 留在屋顶用直冲继续追，而不是吸附下楼。
+
+### 12.5 追到屋顶：屋檐那一角为什么会钻进房间
+
+| # | 现象 | 根因 | 修法 |
+|---|---|---|---|
+| 1 | 站着不爬 | `MeasureWallTop` 的「同一平面」基准首次为 0，第一步就判成换面，墙高量成 1.1 m < `climbMinHeight` | 基准改由函数内部首个命中距离给出；三列取最高 |
+| 2 | 在地面就跳马 | `wallGone` 在墙根为真时 `FinishClimb(true)`，而最高命中找到了屋顶 | `if (transform.position.y < climbTargetY - 0.6f) landed = false;` |
+| 3 | 从屋檐掉进房间 | 落地走 `SnapToNavMesh()`（最低地面） | 改 `TryWarpToNavMeshNear` + 补烘兜底 |
+| 4 | 翻上屋顶后又掉下去 | `ExitDirectApproach()` 找不到导航面时回落到 `SnapToNavMesh()` | 只在 Warp 成功时才退出直冲，失败保持直冲并节流 0.5 s |
+| 5 | 屋顶上被拽到楼下 | `SnapDirectToGround()` 用最低命中 | 改有界射线（从身体 +0.6 m 往下 3 m） |
+| 6 | 卡在屋面不动 | 直冲模式把屋顶斜坡当墙 | 前探过滤 `normal.y > 0.4` |
+| 7 | 爬到窗口就「到顶」 | 贴墙射线穿窗而过，`wallGone` 误真 | `wallGone` 加高度下限 + `WallStillAround()` 三个高度各探一次 |
+| 8 | 上了屋顶却静止 | 屋面坡度 > `agentSlope 45`，导航面在檐口断掉且 `pathStatus=PathComplete`（不触发 Partial 兜底） | `bakeAgentSlope = 60` + 「看得见却 0.6 s 没挪窝」切直冲 |
+
+**实测（真实时间，非 Step 驱动）**：玩家站屋顶 (399, 2157.2, 299.8)，敌人放院子 (399, 2151.24, 313.0)，相距 14.5 m 且 `canSee=true` → 约 5 s 后 `enemy=(399.02, 2156.94, 300.67)`、`state=Chase`、`climbing=false`、`onNav=true` —— 自动发现 → 追到墙根 → 爬墙 → 翻上屋面并接回导航。
+截图：`Assets/Screenshots/roof_chase_final.png`。
+
+### 12.6 在 Play 里调爬墙的两个坑
+
+- **`EditorApplication.Step()` 驱动时 NavMeshAgent 走得极慢**（0.17 m/s，正常 1.8 m/s），只适合验证状态机分支；「自然追上来 + 爬墙」必须走真实时间（不 Step、`isPaused=false`）。
+- `refresh_unity` 之后 `PlayerRef.Root` 会变 null（域重载清空静态注册表），爬墙判定直接 return false，看起来像「不爬」。测试前先用反射 `PlayerRef.Register(...)` 重注册。
