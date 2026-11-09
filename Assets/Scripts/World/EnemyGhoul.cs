@@ -168,12 +168,36 @@ public class EnemyGhoul : MonoBehaviour
     [Tooltip("烘焙用的可跨越台阶高度（米）——门槛/台阶比这个高，屋里屋外就会断成两块不连通的" +
              "导航面（表现为它卡在门口进不去也出不来）。木屋门口常见 0.3~0.6 m 台阶")]
     [SerializeField] private float bakeAgentClimb = 0.6f;
+    [Tooltip("烘焙时的最大可行走坡度（度）。45° 走不上木屋屋顶的斜屋面，60° 才能顺着屋面爬上去追")]
+    [SerializeField] private float bakeAgentSlope = 60f;
     [Tooltip("追击目标跑到已烘焙范围外时，补烘一块能同时罩住双方的区域（米）")]
     [SerializeField] private float maxRebakeSize = 400f;
     [Tooltip("补烘时给目标点留的余量（米）")]
     [SerializeField] private float rebakeMargin = 60f;
     [Tooltip("两次补烘的最小间隔（秒），避免一直重烘")]
     [SerializeField] private float rebakeCooldown = 2f;
+
+    [Header("爬墙（只有本组打开时才会爬；Ghoul 用不到，蜘蛛型敌人用）")]
+    [Tooltip("允许爬墙。GhoulEnemy 关着，ArachnidEnemy 打开")]
+    [SerializeField] private bool canClimb = false;
+    [Tooltip("爬墙时的上升速度（米/秒）")]
+    [SerializeField] private float climbSpeed = 1.6f;
+    [Tooltip("玩家高出自己多少米才考虑爬墙")]
+    [SerializeField] private float climbMinHeight = 1.2f;
+    [Tooltip("墙最高能有多高（米），超过就不爬（防对着大楼无限爬）")]
+    [SerializeField] private float climbMaxHeight = 14f;
+    [Tooltip("向前探墙的距离（米）——从身体后方 1.2m 起打，所以要贴到约这个距离以内才判得出墙")]
+    [SerializeField] private float climbProbeDistance = 1.8f;
+    [Tooltip("直立爬墙时身体离墙的间距（米）。贴墙姿势用 climbFeetGap，这个只在 climbAlignBody 关掉时生效")]
+    [SerializeField] private float climbStickDistance = 0.55f;
+    [Tooltip("探墙时身体露出的高度（米）")]
+    [SerializeField] private float climbProbeHeight = 1.1f;
+    [Tooltip("爬到顶后向墙内翻的位移（米）")]
+    [SerializeField] private float climbMantleDistance = 1.1f;
+    [Tooltip("爬墙时把身体翻成「贴墙」姿势（脚掌/肚皮朝墙、头朝上）。关掉就保持直立往上升，脚会悬空")]
+    [SerializeField] private bool climbAlignBody = true;
+    [Tooltip("贴墙姿势下脚掌与墙面留的间隙（米）：0.05~0.2 之间；太大看着悬空，太小会穿模")]
+    [SerializeField] private float climbFeetGap = 0.12f;
 
     [Header("可见模型")]
     [Tooltip("Ghoul.prefab 实例（留空 = 自动取第一个子物体）")]
@@ -273,6 +297,7 @@ public class EnemyGhoul : MonoBehaviour
 
     private NavMeshAgent agent;
     private Animation anim;
+    private Animator animator;
     private State state = State.Patrol;
     private int patrolIndex;
     private float pauseUntil;
@@ -291,7 +316,16 @@ public class EnemyGhoul : MonoBehaviour
     // 贴脸直冲：寻路走不通（门口台阶/门框把导航面切断）时脱离 NavMeshAgent 直线逼近
     private bool directMode;
     private float chaseStartedAt;
+    private float stuckTimer;      // 追击中「看得见却挪不动」的累计时间，用于切直冲兜底
     private float animSpeedOverride;
+
+    // ── 爬墙运行时状态 ──
+    private bool climbing;
+    private Vector3 climbNormal;
+    private float climbTargetY;
+    private Vector3 climbStartPosition;
+    private float nextClimbProbeAt;
+    private float nextDirectExitAt;
 
     // 怀疑值 0~1：看见玩家后累积到 1 才真正锁定（越近越快，蹲下更慢）
     private float suspicion;
@@ -398,7 +432,16 @@ public class EnemyGhoul : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         anim = GetComponentInChildren<Animation>(true);
+        // 第二套模型（蜘蛛型）用的是 Animator + AnimatorController，没有 legacy Animation。
+        // 两套后端都能驱动，具体走哪条由 anim 是否为 null 决定。
+        animator = anim == null ? GetComponentInChildren<Animator>(true) : null;
         _path = new NavMeshPath();
+
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;      // 位移由 agent/脚本驱动（剪辑本身是原地动作）
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        }
 
         // Ghoul.prefab 的 Animation 是 playAutomatically=True、默认剪辑是 15.4s 合集，
         // 这里改成完全由本脚本按状态播单条剪辑。
@@ -505,6 +548,16 @@ public class EnemyGhoul : MonoBehaviour
     {
         EnsureRuntimeRefs();
         if (agent == null) return;
+
+        // 爬墙时 agent 是关着的，不能走下面的吸附/导航流程（会把它按最低地面拽回楼下）
+        if (climbing)
+        {
+            TickClimb();
+            TickAnimation();
+            TickFootOffset();
+            TickAudio();
+            return;
+        }
 
         if (snapPending)
         {
@@ -666,6 +719,7 @@ public class EnemyGhoul : MonoBehaviour
     {
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         if (anim == null) anim = GetComponentInChildren<Animation>(true);
+        if (anim == null && animator == null) animator = GetComponentInChildren<Animator>(true);
         if (_path == null) _path = new NavMeshPath();
     }
 
@@ -814,6 +868,16 @@ public class EnemyGhoul : MonoBehaviour
             return;
         }
 
+        // 爬墙：目标明显在上方、而寻路走不上去时，贴墙爬。只有 canClimb=true 的敌人会走这里。
+        // 必须放在「直冲模式」之前：直冲会一直顶着墙走、提前 return，永远轮不到爬墙判定。
+        if (canClimb && TryStartClimb()) return;
+
+        // 已经在导航面上了就别再直冲：翻上屋顶后 agent 是开着的，卡在直冲分支里会原地不动。
+        if (directMode && agent != null && agent.enabled && agent.isOnNavMesh && TryWarpToNavMeshNear(1.2f))
+        {
+            directMode = false;
+        }
+
         // 直冲模式：已经贴着走（`agent` 关着）。进到攻击距离就切回导航开打
         if (directMode)
         {
@@ -865,6 +929,19 @@ public class EnemyGhoul : MonoBehaviour
         // → 放弃导航，直接朝他走过去（门洞本身是空的，能挤过去）。治「进不了门也出不了门」。
         bool blocked = agent.pathStatus == NavMeshPathStatus.PathPartial ||
                        (!agent.hasPath && !agent.pathPending && Time.time - chaseStartedAt > 0.6f);
+
+        // 导航面到头了但不是 Partial（例如屋顶的可行走面到坡度上限就断了，目的地被夹到脚下），
+        // 表现为「站着不动」。这里用「看得见、却 0.6 秒没挪窝」兜底，同样切到直冲。
+        if (canSee && flat.magnitude > attackRange && agent.velocity.sqrMagnitude < 0.04f)
+        {
+            stuckTimer += Time.deltaTime;
+            if (stuckTimer > 0.6f) blocked = true;
+        }
+        else
+        {
+            stuckTimer = 0f;
+        }
+
         if (blocked && canSee && flat.magnitude <= directApproachRange)
         {
             EnterDirectApproach();
@@ -937,6 +1014,7 @@ public class EnemyGhoul : MonoBehaviour
                 if (h.collider == null) continue;
                 if (h.collider.transform.IsChildOf(transform)) continue;         // 自己身上的碰撞体
                 if (h.collider.transform.IsChildOf(player)) continue;            // 玩家自己
+                if (h.normal.y > 0.4f) continue;                                 // 地面/屋顶斜坡不算墙，能顺着爬
                 wallAhead = true;
                 break;
             }
@@ -955,9 +1033,14 @@ public class EnemyGhoul : MonoBehaviour
     /// <summary>直冲时按实际地面（含台阶）平滑贴地，避免上台阶那一下整只跳起来。</summary>
     private void SnapDirectToGround()
     {
-        Vector3 ground = GroundPointBelow(transform.position);
+        // 有界射线（只在脚附近 3 m 内找），不用「最低命中」——在屋顶上会被拽到楼下地板
+        Vector3 origin = transform.position + Vector3.up * 0.6f;
+        if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 3f, ~0, QueryTriggerInteraction.Ignore))
+            return;
+        if (hit.collider != null && hit.collider.transform.IsChildOf(transform)) return;
+
         Vector3 p = transform.position;
-        p.y = Mathf.Lerp(p.y, ground.y + 0.05f, 1f - Mathf.Exp(-12f * Time.deltaTime));
+        p.y = Mathf.Lerp(p.y, hit.point.y + 0.05f, 1f - Mathf.Exp(-12f * Time.deltaTime));
         transform.position = p;
     }
 
@@ -981,6 +1064,14 @@ public class EnemyGhoul : MonoBehaviour
             attackAnimUntil = Time.time + Mathf.Max(0.2f, st.length);
             attackStateUntil = attackAnimUntil + 0.35f; // 留出末帧定格的观察期，用来实测脚底
             currentClip = null; // 攻击结束后允许 CrossFade 回移动动画
+        }
+        else if (animator != null && HasClip(attackClip))
+        {
+            // Animator 后端（蜘蛛型）：按状态名 CrossFade，时长从 runtimeAnimatorController 里取
+            animator.CrossFade(attackClip, 0.08f, 0, 0f);
+            attackAnimUntil = Time.time + Mathf.Max(0.2f, GetClipLength(attackClip));
+            attackStateUntil = attackAnimUntil + 0.35f;
+            currentClip = null;
         }
 
         StartCoroutine(AttackHitRoutine(player));
@@ -1033,6 +1124,7 @@ public class EnemyGhoul : MonoBehaviour
 
     private void EnterPatrol()
     {
+        if (climbing) FinishClimb(false); // 爬一半被打断：回墙根，别挂在墙上
         ExitDirectApproach();
         state = State.Patrol;
         pauseUntil = 0f;
@@ -1125,10 +1217,10 @@ public class EnemyGhoul : MonoBehaviour
 
     private void TickAnimation()
     {
-        if (anim == null) return;
+        if (anim == null && animator == null) return;
         if (Time.time < attackAnimUntil) return; // 攻击没播完
 
-        float speed = Mathf.Max(agent.velocity.magnitude, animSpeedOverride);
+        float speed = Mathf.Max(agent != null ? agent.velocity.magnitude : 0f, animSpeedOverride);
         string clip = speed < 0.15f
             ? idleClip
             : (speed < (patrolSpeed + chaseSpeed) * 0.5f ? walkClip : runClip);
@@ -1137,12 +1229,35 @@ public class EnemyGhoul : MonoBehaviour
         if (!HasClip(clip)) return;
 
         currentClip = clip;
-        anim.CrossFade(clip, fadeTime);
+        PlayAnim(clip);
+    }
+
+    /// <summary>播放一条动画：legacy Animation 用 CrossFade，Animator 用状态名 CrossFade。</summary>
+    private void PlayAnim(string clipName)
+    {
+        if (anim != null) anim.CrossFade(clipName, fadeTime);
+        else if (animator != null) animator.CrossFade(clipName, fadeTime, 0, 0f);
     }
 
     private bool HasClip(string clipName)
     {
-        return anim != null && !string.IsNullOrEmpty(clipName) && anim[clipName] != null;
+        if (string.IsNullOrEmpty(clipName)) return false;
+        if (anim != null) return anim[clipName] != null;
+        if (animator != null && animator.runtimeAnimatorController != null)
+            return animator.HasState(0, Animator.StringToHash(clipName));
+        return false;
+    }
+
+    /// <summary>取剪辑时长：legacy 读 AnimationState.length，Animator 遍历 controller 里的剪辑。</summary>
+    private float GetClipLength(string clipName)
+    {
+        if (anim != null && anim[clipName] != null) return anim[clipName].length;
+        if (animator != null && animator.runtimeAnimatorController != null)
+        {
+            foreach (AnimationClip c in animator.runtimeAnimatorController.animationClips)
+                if (c != null && c.name == clipName) return c.length;
+        }
+        return 0.5f;
     }
 
     // ───────────────────────────── 导航 ─────────────────────────────
@@ -1167,7 +1282,7 @@ public class EnemyGhoul : MonoBehaviour
         settings.agentRadius = bakeAgentRadius;
         settings.agentHeight = bakeAgentHeight;
         settings.agentClimb = bakeAgentClimb;
-        settings.agentSlope = 45f;
+        settings.agentSlope = bakeAgentSlope;
 
         var markups = new List<NavMeshBuildMarkup>();
         var sources = new List<NavMeshBuildSource>();
@@ -1325,20 +1440,305 @@ public class EnemyGhoul : MonoBehaviour
     /// <summary>从高处往下扫，返回最低的命中点（= 该 xz 处真正的地面）。</summary>
     private Vector3 GroundPointBelow(Vector3 pos)
     {
+        return GroundPointBelow(pos, true);
+    }
+
+    /// <summary>
+    /// 从高处往下扫。<paramref name="takeLowest"/> = true 取最低命中（找真正的地面，出生/吸附用）；
+    /// false 取最高命中（翻墙落地用：站墙头/屋顶，而不是穿到楼下）。
+    /// </summary>
+    private Vector3 GroundPointBelow(Vector3 pos, bool takeLowest)
+    {
         Vector3 origin = pos + Vector3.up * 12f;
         RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, 30f, ~0, QueryTriggerInteraction.Ignore);
 
-        float lowest = float.MaxValue;
+        float best = takeLowest ? float.MaxValue : float.MinValue;
         Vector3 found = pos;
+        Transform player = PlayerRef.Root;
         foreach (RaycastHit h in hits)
         {
             if (h.collider == null) continue;
             if (h.collider.transform.IsChildOf(transform)) continue; // 跳过自己身上的碰撞体
-            if (h.point.y >= lowest) continue;
-            lowest = h.point.y;
+            // 跳过玩家：翻墙落地找「最高命中」时，站在屋顶的玩家会先被算成地面
+            if (player != null && (h.collider.transform == player || h.collider.transform.IsChildOf(player))) continue;
+            if (takeLowest ? h.point.y >= best : h.point.y <= best) continue;
+            best = h.point.y;
             found = h.point;
         }
         return found;
+    }
+
+    /// <summary>
+    /// 就近找一块导航面并把 agent 拽上去（高度差超过 1.5 m 视为「不是同一层」，宁可不用）。
+    /// 翻墙落地时用：墙头/屋顶如果已经烘进导航，就直接站上去。
+    /// </summary>
+    private bool TryWarpToNavMeshNear(float maxDistance)
+    {
+        if (agent == null) return false;
+        if (!NavMesh.SamplePosition(transform.position, out NavMeshHit hit, maxDistance, NavMesh.AllAreas)) return false;
+        if (Mathf.Abs(hit.position.y - transform.position.y) > 1.5f) return false;
+        // 只许「同一层」：绝不往下 Warp 太多。屋顶边上的最近导航面往往是楼下房间的地板，
+        // 一旦吸附下去，人就从屋檐掉进屋里了（用户实测到的就是这个）。
+        if (hit.position.y < transform.position.y - 0.6f) return false;
+
+        agent.enabled = true;
+        agent.Warp(hit.position);
+        return true;
+    }
+
+    // ───────────────────────────── 爬墙 ─────────────────────────────
+
+    /// <summary>
+    /// 追玩家时试一次「开始爬墙」。四道门：够近、够高、正面有可爬的竖面、墙高在范围内。
+    /// 只有 <see cref="canClimb"/> 打开（蜘蛛型敌人）才会走到这里。
+    /// </summary>
+    private bool TryStartClimb()
+    {
+        if (!canClimb || climbing) return false;
+        if (Time.time < nextClimbProbeAt) return false;
+        nextClimbProbeAt = Time.time + 0.4f; // 别每帧打射线
+
+        Transform player = PlayerRef.Root;
+        if (player == null) return false;
+
+        // ① 玩家得在我们头上够多，否则正常绕路追就行
+        float heightDiff = player.position.y - transform.position.y;
+        if (heightDiff < climbMinHeight) return false;
+
+        Vector3 toPlayer = player.position - transform.position;
+        toPlayer.y = 0f;
+        if (toPlayer.sqrMagnitude < 0.09f) return false; // 贴太近不爬（0.3 m）
+        Vector3 dir = toPlayer.normalized;
+
+        // ② 正面要有墙，且是竖面
+        if (!FindClimbableWall(transform.position, dir, out RaycastHit wall)) return false;
+
+        // 墙面法线（水平化）：它指向身体这一侧，取反就是「往墙里」的方向
+        Vector3 into = wall.normal;
+        into.y = 0f;
+        if (into.sqrMagnitude < 0.01f) return false;
+        into.Normalize();
+
+        // ③ 量墙顶：沿着**垂直墙面**的方向往上探（不要用「朝玩家」的斜方向——
+        //    斜着打射线距离会随距离变化，墙高会被量短，表现为「明明是高墙却判定不爬」）
+        float topY = MeasureWallTop(transform.position, -into, wall.distance);
+        float wallHeight = topY - transform.position.y;
+        if (wallHeight < climbMinHeight || wallHeight > climbMaxHeight) return false;
+
+        climbNormal = into;
+
+        climbTargetY = topY;
+        climbStartPosition = transform.position;
+        climbing = true;
+        ExitDirectApproach();
+        agent.isStopped = true;
+        agent.enabled = false; // 爬的这段完全自己驱动，避免 agent 把身体往墙里顶
+        ApplyClimbPose();
+        return true;
+    }
+
+    /// <summary>
+    /// 找面前的墙。<paramref name="pointOnBody"/> 是身体位置，<paramref name="dir"/> 是水平朝向。
+    /// **射线起点要往后退 1.2 m**：NavMeshAgent 会把身体顶进墙里，从身体中心往前打时
+    /// 起点已经落在墙体内部，物理射线不打背面，永远判定「前面没墙」（实测踩过的坑）。
+    /// </summary>
+    private bool FindClimbableWall(Vector3 pointOnBody, Vector3 dir, out RaycastHit wall)
+    {
+        return FindClimbableWall(pointOnBody, dir, climbProbeHeight, out wall);
+    }
+
+    private bool FindClimbableWall(Vector3 pointOnBody, Vector3 dir, float probeHeight, out RaycastHit wall)
+    {
+        const float backOff = 1.2f;
+        Vector3 origin = pointOnBody - dir * backOff + Vector3.up * probeHeight;
+        float range = backOff + climbProbeDistance;
+
+        RaycastHit[] hits = Physics.RaycastAll(origin, dir, range, ~0, QueryTriggerInteraction.Ignore);
+        wall = default;
+        float nearest = float.MaxValue;
+        bool found = false;
+        foreach (RaycastHit h in hits)
+        {
+            if (h.collider == null) continue;
+            if (h.collider.transform.IsChildOf(transform)) continue; // 自己
+            if (IsSelfOrPlayer(h.collider)) continue;
+            if (Mathf.Abs(h.normal.y) > 0.35f) continue; // 地面/坡面不是墙
+            if (h.distance >= nearest) continue;
+            nearest = h.distance;
+            wall = h;
+            wall.distance = h.distance - backOff; // 换算回「离身体多远」
+            found = true;
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// 自下往上量墙顶：每 0.4 m 打一次**垂直于墙面**的水平射线，返回最后一次仍命中同一面墙的高度。
+    /// 第一次命中的距离被当作基准，后面的命中距离偏离太多就认为换面了
+    /// （窗口、墙角、别的建筑都会让距离突变，不判就会把墙高量到天上去）。
+    /// </summary>
+    private float MeasureWallTop(Vector3 bodyPos, Vector3 dir, float unusedReference)
+    {
+        // 墙面上可能有窗洞/门洞：正对窗洞那一列会立刻断掉，所以沿墙横向再试两边，取最高的结果
+        Vector3 tangent = Vector3.Cross(Vector3.up, dir);
+        if (tangent.sqrMagnitude > 0.001f) tangent.Normalize();
+        else tangent = Vector3.right;
+
+        float best = bodyPos.y;
+        for (int i = -1; i <= 1; i++)
+        {
+            Vector3 column = bodyPos + tangent * (i * 0.7f);
+            float top = MeasureWallColumn(column, dir, bodyPos.y);
+            if (top > best) best = top;
+        }
+        return best;
+    }
+
+    /// <summary>量一列墙面：从身体高度往上每 0.4 m 打一次垂直射线，返回最高仍命中的高度。</summary>
+    private float MeasureWallColumn(Vector3 bodyPos, Vector3 dir, float bodyY)
+    {
+        float top = bodyY;
+        float reference = -1f;
+        for (float y = bodyY + 0.6f; y < bodyY + climbMaxHeight; y += 0.4f)
+        {
+            Vector3 from = bodyPos - dir * 1.2f;
+            from.y = y;
+            if (!Physics.Raycast(from, dir, out RaycastHit h, 1.2f + climbProbeDistance, ~0, QueryTriggerInteraction.Ignore))
+                break;
+            if (h.collider == null || IsSelfOrPlayer(h.collider)) break;
+            if (Mathf.Abs(h.normal.y) > 0.35f) break;
+            if (reference < 0f) reference = h.distance;
+            else if (Mathf.Abs(h.distance - reference) > 0.6f) break;
+            top = y;
+        }
+        return top;
+    }
+
+    private bool IsSelfOrPlayer(Collider c)
+    {
+        if (c == null) return true;
+        if (c.transform.IsChildOf(transform)) return true;
+        Transform p = PlayerRef.Root;
+        return p != null && (c.transform == p || c.transform.IsChildOf(p));
+    }
+
+    /// <summary>爬墙的身体姿态：把局部 +Y（头）朝上、局部 +Z 压到墙面上，四肢/脚掌就贴着墙。</summary>
+    private void ApplyClimbPose()
+    {
+        transform.rotation = climbAlignBody
+            ? Quaternion.LookRotation(Vector3.up, climbNormal) // 头朝上、脚掌朝墙
+            : Quaternion.LookRotation(-climbNormal, Vector3.up); // 直立面朝墙（脚会悬空）
+    }
+
+    /// <summary>每帧的攀爬推进：贴墙 → 上升 → 到顶/到时限就结束。</summary>
+    private void TickClimb()
+    {
+        Transform player = PlayerRef.Root;
+        if (player != null)
+        {
+            Vector3 flat = player.position - transform.position;
+            flat.y = 0f;
+            if (flat.magnitude > giveUpDistance)
+            {
+                FinishClimb(false);
+                return;
+            }
+        }
+
+        // ① 贴墙：保持脚掌平面离墙一个固定间隙
+        if (FindClimbableWall(transform.position, -climbNormal, out RaycastHit wall))
+        {
+            float standOff = climbAlignBody ? Mathf.Max(0.02f, climbFeetGap) : climbStickDistance;
+            float delta = wall.distance - standOff;
+            transform.position += -climbNormal * delta;
+        }
+
+        // ② 上升
+        transform.position += Vector3.up * (climbSpeed * Time.deltaTime);
+        ApplyClimbPose();
+        animSpeedOverride = climbSpeed;
+
+        // ③ 到顶或前方墙没了
+        //    注意两件事：窗口会让贴墙射线穿过去；快到檐口时探头会先打到屋檐底面（那是斜的，被过滤掉）。
+        //    所以「墙没了」要在多个高度都不再命中竖面才算，否则会在离墙顶 1 m 处误判到顶。
+        if (transform.position.y >= climbTargetY - 0.05f || (!WallStillAround() && transform.position.y >= climbTargetY - 1.2f))
+        {
+            FinishClimb(true);
+        }
+    }
+
+    /// <summary>身体附近还有没有可爬的竖面（在三个高度各探一次，任一命中就算还在）。</summary>
+    private bool WallStillAround()
+    {
+        // 注意：探高是「相对身体」的绝对高度，不能再叠加 climbProbeHeight
+        float[] probeHeights = { 0.25f, 0.75f, 1.25f };
+        foreach (float h in probeHeights)
+        {
+            if (FindClimbableWall(transform.position, -climbNormal, h, out _)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 结束攀爬。<paramref name="landed"/> = true 表示翻上去了：往墙内挪一点、站在墙头/屋顶上，
+    /// 有导航面就接回导航，没有就继续用直冲模式——**绝不往下吸附**（那会从屋檐掉进房间）。
+    /// </summary>
+    private void FinishClimb(bool landed)
+    {
+        // 没真的爬到顶就执行跳马，会把人在半墙高度瞬移到屋顶上去
+        if (transform.position.y < climbTargetY - 0.6f) landed = false;
+
+        climbing = false;
+        animSpeedOverride = 0f;
+        nextClimbProbeAt = Time.time + 0.4f;
+
+        if (!landed)
+        {
+            // 回到起爬点，不要往下吸附（屋里/楼下可能是完全另一块地）
+            if (agent != null && !agent.enabled && !directMode)
+            {
+                transform.position = climbStartPosition + Vector3.up * 0.05f;
+            }
+            if (agent != null)
+            {
+                agent.enabled = true;
+                agent.updateRotation = true;
+                agent.isStopped = false;
+                agent.speed = chaseSpeed;
+            }
+            return;
+        }
+
+        // 往墙内翻一点，站到墙头/屋面上
+        Vector3 target = transform.position - climbNormal * climbMantleDistance + Vector3.up * 0.6f;
+        target = GroundPointBelow(target, false); // 取最高命中：站墙头，别穿到楼下
+        transform.position = target + Vector3.up * 0.03f;
+
+        if (!TryWarpToNavMeshNear(1.5f))
+        {
+            // 墙头/屋顶还没烘进导航：补烘一块再试
+            ReBakeToInclude(transform.position);
+            if (!TryWarpToNavMeshNear(2.5f))
+            {
+                // 还是没有导航面——留在屋顶上用直冲追，不要吸附下楼
+                if (agent != null) agent.enabled = false;
+                directMode = true;
+                chaseStartedAt = Time.time;
+                Debug.Log("[EnemyGhoul] 屋顶没有导航面，改用直冲模式继续追", this);
+            }
+        }
+
+        // 恢复直立（贴墙姿势下「上」是墙法线，不能直接继续用）
+        if (climbNormal.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(-climbNormal, Vector3.up);
+
+        if (agent != null)
+        {
+            agent.updateRotation = true;
+            agent.isStopped = false;
+            agent.speed = chaseSpeed;
+        }
+        if (agent != null && agent.enabled && agent.isOnNavMesh) directMode = false;
     }
 
 #if UNITY_EDITOR
