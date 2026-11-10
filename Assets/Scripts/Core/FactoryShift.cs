@@ -12,6 +12,10 @@ using UnityEngine;
 /// （锁昼 = 昼侧深区门也开 / 锁夜 = 异常平息），之后每 ManualSwitchCooldown 秒可手动改锁
 /// （奖励：轮换控制权交给玩家）。
 ///
+/// 2026-11 恢复三台：2026-11-08 删掉夜侧深区送料机后 MachineCount 降到 2，谜题退化成
+/// "昼侧两台同层机器"——换班从此只打断、不推进（layout.md §4.3(a) 的主机制失效）。
+/// 现在深区送料机回到夜侧深区，跨层接力重新成为解谜的必经一步。
+///
 /// 双场景常驻：两侧 FactoryShiftController 在玩家身处对应世界时驱动 Tick（玩家离开工厂，
 /// 轮换暂停——像 Metro 渐熄一样，世界状态不因玩家缺席推进）。
 /// </summary>
@@ -19,8 +23,8 @@ public static class FactoryShift
 {
     public enum Phase { Day, Night }
 
-    /// <summary>机器总数（谜题目标：昼侧 2；夜侧深区送料机已随泵房移除，2026-11-08）。</summary>
-    public const int MachineCount = 2;
+    /// <summary>机器总数（谜题目标：昼侧 2 + 夜侧深区 1 = 3，必然跨昼夜往返）。</summary>
+    public const int MachineCount = 3;
 
     /// <summary>手动改锁冷却（秒）。</summary>
     public const float ManualSwitchCooldown = 60f;
@@ -52,11 +56,16 @@ public static class FactoryShift
     /// <summary>换班时触发一次（仅在未锁定时）。</summary>
     public static event Action OnPhaseFlipped;
 
+    /// <summary>预警窗口默认值（秒）：layout.md §4.2 三段式的"规划期"——玩家要在这段时间里决定</summary>
+    /// <remarks>是现在冲完，还是搬到另一边接着做。不是提示，是决策时间。</remarks>
+    public const float DefaultWarningSeconds = 20f;
+
     /// <summary>
     /// 换班前多久开始预警（秒）。到时触发一次 <see cref="OnPhaseWarning"/>，给玩家反应时间。
     /// 强制时空切换必须有预警——否则玩家会觉得是"卡了一下"而不是"世界变了"。
+    /// 由场景里的 FactoryShiftController 经 Configure 同步（两侧同值）。
     /// </summary>
-    public static float WarningSeconds = 5f;
+    public static float WarningSeconds = DefaultWarningSeconds;
 
     /// <summary>本班已预警过的班次标记（防同一班重复预警；换班时清空）。</summary>
     private static bool warnedThisShift;
@@ -97,6 +106,7 @@ public static class FactoryShift
         Order = null;
         lastTickFrame = -1;
         warnedThisShift = false;
+        WarningSeconds = DefaultWarningSeconds;
         OnPhaseFlipped = null;
         OnPhaseWarning = null;
         OnLockChanged = null;
@@ -115,9 +125,20 @@ public static class FactoryShift
         get { return !PuzzleSolved && Current == Phase.Night; }
     }
 
-    /// <summary>控制器调用：同步班时长（Inspector 可调；两侧场景保持一致）。</summary>
-    public static void Configure(float seconds)
+    /// <summary>控制器调用：同步班时长与预警窗口（Inspector 可调；两侧场景保持一致）。</summary>
+    /// <param name="seconds">每班时长（秒）。</param>
+    /// <param name="warningSeconds">换班前预警窗口（秒）；传 &lt;= 0 表示不改。</param>
+    public static void Configure(float seconds, float warningSeconds = -1f)
     {
+        // 预警窗口先同步：它不依赖班时长，也要能被单独调。
+        if (warningSeconds > 0f && !Mathf.Approximately(warningSeconds, WarningSeconds))
+        {
+            // 预警窗口不能吃掉整班：夹到班时长的一半以内，否则"刚接班就开始预警"，
+            // 三段式里的稳定期会被压没。
+            float cap = Mathf.Max(1f, seconds * 0.5f);
+            WarningSeconds = Mathf.Min(warningSeconds, cap);
+        }
+
         if (seconds <= 1f) return;
         if (Mathf.Approximately(seconds, ShiftSeconds)) return;
 
@@ -152,8 +173,16 @@ public static class FactoryShift
         Current = Current == Phase.Day ? Phase.Night : Phase.Day;
         TimeLeft = ShiftSeconds;
         warnedThisShift = false;
+        LastFlipWasManual = false; // 排班钟到点自动换：玩家没动手
         if (OnPhaseFlipped != null) OnPhaseFlipped();
     }
+
+    /// <summary>
+    /// 本次换班是玩家手动拨的（怀表 / 值班钟）还是排班钟到点自动换的。
+    /// 订阅 OnPhaseFlipped 的一侧靠它区分——首次「强制」换班要发怀表，
+    /// 而首次换班必然是被排班钟自动推过去的（那会儿玩家还没表）。
+    /// </summary>
+    public static bool LastFlipWasManual { get; private set; }
 
     /// <summary>手动换班冷却（秒）。怀表是道具不是开关，按一次要等一会儿才能再按。</summary>
     public const float ManualFlipCooldown = 15f;
@@ -173,6 +202,7 @@ public static class FactoryShift
         TimeLeft = ShiftSeconds;
         warnedThisShift = false;
         NextManualFlipAt = Time.unscaledTime + ManualFlipCooldown;
+        LastFlipWasManual = true; // 玩家自己拨的（怀表 / 值班钟）
         if (OnPhaseFlipped != null) OnPhaseFlipped();
         return true;
     }

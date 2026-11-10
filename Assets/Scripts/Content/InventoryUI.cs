@@ -7,7 +7,7 @@ using UnityEngine.UI;
 ///   1 万用表——拾取后亮起（配电箱测线用）。
 ///   2 探测器——拾取后亮起（把异常扫显形）。
 ///   3 任务提示板——拾取后亮起；开机时暖色高亮（右上角订单 HUD 随之显示）。
-///   4 备用空位——留给后续道具，现在恒为空。
+///   4 换班怀表——首次强制换班后到手（或在值班室取表）；按 F 强制昼夜互换。
 /// 鼠标滚轮 = 切换选中格（五格循环），选中格亮选中环 + 弹跳反馈。
 /// F = 只用选中格那一件（见 PlayerGear.UseKeyOwner），一次按键只触发一件道具。
 /// 随身异常物不再占格位，数量显示在右上角订单板（整备视图"携带 N" / 层域视图进度行）。
@@ -28,18 +28,7 @@ public class InventoryUI : MonoBehaviour
     // 格数直接跟 Core 的 PlayerGear 走，避免两处各写一个数字而漂移。
     private const int SlotCount = PlayerGear.SlotCount;
 
-    // CRT 终端配色（磷光绿单色 + 暗底；与 OrderBoard / 电量条同一套 CrtTheme 色板）
-    private static readonly Color PanelFill = new Color(0.010f, 0.030f, 0.020f, 0.90f);
-    private static readonly Color PanelLine = new Color(0.47f, 1f, 0.76f, 0.40f);
-    private static readonly Color SlotFill = new Color(0.47f, 1f, 0.76f, 0.05f);
-    private static readonly Color SlotLine = new Color(0.47f, 1f, 0.76f, 0.22f);
-    private static readonly Color SlotActiveFill = new Color(0.47f, 1f, 0.76f, 0.12f);
-    private static readonly Color SlotActiveLine = new Color(0.47f, 1f, 0.76f, 0.85f);
-    private static readonly Color SlotWarmFill = new Color(1f, 0.78f, 0.32f, 0.34f);
-    private static readonly Color SlotWarmLine = new Color(1f, 0.86f, 0.45f, 1f);
-    private static readonly Color FocusFill = new Color(0.47f, 1f, 0.76f, 0.05f);
-    private static readonly Color FocusLine = new Color(0.55f, 1f, 0.82f, 0.90f);
-    private static readonly Color IconWarm = new Color(1f, 0.93f, 0.72f, 1f);
+    // CRT 终端配色与绘制工具见 InventoryArt（同目录）。
 
     private class ItemSlot
     {
@@ -131,7 +120,7 @@ public class InventoryUI : MonoBehaviour
         return src;
     }
 
-    /// <summary>该格对应的道具是否已持有（第 4 格是备用空位，恒为 false）。</summary>
+    /// <summary>该格对应的道具是否已持有。</summary>
     private static bool HasItem(int index)
     {
         switch (index)
@@ -139,7 +128,10 @@ public class InventoryUI : MonoBehaviour
             case 0: return PlayerGear.HasFlashlight;
             case 1: return PlayerGear.HasMultimeter;
             case 2: return PlayerGear.HasEmfDetector;
-            case 3: return PlayerGear.HasOrderTerminal;
+            case PlayerGear.OrderTerminalSlot: return PlayerGear.HasOrderTerminal;
+            // 换班怀表（2026-11 接通）：这一格以前是恒 false 的备用空位，
+            // 于是怀表拿了也永远不显示——图标管线本身是好的，卡在持有判定上。
+            case PlayerGear.ShiftWatchSlot: return PlayerGear.HasShiftWatch;
             default: return false;
         }
     }
@@ -188,7 +180,7 @@ public class InventoryUI : MonoBehaviour
                 s.frame.color = c;
             }
             int real = DisplayIndex(i);
-            SetIcon(s, has ? slotIcons[real] : null, warm ? IconWarm : Color.white);
+            SetIcon(s, has ? slotIcons[real] : null, warm ? InventoryArt.IconWarm : Color.white);
 
             // F 键帽跟着选中格走：只有"按 F 真的有反应"的那一格才亮键帽
             SetKeycap(s, has && owner == real);
@@ -271,20 +263,21 @@ public class InventoryUI : MonoBehaviour
         scaledForHeight = Screen.height;
 
         // 程序化 Sprite（直角九宫格 —— 终端不用圆角；无美术资产依赖）
-        spPanel = Sharp(PanelFill, PanelLine);
-        spSlotIdle = Sharp(SlotFill, SlotLine);
-        spSlotActive = Sharp(SlotActiveFill, SlotActiveLine);
-        spSlotWarm = Sharp(SlotWarmFill, SlotWarmLine);
-        spFocus = Sharp(FocusFill, FocusLine);
-        spKeycap = Sharp(new Color(0.03f, 0.07f, 0.05f, 0.95f), new Color(0.47f, 1f, 0.76f, 0.35f));
-        spScan = ScanStrip();
-        // 图标按格位索引排：0 手电筒 / 1 万用表 / 2 探测器 / 3 任务提示板 / 4 备用空位
+        spPanel = InventoryArt.Sharp(InventoryArt.PanelFill, InventoryArt.PanelLine);
+        spSlotIdle = InventoryArt.Sharp(InventoryArt.SlotFill, InventoryArt.SlotLine);
+        spSlotActive = InventoryArt.Sharp(InventoryArt.SlotActiveFill, InventoryArt.SlotActiveLine);
+        spSlotWarm = InventoryArt.Sharp(InventoryArt.SlotWarmFill, InventoryArt.SlotWarmLine);
+        spFocus = InventoryArt.Sharp(InventoryArt.FocusFill, InventoryArt.FocusLine);
+        spKeycap = InventoryArt.Sharp(new Color(0.03f, 0.07f, 0.05f, 0.95f), new Color(0.47f, 1f, 0.76f, 0.35f));
+        spScan = InventoryArt.ScanStrip();
+        // 图标按格位索引排：0 手电筒 / 1 万用表 / 2 探测器 / 3 任务提示板 / 4 换班怀表
         slotIcons = new Sprite[SlotCount];
-        slotIcons[0] = LoadIcon("flashlight");
-        slotIcons[1] = LoadIcon("multimeter");
-        slotIcons[2] = LoadIcon("emf");
-        slotIcons[3] = LoadIcon("orderterminal");
-        font = GetFont();
+        slotIcons[0] = InventoryArt.LoadIcon("flashlight");
+        slotIcons[1] = InventoryArt.LoadIcon("multimeter");
+        slotIcons[2] = InventoryArt.LoadIcon("emf");
+        slotIcons[PlayerGear.OrderTerminalSlot] = InventoryArt.LoadIcon("orderterminal");
+        slotIcons[PlayerGear.ShiftWatchSlot] = InventoryArt.LoadIcon("shiftwatch");
+        font = InventoryArt.GetFont();
 
         // 条体（屏幕正下方居中：不挡视线，也不与左上角电量/右上角终端抢位置）
         var barGO = new GameObject("ItemBar", typeof(RectTransform));
@@ -298,11 +291,11 @@ public class InventoryUI : MonoBehaviour
         float height = PadY * 2f + SlotSize;
         barRT.sizeDelta = new Vector2(width, height);
 
-        var panel = MakeImage(barGO.transform, "Panel", spPanel);
-        Stretch(panel.rectTransform);
+        var panel = InventoryArt.MakeImage(barGO.transform, "Panel", spPanel);
+        InventoryArt.Stretch(panel.rectTransform);
 
         // 扫描线层（终端质感）：1×3 条纹平铺，压在面板之上、槽位之下
-        var scan = MakeImage(barGO.transform, "ScanLines", spScan);
+        var scan = InventoryArt.MakeImage(barGO.transform, "ScanLines", spScan);
         scan.rectTransform.SetSiblingIndex(1);
         var srt = scan.rectTransform;
         srt.anchorMin = Vector2.zero;
@@ -342,7 +335,7 @@ public class InventoryUI : MonoBehaviour
         slot.root = rt;
 
         // 选中环（比槽位大一圈，垫在底层）
-        slot.focus = MakeImage(go.transform, "Focus", spFocus);
+        slot.focus = InventoryArt.MakeImage(go.transform, "Focus", spFocus);
         var frt = slot.focus.rectTransform;
         frt.anchorMin = Vector2.zero;
         frt.anchorMax = Vector2.one;
@@ -351,10 +344,10 @@ public class InventoryUI : MonoBehaviour
         frt.offsetMax = new Vector2(5f, 5f);
         slot.focus.enabled = false;
 
-        slot.frame = MakeImage(go.transform, "Frame", spSlotIdle);
-        Stretch(slot.frame.rectTransform);
+        slot.frame = InventoryArt.MakeImage(go.transform, "Frame", spSlotIdle);
+        InventoryArt.Stretch(slot.frame.rectTransform);
 
-        slot.icon = MakeImage(go.transform, "Icon", null);
+        slot.icon = InventoryArt.MakeImage(go.transform, "Icon", null);
         var iconRT = slot.icon.rectTransform;
         iconRT.anchorMin = iconRT.anchorMax = new Vector2(0.5f, 0.5f);
         iconRT.pivot = new Vector2(0.5f, 0.5f);
@@ -375,8 +368,8 @@ public class InventoryUI : MonoBehaviour
         rt.sizeDelta = new Vector2(20f, 18f);
         rt.anchoredPosition = new Vector2(-3f, 3f);
 
-        var img = MakeImage(go.transform, "Bg", spKeycap);
-        Stretch(img.rectTransform);
+        var img = InventoryArt.MakeImage(go.transform, "Bg", spKeycap);
+        InventoryArt.Stretch(img.rectTransform);
 
         if (font != null)
         {
@@ -390,83 +383,10 @@ public class InventoryUI : MonoBehaviour
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(0.55f, 1f, 0.80f, 0.95f);
             text.raycastTarget = false;
-            Stretch((RectTransform)textGO.transform);
+            InventoryArt.Stretch((RectTransform)textGO.transform);
         }
         return go;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // 小工具
-    // ─────────────────────────────────────────────────────────────
-
-    private static Image MakeImage(Transform parent, string name, Sprite sprite)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var img = go.AddComponent<Image>();
-        img.sprite = sprite;
-        img.type = Image.Type.Sliced;
-        img.raycastTarget = false;
-        if (sprite == null) img.color = new Color(1f, 1f, 1f, 0f);
-        return img;
-    }
-
-    private static void Stretch(RectTransform rt)
-    {
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-    }
-
-    private static Sprite LoadIcon(string name)
-    {
-        var s = Resources.Load<Sprite>("UI/Icons/" + name);
-        return s;
-    }
-
-    private static Font GetFont()
-    {
-        // CRT 主题的等宽字体（Noto Sans Mono CJK SC）；缺字体时由 CrtTheme 逐级降级
-        var f = CrtTheme.Mono;
-        if (f == null) f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (f == null) f = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        return f;
-    }
-
-    /// <summary>程序化直角矩形（1px 描边，Point 采样保持像素锐利），九宫格切片用——终端不用圆角。</summary>
-    private static Sprite Sharp(Color fill, Color line)
-    {
-        const int size = 12;
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Point;
-        tex.wrapMode = TextureWrapMode.Clamp;
-        var pixels = new Color32[size * size];
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                bool edge = x == 0 || y == 0 || x == size - 1 || y == size - 1;
-                pixels[y * size + x] = edge ? (Color32)line : (Color32)fill;
-            }
-        }
-        tex.SetPixels32(pixels);
-        tex.Apply();
-        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
-            SpriteMeshType.FullRect, new Vector4(2f, 2f, 2f, 2f));
-    }
-
-    /// <summary>1×3 扫描线条纹（一行暗、两行透明），配合 Image.Tiled 平铺出 CRT 扫描线。</summary>
-    private static Sprite ScanStrip()
-    {
-        var tex = new Texture2D(1, 3, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Point;
-        tex.wrapMode = TextureWrapMode.Repeat;
-        tex.SetPixel(0, 0, new Color(0f, 0f, 0f, 1f));
-        tex.SetPixel(0, 1, new Color(0f, 0f, 0f, 0f));
-        tex.SetPixel(0, 2, new Color(0f, 0f, 0f, 0f));
-        tex.Apply();
-        return Sprite.Create(tex, new Rect(0f, 0f, 1f, 3f), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
-    }
+    // 绘制工具与配色已拆到 InventoryArt（单文件上限 20 KB，见 .git/hooks/pre-commit）。
 }

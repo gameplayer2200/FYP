@@ -45,6 +45,10 @@ public static class ItemIconBaker
         // 任务提示板：AI 数据扫描仪是一块很薄的平板（厚 0.03），必须俯视才看得出屏幕，
         // 平视只会拍到一条窄边。提亮系数给高些，深灰机身在暗底上才认得出轮廓。
         sb.AppendLine(One("orderterminal", "Assets/Art/Props/ai-data-scanner/source/AI_data_scanner.glb", 62f, 22f, 1.35f));
+        // 换班怀表：62x80x14 mm 的扁平圆盘，**表盘法线沿 Z**（不是 Y）。
+        // 所以不能像 orderterminal 那样俯视——hover 56 度只能拍到侧边（实测拍成了背面一整块）。
+        // pitch=10 基本平视表盘，yaw=0 正对；yaw=180 是背面刻字那面，不要用。
+        sb.AppendLine(One("shiftwatch", "Assets/Art/Props/Timepieces/PocketWatch/vintage_pocket_watch_1k.gltf", 10f, 0f, 1.45f));
         sb.AppendLine(Floppy());
         AssetDatabase.Refresh();
         return sb.ToString();

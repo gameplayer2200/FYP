@@ -55,6 +55,8 @@
 | `Aircraft/`（原 `plane/`） | 4 MB | **0** | 飞机模型 |
 | `Exploration/`（原 `Exploration objects/`） | 2 MB | 2 件 | 手电筒、EMF、灵盒、热像仪等调查道具（手电筒已接入） |
 | `Doors/`（原 `anywhere-door-pintu-kemana-saja/`） | 1 MB | 门模型 | 任意门模型来源 |
+| `Machines/`（2026-11-10 新增） | 2.3 MB | **1 件** | Poly Haven `old_drill_press`（CC0，21,842 三角面，527×610×1050 mm，1K 贴图）→ 工厂夜侧深区「机器_深区送料机」；同目录 `LICENSE.md` 存来源与许可 |
+| `Timepieces/`（2026-11-10 新增） | 2.0 MB | **1 件** | Poly Haven `vintage_pocket_watch`（CC0，4,200 三角面，61×80×14 mm，1K 贴图）→ **不进场景**，只经 `ItemIconBaker` 烘成道具栏第 5 格图标 `Assets/Resources/UI/Icons/shiftwatch.png` |
 
 ## 6. `Resources/Sourced/` 素材库（CC0 / OFL，已核验）
 

@@ -18,7 +18,10 @@ public class FactoryShiftController : MonoBehaviour
     [SerializeField] private Vector3 zoneSize = new Vector3(120f, 40f, 170f);
 
     [Tooltip("每班时长（秒）——昼/夜两侧场景保持一致")]
-    [SerializeField] private float shiftSeconds = 240f;
+    [SerializeField] private float shiftSeconds = 90f;
+
+    [Tooltip("换班前预警窗口（秒）——" + "三段式的规划期：玩家在这段时间里决定是现在冲完，还是搬到另一边接着做。两侧一致")]
+    [SerializeField] private float warningSeconds = FactoryShift.DefaultWarningSeconds;
 
     [Tooltip("本世界氛围底噪（醒着且有人时渐入；可空）")]
     [SerializeField] private AudioSource ambience;
@@ -42,7 +45,7 @@ public class FactoryShiftController : MonoBehaviour
 
         if (PlayerInZone)
         {
-            FactoryShift.Configure(shiftSeconds);
+            FactoryShift.Configure(shiftSeconds, warningSeconds);
             FactoryShift.Tick(Time.deltaTime);
         }
 

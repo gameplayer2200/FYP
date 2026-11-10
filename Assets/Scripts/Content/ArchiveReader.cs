@@ -18,7 +18,6 @@ public class ArchiveReader : MonoBehaviour
 
     private ArchiveLog.Entry entry;
     private float openedAt;
-    private bool dismissedOnce;
     private float scroll;
     private float contentHeight;
 
@@ -37,7 +36,6 @@ public class ArchiveReader : MonoBehaviour
         if (instance.entry == null) instance.hadLockBefore = PlayerInputGate.Locked;
         instance.entry = e;
         instance.openedAt = Time.unscaledTime;
-        instance.dismissedOnce = false;
         instance.scroll = 0f;
         instance.contentHeight = 0f;
     }
@@ -93,17 +91,12 @@ public class ArchiveReader : MonoBehaviour
         }
 
         // 锁住玩家输入：阅读时不该还能走/开灯
-        PlayerInputGate.Lock("ArchiveReader");
-    }
-
-    private void LateUpdate()
-    {
-        if (entry == null) PlayerInputGate.Unlock("ArchiveReader");
+        PlayerInputGate.Set(true);
     }
 
     private void OnDisable()
     {
-        PlayerInputGate.Unlock("ArchiveReader");
+        PlayerInputGate.Set(hadLockBefore);
     }
 
     /// <summary>全文总字数决定打字时长（约 45 字/秒，最少 0.8 秒）。</summary>

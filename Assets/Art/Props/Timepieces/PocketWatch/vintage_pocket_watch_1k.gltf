@@ -1,0 +1,538 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.6.16",
+    "version": "2.0"
+  },
+  "extensionsUsed": [
+    "KHR_materials_clearcoat"
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "vintage_pocket_watch"
+    },
+    {
+      "mesh": 1,
+      "name": "vintage_pocket_watch_hour_hand"
+    },
+    {
+      "mesh": 2,
+      "name": "vintage_pocket_watch_minute_hand"
+    },
+    {
+      "mesh": 3,
+      "name": "vintage_pocket_watch_second_hand"
+    }
+  ],
+  "materials": [
+    {
+      "alphaMode": "BLEND",
+      "doubleSided": true,
+      "name": "vintage_pocket_watch_glass",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.054208770394325256,
+          0.054208770394325256,
+          0.054208770394325256,
+          0.25
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "vintage_pocket_watch",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_clearcoat": {
+          "clearcoatFactor": 1,
+          "clearcoatRoughnessFactor": 0.029999999329447746
+        }
+      },
+      "name": "vintage_pocket_watch_hands",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0027674539014697075,
+          0.0027674539014697075,
+          0.0027674539014697075,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.2818181812763214
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Circle.001",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 8,
+            "NORMAL": 9,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "Slice.001",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 12,
+            "NORMAL": 13,
+            "TEXCOORD_0": 14
+          },
+          "indices": 15,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "Plane.004",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 16,
+            "NORMAL": 17,
+            "TEXCOORD_0": 18
+          },
+          "indices": 19,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "Plane.002",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 20,
+            "NORMAL": 21,
+            "TEXCOORD_0": 22
+          },
+          "indices": 23,
+          "material": 2
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "vintage_pocket_watch_nor_gl",
+      "uri": "textures/vintage_pocket_watch_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "vintage_pocket_watch_diff",
+      "uri": "textures/vintage_pocket_watch_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "vintage_pocket_watch_metal-vintage_pocket_watch_rough",
+      "uri": "textures/vintage_pocket_watch_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 328,
+      "max": [
+        0.01166965439915657,
+        0.011523381806910038,
+        0.006793143693357706
+      ],
+      "min": [
+        -0.011475090868771076,
+        -0.011621369980275631,
+        0.0051276166923344135
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 328,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 328,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 1536,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 10580,
+      "max": [
+        0.03075561858713627,
+        0.04921018332242966,
+        0.0051890779286623
+      ],
+      "min": [
+        -0.030569417402148247,
+        -0.030715273693203926,
+        -0.006799654103815556
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 10580,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 10580,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 44640,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 373,
+      "max": [
+        0.0018178715836256742,
+        0.0011923292186111212,
+        0.0026577352546155453
+      ],
+      "min": [
+        -0.0014851205050945282,
+        -0.0021106626372784376,
+        0.002177903428673744
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 373,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 373,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5123,
+      "count": 1440,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 173,
+      "max": [
+        0.006155782844871283,
+        0.008269316516816616,
+        0.002600547159090638
+      ],
+      "min": [
+        0.0009468247881159186,
+        0.0006615257007069886,
+        0.0021943598985671997
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 173,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 173,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5123,
+      "count": 462,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 16,
+      "componentType": 5126,
+      "count": 24,
+      "max": [
+        0.008788753300905228,
+        0.006359911058098078,
+        0.0025920311454683542
+      ],
+      "min": [
+        -0.0002986689214594662,
+        -0.0009242112864740193,
+        0.0023417926859110594
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 17,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 18,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 19,
+      "componentType": 5123,
+      "count": 132,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 20,
+      "componentType": 5126,
+      "count": 20,
+      "max": [
+        0.003205121261999011,
+        0.007160902488976717,
+        0.002465936355292797
+      ],
+      "min": [
+        -0.007738157175481319,
+        -0.003280492965131998,
+        0.0024158875457942486
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 21,
+      "componentType": 5126,
+      "count": 20,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 22,
+      "componentType": 5126,
+      "count": 20,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 23,
+      "componentType": 5123,
+      "count": 84,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 3936,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 3936,
+      "byteOffset": 3936
+    },
+    {
+      "buffer": 0,
+      "byteLength": 2624,
+      "byteOffset": 7872
+    },
+    {
+      "buffer": 0,
+      "byteLength": 3072,
+      "byteOffset": 10496
+    },
+    {
+      "buffer": 0,
+      "byteLength": 126960,
+      "byteOffset": 13568
+    },
+    {
+      "buffer": 0,
+      "byteLength": 126960,
+      "byteOffset": 140528
+    },
+    {
+      "buffer": 0,
+      "byteLength": 84640,
+      "byteOffset": 267488
+    },
+    {
+      "buffer": 0,
+      "byteLength": 89280,
+      "byteOffset": 352128
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4476,
+      "byteOffset": 441408
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4476,
+      "byteOffset": 445884
+    },
+    {
+      "buffer": 0,
+      "byteLength": 2984,
+      "byteOffset": 450360
+    },
+    {
+      "buffer": 0,
+      "byteLength": 2880,
+      "byteOffset": 453344
+    },
+    {
+      "buffer": 0,
+      "byteLength": 2076,
+      "byteOffset": 456224
+    },
+    {
+      "buffer": 0,
+      "byteLength": 2076,
+      "byteOffset": 458300
+    },
+    {
+      "buffer": 0,
+      "byteLength": 1384,
+      "byteOffset": 460376
+    },
+    {
+      "buffer": 0,
+      "byteLength": 924,
+      "byteOffset": 461760
+    },
+    {
+      "buffer": 0,
+      "byteLength": 288,
+      "byteOffset": 462684
+    },
+    {
+      "buffer": 0,
+      "byteLength": 288,
+      "byteOffset": 462972
+    },
+    {
+      "buffer": 0,
+      "byteLength": 192,
+      "byteOffset": 463260
+    },
+    {
+      "buffer": 0,
+      "byteLength": 264,
+      "byteOffset": 463452
+    },
+    {
+      "buffer": 0,
+      "byteLength": 240,
+      "byteOffset": 463716
+    },
+    {
+      "buffer": 0,
+      "byteLength": 240,
+      "byteOffset": 463956
+    },
+    {
+      "buffer": 0,
+      "byteLength": 160,
+      "byteOffset": 464196
+    },
+    {
+      "buffer": 0,
+      "byteLength": 168,
+      "byteOffset": 464356
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 464524,
+      "uri": "vintage_pocket_watch.bin"
+    }
+  ]
+}

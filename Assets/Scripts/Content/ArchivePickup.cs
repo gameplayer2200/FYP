@@ -29,8 +29,21 @@ public class ArchivePickup : MonoBehaviour, IInteractable
     public float InteractionRange { get { return interactionRange; } }
     public Transform GetInteractionPoint() { return transform; }
 
-    private void OnEnable() { InteractionRegistry.Register(this); }
+    private void OnEnable()
+    {
+        InteractionRegistry.Register(this);
+        RefreshLabel();
+    }
+
     private void OnDisable() { InteractionRegistry.Unregister(this); }
+
+    /// <summary>提示文案跟着"读没读过"走：已读的显示"重读"，让玩家知道自己看过。</summary>
+    private void RefreshLabel()
+    {
+        var label = GetComponent<InteractionLabel>();
+        if (label == null) return;
+        label.Text = ArchiveLog.IsRead(entryId) ? readHint : unreadHint;
+    }
 
     public void Interact(GameObject player)
     {
@@ -44,6 +57,7 @@ public class ArchivePickup : MonoBehaviour, IInteractable
 
         bool isNew = ArchiveLog.MarkRead(entryId);
         ArchiveReader.Open(entry);
+        RefreshLabel();
 
         if (isNew)
             HintToast.Show("残档《" + entry.title + "》已归档", 2.5f);

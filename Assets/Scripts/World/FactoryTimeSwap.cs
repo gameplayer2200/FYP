@@ -14,7 +14,8 @@ using UnityEngine;
 ///   ① 换班前 WarningSeconds 秒挂钟报警（OnPhaseWarning）；
 ///   ② 到达落点先做净空检测，被几何挤住就沿朝向轻推，再不行才放弃切换并记录；
 ///   ③ 充电中/空中/正在穿门时最多延后 MaxDefer 秒，不会把玩家切进墙里；
-///   ④ 切换后短暂冷却，防抖。
+///   ④ 切换后短暂冷却，防抖；
+///   ⑤ **只改 Y，XZ 原地不动**——不做横向轻推、不做环形搜索，站不下只许往上抬。
 ///
 /// 解锁后的世界（FactoryShift.LockedPhase 有值）不再强制切换——那是解谜奖励：
 /// 把轮换的控制权交还玩家。
@@ -27,10 +28,6 @@ public class FactoryTimeSwap : MonoBehaviour
     [SerializeField] private Transform nightRoot;
 
     [Header("行为")]
-    [Tooltip("切过去之后，最多尝试几次找落脚点（沿着朝向/侧向轻推）")]
-    [SerializeField] private int settleTries = 6;
-    [Tooltip("每次轻推的距离（米）")]
-    [SerializeField] private float settleStep = 0.35f;
     [Tooltip("玩家处于不安全状态时最多延后多久再切（秒）")]
     [SerializeField] private float maxDefer = 1.5f;
     [Tooltip("切换后的冷却（秒），防抖")]
@@ -51,6 +48,9 @@ public class FactoryTimeSwap : MonoBehaviour
 
     /// <summary>今日已切换次数（排查"一直切"用）。</summary>
     public int SwapCount { get; private set; }
+
+    /// <summary>最近一次切换的横向位移（x,z）。恒为 (0,0)——验收用它证明"换班只改 Y"。</summary>
+    public Vector2 LastLateralDelta { get; private set; }
 
     private void Awake()
     {
@@ -194,19 +194,28 @@ public class FactoryTimeSwap : MonoBehaviour
         // 排班表 0.46/-0.08 —— 都在半米内，说明该沿用的是**世界 XZ**。
         //
         // Y 一律不用（两层地板差 100 米，且地板与层根的关系两层还不一样），一律交给
-        // Settle() 在目标层用射线重新找地面。
-        Vector3 desired = new Vector3(player.position.x, to.position.y, player.position.z);
+        // SettleOnLayer() 在目标层用射线重新找地面。
+        //
+        // ⚠️ 语义铁律（2026-11 定）：换班**只改 Y**，XZ 一个字节都不许动。
+        // 不做「沿朝向轻推」、不做「环形搜索最近空位」——那等价于把玩家传送去一个
+        // "设计好的落点"，玩家刚建立的方位感（柜台在左、食尸鬼在后面）会被悄悄改写。
+        // 站不下就只许往上抬（站上柜顶/机器顶），抬不上就这次不切。
+        Vector3 from = player.position;
 
-        // 净空检测 + 找地面 + 轻推
+        // 纯 Y 落点：XZ 原样，只有 Y 换到目标层。
         Vector3 landed;
-        bool ok = Settle(desired, to, player, out landed);
+        bool ok = SettleOnLayer(from, to, out landed);
         LastSwapOk = ok;
         LastLanding = landed;
+        LastLateralDelta = new Vector2(landed.x - from.x, landed.z - from.z);
 
         if (!ok)
         {
-            // 实在找不到落脚点：宁可不切，也不要埋进墙里
-            Debug.LogWarning("[FactoryTimeSwap] 落点无净空，放弃本次切换（desired=" + desired.ToString("F2") + "）");
+            // 实在找不到落脚点：宁可不切，也不要埋进墙里。
+            // 注意"放弃"之后玩家仍在原层，而排班钟已经翻面——这是必须留痕的状态错位，
+            // 日志要能一眼看出是"没落地"而不是"没换班"。
+            Debug.LogWarning("[FactoryTimeSwap] 该 XZ 找不到落脚点，放弃本次切换（player="
+                + from.ToString("F2") + " target=" + pendingTarget + "）");
             nextSwapAt = Time.time + cooldown;
             return;
         }
@@ -227,6 +236,34 @@ public class FactoryTimeSwap : MonoBehaviour
 
         // 同步世界登记：HUD/播报/撤离钟都靠它判断"玩家在哪个世界"
         WorldStreamer.NotifyCrossed(gameObject.scene.name);
+
+        GrantShiftWatchAfterFirstForcedSwap();
+    }
+
+    /// <summary>
+    /// 第一次「被强制」换班之后把怀表塞给玩家。
+    ///
+    /// 节奏设计：开局玩家没有表，只能干等排班钟到点把他硬推过去——这个被动体验
+    /// 是必须有的（不亲身被推一次，不会明白两层在同一个身体上叠加）。推完算教学通关，
+    /// 奖励就是控制权本身：从此滚轮切到怀表格按 F 可以自己拨，不再受排班钟摆布。
+    ///
+    /// 手动换班（怀表/值班钟自己拨的）不触发发放——那是玩家已经有表之后的事；
+    /// 已解谜锁定后也不发，那条线由排班表接管。
+    /// </summary>
+    private void GrantShiftWatchAfterFirstForcedSwap()
+    {
+        if (FactoryShift.LastFlipWasManual) return; // 自己拨的不算"被强制"
+        if (PlayerGear.HasShiftWatch) return;       // 已经拿到了
+
+        PlayerGear.AcquireShiftWatch();
+
+        var player = PlayerRef.Root;
+        if (player != null && player.GetComponentInChildren<ShiftWatch>(true) == null)
+        {
+            player.gameObject.AddComponent<ShiftWatch>();
+        }
+
+        HintToast.Show("口袋里多了块怀表——滚轮切到它，按 F 自己拨班");
     }
 
     /// <summary>
@@ -251,108 +288,81 @@ public class FactoryTimeSwap : MonoBehaviour
     }
 
     /// <summary>
-    /// 在期望落点附近找一个真正站得住的位置。
+    /// 在目标层给玩家找一个**同一 XZ** 的落脚点（纯 Y 重定位）。
     ///
-    /// **Y 完全由射线决定，不用 desired.y**：两层地板高度不同，玩家在源层的相对高度
-    /// 搬到目标层没有意义。做法是从目标层根节点的上方往下打一条射线找地面。
-    /// 找不到就沿玩家朝向的前/后/左/右轻推若干次。
+    /// 语义铁律：换班只改 Y。这里不做任何横向位移，也不做环形搜索——那等于把玩家
+    /// 传送去一个"设计好的落点"，会把刚建立的方位感（柜台在左、食尸鬼在后面）悄悄
+    /// 改写。站不下只允许往上抬（站上柜顶/机器顶），抬不上就这次不切、下次再试。
+    ///
+    /// Y 完全由射线决定，不用玩家在源层的 Y：两层地板差 99.9 米，相对高度没有意义。
+    /// 找地面的两个坑（与 ENEMY-AI.md §9 坑 3 同源）：
+    ///  ① 从高处往下打单条射线，第一个命中的往往是顶棚/横梁——玩家会悬空下坠；
+    ///  ② 扫得太深会穿过本层地板命中另一层地板（两层只差 100 米）。
+    /// 所以起点压在层根略下、扫深限制 20 米、取所有命中里最低的面当地板。
     /// </summary>
-    private bool Settle(Vector3 desired, Transform layerRoot, Transform player, out Vector3 landed)
+    private bool SettleOnLayer(Vector3 from, Transform layerRoot, out Vector3 landed)
     {
-        landed = desired;
+        landed = from;
         var cc = PlayerRef.Controller;
         float radius = cc != null ? cc.radius * 0.9f : 0.3f;
         float height = cc != null ? cc.height : 1.8f;
 
-        Vector3 fwd = player.forward; fwd.y = 0f; fwd.Normalize();
-        Vector3 right = Vector3.Cross(Vector3.up, fwd);
-
-        // 找地面的方式：从**层根略下方**起扫，取所有命中里最低的那个。
-        //
-        // 两个坑，都是这个项目已经踩过的（Docs/ENEMY-AI.md §9 坑 3）：
-        //  ① 从高处往下打单条射线，第一个命中的往往是**顶棚/天花板**——实测落点比地板
-        //     高 10 米（landed y=-11991.9，而 Night 地板在 -12001.9），玩家会悬空下坠。
-        //  ② 扫得太深会穿过本层地板命中**另一层**地板（两层只差 100 米）。
-        // 所以：起点压在层根略下（顶棚通常在层根上方），扫深限制在 20 米内，
-        // 命中用 RaycastNonAlloc 取最低的那个当真正的地板。
         Vector3 layerOrigin = layerRoot.position;
         float probeTopY = layerOrigin.y + 0.5f;
         const float ScanDepth = 20f;
         var hitsBuf = new RaycastHit[16];
 
-        for (int i = 0; i <= settleTries; i++)
+        int n = Physics.RaycastNonAlloc(
+            new Vector3(from.x, probeTopY, from.z), Vector3.down, hitsBuf, ScanDepth,
+            ~0, QueryTriggerInteraction.Ignore);
+        if (n <= 0) return false;
+
+        float floorY = float.MaxValue;
+        for (int h = 0; h < n; h++)
+            if (hitsBuf[h].point.y < floorY) floorY = hitsBuf[h].point.y;
+
+        // ① 常规情形：目标层这个 XZ 就是地面。
+        float groundY = floorY + 0.06f;
+        if (IsStandable(from.x, groundY, from.z, radius, height))
         {
-            Vector3 dir = Vector3.zero;
-            if (i > 0)
-            {
-                int leg = (i - 1) / 2 + 1;
-                int axis = (i - 1) % 2;
-                dir = (axis == 0 ? fwd : right) * settleStep * leg;
-                if ((i % 4) >= 2) dir = -dir;
-            }
-
-            Vector3 col = desired + dir;             // 只看 XZ
-            Vector3 probeTop = new Vector3(col.x, probeTopY, col.z);
-
-            // 取所有命中里最低的面 = 真正的地板（顶棚/横梁都在它上面）
-            int n = Physics.RaycastNonAlloc(probeTop, Vector3.down, hitsBuf, ScanDepth, ~0, QueryTriggerInteraction.Ignore);
-            if (n <= 0) continue;
-
-            float floorY = float.MaxValue;
-            for (int h = 0; h < n; h++)
-                if (hitsBuf[h].point.y < floorY) floorY = hitsBuf[h].point.y;
-
-            Vector3 p = new Vector3(col.x, floorY + 0.06f, col.z);
-
-            Vector3 bottom = p + Vector3.up * (radius + 0.02f);
-            Vector3 top = p + Vector3.up * (height - radius + 0.02f);
-            if (Physics.CheckCapsule(bottom, top, radius, ~0, QueryTriggerInteraction.Ignore))
-                continue;
-
-            landed = p;
+            landed = new Vector3(from.x, groundY, from.z);
             return true;
         }
 
-        // 小幅轻推找不到位置时，向四周放大搜索一圈。
-        //
-        // 为什么需要这一步：实测二号风机那一带（世界 xz −9.1, 55.3）周围 2 米被
-        // 柜子、碎屑、墙围死，settleTries×settleStep = 6×0.35 ≈ 2.1 米的轻推走不出去，
-        // 结果每次换班都放弃切换——玩家留在 Day 层，而时钟/HUD 已经翻到 Night，
-        // 状态自相矛盾。宁可把他挪到最近的空位，也不要卡在这种错位里。
-        const float ringStep = 1f;
-        const int ringRings = 5;      // 最远 5 米
-        const int ringDirs = 8;
-        for (int ring = 1; ring <= ringRings; ring++)
+        // ② 地面被占：从上方重扫，把堆叠物顶面按由低到高逐个试站。
+        //    站上柜顶/机器顶仍然是"原地重定位"；横向挪一格就不是了。
+        const float ProbeAbove = 3f;
+        var topBuf = new RaycastHit[24];
+        int m = Physics.RaycastNonAlloc(
+            new Vector3(from.x, floorY + ProbeAbove, from.z), Vector3.down, topBuf, ProbeAbove,
+            ~0, QueryTriggerInteraction.Ignore);
+        if (m <= 0) return false;
+
+        var tops = new System.Collections.Generic.List<float>(m);
+        for (int h = 0; h < m; h++)
         {
-            float r = ringStep * ring;
-            for (int d = 0; d < ringDirs; d++)
-            {
-                float ang = d * Mathf.PI * 2f / ringDirs;
-                Vector3 col = new Vector3(
-                    desired.x + Mathf.Cos(ang) * r,
-                    0f,
-                    desired.z + Mathf.Sin(ang) * r);
+            float y = topBuf[h].point.y;
+            if (y > groundY + 0.05f) tops.Add(y);
+        }
+        tops.Sort();
 
-                Vector3 probeTop = new Vector3(col.x, probeTopY, col.z);
-                int n = Physics.RaycastNonAlloc(probeTop, Vector3.down, hitsBuf, ScanDepth, ~0, QueryTriggerInteraction.Ignore);
-                if (n <= 0) continue;
-
-                float floorY = float.MaxValue;
-                for (int h = 0; h < n; h++)
-                    if (hitsBuf[h].point.y < floorY) floorY = hitsBuf[h].point.y;
-
-                Vector3 p = new Vector3(col.x, floorY + 0.06f, col.z);
-                Vector3 bottom = p + Vector3.up * (radius + 0.02f);
-                Vector3 top = p + Vector3.up * (height - radius + 0.02f);
-                if (Physics.CheckCapsule(bottom, top, radius, ~0, QueryTriggerInteraction.Ignore))
-                    continue;
-
-                landed = p;
-                return true;
-            }
+        for (int i = 0; i < tops.Count; i++)
+        {
+            float standY = tops[i] + 0.06f;
+            if (!IsStandable(from.x, standY, from.z, radius, height)) continue;
+            landed = new Vector3(from.x, standY, from.z);
+            return true;
         }
 
         return false;
+    }
+
+    /// <summary>胶囊站在这个高度会不会撞到东西。</summary>
+    private static bool IsStandable(float x, float y, float z, float radius, float height)
+    {
+        Vector3 bottom = new Vector3(x, y + radius + 0.02f, z);
+        Vector3 top = new Vector3(x, y + height - radius + 0.02f, z);
+        return !Physics.CheckCapsule(bottom, top, radius, ~0, QueryTriggerInteraction.Ignore);
     }
 
     /// <summary>玩家附近有没有门（穿门进行中不抢 transform）。</summary>

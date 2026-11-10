@@ -1,51 +1,51 @@
 using UnityEngine;
 
 /// <summary>
-/// 换班钟（值班室落地钟）：E 直接强制换班。
-/// 不走"先捡怀表、滚轮切格、再按 F"那三步——站在钟前按 E 才是最直觉的动作。
-/// 第一次按 E 顺手把怀表交给玩家，之后离开值班室也能用滚轮+F 远程换班。
-/// 不销毁本体：钟是场景地标，取走的是表芯，钟留着。交互范围 1.5m。
+/// 值班室落地钟（换班钟）：E 取走表芯。
+///
+/// 设计（2026-11 定）：这口钟**不是**开关，是怀表的来源。玩家第一次按 E，
+/// 表芯被取走、怀表进背包、钟面熄灭、整口钟从场景里消失（不再可交互）——
+/// 之后换班一律靠怀表（滚轮切到怀表格按 F），钟留在原地只会让人以为还能按。
+///
+/// 为什么用 SetActive(false) 而不是 Destroy：
+/// 交互中枢每帧扫注册表，销毁一个正在被它持有的注册项要等 OnDestroy 那一帧，
+/// 中间会出现"按了 E 没反应但准星还显示名字"的空窗；失活是同步的、立刻干净。
+/// 而且钟是场景地标，日后想改成"取走表芯、留个哑钟壳"只要把下面那行换掉。
 /// </summary>
 public class ShiftWatchPickup : MonoBehaviour, IInteractable
 {
-    [SerializeField] private string firstHint = "钟一响，天就换——怀表收好，滚轮切到它、F 也能换";
-    [SerializeField] private string flipHint = "拨动钟摆——换班";
+    [SerializeField] private string takenHint = "表芯到手——钟面暗了下去。滚轮切到怀表，F 自己拨班";
+    [SerializeField] private string alreadyHint = "口袋里已经有怀表了";
 
-    private bool gaveWatch;
-
-    public float InteractionRange { get { return 1.5f; } }
+    public float InteractionRange { get { return 1.8f; } }
 
     public Transform GetInteractionPoint() { return transform; }
 
     public void Interact(GameObject player)
     {
-        if (FactoryShift.LockedPhase.HasValue)
+        // 已经拿过（或被首次强制换班自动发过）：钟面上没东西可取。
+        if (PlayerGear.HasShiftWatch)
         {
-            HintToast.Show("排班钟已停——这个班次是你自己定下的。");
+            HintToast.Show(alreadyHint);
+            Vanish();
             return;
         }
-        if (FactoryShift.ManualFlipCooldownLeft > 0.01f)
+
+        PlayerGear.AcquireShiftWatch();
+        if (player != null && player.GetComponentInChildren<ShiftWatch>(true) == null)
         {
-            HintToast.Show("钟摆还在回摆——" + Mathf.CeilToInt(FactoryShift.ManualFlipCooldownLeft) + " 秒");
-            return;
+            player.AddComponent<ShiftWatch>();
         }
-        if (!FactoryShift.ForceFlip())
-        {
-            HintToast.Show("钟摆纹丝不动……");
-            return;
-        }
-        if (!gaveWatch)
-        {
-            gaveWatch = true;
-            PlayerGear.AcquireShiftWatch();
-            if (player != null && player.GetComponentInChildren<ShiftWatch>(true) == null)
-                player.AddComponent<ShiftWatch>();
-            HintToast.Show(firstHint);
-        }
-        else
-        {
-            HintToast.Show(flipHint);
-        }
+
+        HintToast.Show(takenHint);
+        Vanish();
+    }
+
+    /// <summary>取下钟：注销交互并失活整个物体（同步、立刻从准星与提示里消失）。</summary>
+    private void Vanish()
+    {
+        InteractionRegistry.Unregister(this);
+        gameObject.SetActive(false);
     }
 
     private void OnEnable() { InteractionRegistry.Register(this); }
