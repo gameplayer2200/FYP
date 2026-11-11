@@ -113,6 +113,19 @@ public static class PlayerGear
         if (OnShiftWatchAcquired != null) OnShiftWatchAcquired();
     }
 
+    /// <summary>是否解锁了超级跳（蓄力跳）。中后期能力：通关 Metro（复明）且解谜工厂后才授予。</summary>
+    public static bool HasSuperJump { get; private set; }
+
+    /// <summary>解锁超级跳时触发一次（HUD 图标点亮等）。</summary>
+    public static event Action OnSuperJumpAcquired;
+
+    public static void AcquireSuperJump()
+    {
+        if (HasSuperJump) return;
+        HasSuperJump = true;
+        if (OnSuperJumpAcquired != null) OnSuperJumpAcquired();
+    }
+
     /// <summary>换班怀表所在的格位（原本是空位）。</summary>
     public const int ShiftWatchSlot = 4;
 

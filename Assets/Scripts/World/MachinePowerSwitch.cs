@@ -26,6 +26,14 @@ public class MachinePowerSwitch : MonoBehaviour, IInteractable
     [Tooltip("错序火花（可空）")]
     [SerializeField] private ParticleSystem sparks;
 
+    [Header("拉杆演出")]
+    [Tooltip("拉杆把手（下拉演出用，留空则不转）")]
+    [SerializeField] private Transform lever;
+    [Tooltip("未拉下时的欧拉角（默认朝上）")]
+    [SerializeField] private Vector3 leverUpEuler = new Vector3(0f, 0f, 0f);
+    [Tooltip("拉下后的欧拉角（默认绕 X 前倾）")]
+    [SerializeField] private Vector3 leverDownEuler = new Vector3(45f, 0f, 0f);
+
     [SerializeField] private float interactionRange = 2.5f;
 
     public bool Started { get; private set; }
@@ -49,6 +57,7 @@ public class MachinePowerSwitch : MonoBehaviour, IInteractable
         if (FactoryShift.TryStart(machineId))
         {
             Started = true;
+            SetLever(true);
             bool solved = FactoryShift.PuzzleSolved;
             HintToast.Show(solved
                 ? displayName + " 启动——三台全转起来了。回排班表前做决定吧"
@@ -106,12 +115,20 @@ public class MachinePowerSwitch : MonoBehaviour, IInteractable
     private void HandleProgressReset()
     {
         Started = false;
+        SetLever(false);
+    }
+
+    /// <summary>拉杆下拉/弹回（对齐 BreakerSwitch 的旋转演出；无拉杆则空转）。</summary>
+    private void SetLever(bool down)
+    {
+        if (lever != null) lever.localRotation = Quaternion.Euler(down ? leverDownEuler : leverUpEuler);
     }
 
     private void OnEnable()
     {
         InteractionRegistry.Register(this);
         FactoryShift.OnProgressReset += HandleProgressReset;
+        SetLever(Started);   // 进场按当前状态摆好拉杆（新档恒为未拉）
     }
 
     private void OnDisable()

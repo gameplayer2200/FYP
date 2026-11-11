@@ -1,0 +1,241 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v5.1.20",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "fire_alarm"
+    },
+    {
+      "mesh": 1,
+      "name": "fire_alarm_lever",
+      "translation": [
+        0,
+        -0.03305625170469284,
+        0.014775929972529411
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "fire_alarm",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane.001",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.003",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "fire_alarm_nor_gl",
+      "uri": "textures/fire_alarm_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "fire_alarm_diff",
+      "uri": "textures/fire_alarm_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "fire_alarm_metal-fire_alarm_rough",
+      "uri": "textures/fire_alarm_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2597,
+      "max": [
+        0.049724381417036057,
+        0.06621883809566498,
+        0.026733271777629852
+      ],
+      "min": [
+        -0.04972436651587486,
+        -0.07742370665073395,
+        0.0003585563972592354
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2597,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2597,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 7059,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 398,
+      "max": [
+        0.03609660267829895,
+        0.046148113906383514,
+        0.00822406355291605
+      ],
+      "min": [
+        -0.03609660267829895,
+        -0.003213254502043128,
+        -0.0032132554333657026
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 398,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 398,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 1056,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 31164,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 31164,
+      "byteOffset": 31164,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 20776,
+      "byteOffset": 62328,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 14118,
+      "byteOffset": 83104,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4776,
+      "byteOffset": 97224,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4776,
+      "byteOffset": 102000,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 3184,
+      "byteOffset": 106776,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 2112,
+      "byteOffset": 109960,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 112072,
+      "uri": "fire_alarm.bin"
+    }
+  ]
+}

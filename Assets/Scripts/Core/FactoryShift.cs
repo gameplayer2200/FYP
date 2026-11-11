@@ -85,6 +85,9 @@ public static class FactoryShift
     /// <summary>错序复位时触发（已启动的机器听它停机）。</summary>
     public static event Action OnProgressReset;
 
+    /// <summary>解谜完成（三台机器按序启动完毕、轮换冻结）时触发一次。</summary>
+    public static event Action OnPuzzleSolved;
+
     private static int lastTickFrame = -1;
 
     static FactoryShift()
@@ -111,6 +114,7 @@ public static class FactoryShift
         OnPhaseWarning = null;
         OnLockChanged = null;
         OnProgressReset = null;
+        OnPuzzleSolved = null;
     }
 
     /// <summary>某世界此刻是否醒着（在班，或被锁定）。</summary>
@@ -185,7 +189,7 @@ public static class FactoryShift
     public static bool LastFlipWasManual { get; private set; }
 
     /// <summary>手动换班冷却（秒）。怀表是道具不是开关，按一次要等一会儿才能再按。</summary>
-    public const float ManualFlipCooldown = 15f;
+    public const float ManualFlipCooldown = 3f;
 
     public static float NextManualFlipAt { get; private set; }
 
@@ -221,7 +225,11 @@ public static class FactoryShift
         if (Order[StartedMachines] != machineId) return false;
 
         StartedMachines++;
-        if (StartedMachines >= MachineCount) PuzzleSolved = true;
+        if (StartedMachines >= MachineCount)
+        {
+            PuzzleSolved = true;
+            if (OnPuzzleSolved != null) OnPuzzleSolved();
+        }
         return true;
     }
 

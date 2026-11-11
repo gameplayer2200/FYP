@@ -31,6 +31,12 @@ public class ShiftWatchPickup : MonoBehaviour, IInteractable
             return;
         }
 
+        // 首次碰钟：先强制换一次班（时空切换），再发怀表。
+        // 顺序关键：ForceFlip 置 LastFlipWasManual=true，FactoryTimeSwap 里
+        // 「首次强制换班自动发怀表」的守卫不会二次发表；即使偶发被锁定/冷却挡下
+        // （返回 false）也照常发怀表——首次必得表，换班尽力而为。
+        FactoryShift.ForceFlip();
+
         PlayerGear.AcquireShiftWatch();
         if (player != null && player.GetComponentInChildren<ShiftWatch>(true) == null)
         {
