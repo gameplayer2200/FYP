@@ -50,8 +50,59 @@ public static class ItemIconBaker
         // pitch=10 基本平视表盘，yaw=0 正对；yaw=180 是背面刻字那面，不要用。
         sb.AppendLine(One("shiftwatch", "Assets/Art/Props/Timepieces/PocketWatch/vintage_pocket_watch_1k.gltf", 10f, 0f, 1.45f));
         sb.AppendLine(Floppy());
+        // Metro 轮三件仪器：Exploration 包只导入了 EMF/手电两个模型，相机/录音笔/温度计
+        // 的文件夹是空的——按 Floppy() 的先例程序拼装后直接渲染。
+        sb.AppendLine(CameraIcon());
+        sb.AppendLine(RecorderIcon());
+        sb.AppendLine(ThermometerIcon());
         AssetDatabase.Refresh();
         return sb.ToString();
+    }
+
+    /// <summary>程序化拍照相机：方机身 + 镜头筒 + 闪光灯小块。</summary>
+    private static string CameraIcon()
+    {
+        var root = new GameObject("CameraIcon");
+        AddBox(root.transform, "机身", Vector3.zero, new Vector3(0.26f, 0.16f, 0.10f),
+            LoadOrMat("Assets/Material/FYPInstrument_Body.mat", new Color(0.16f, 0.17f, 0.19f)));
+        var lens = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        lens.name = "镜头";
+        lens.transform.SetParent(root.transform, false);
+        lens.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // 圆柱轴向 Y → 指向 Z（镜头朝前）
+        lens.transform.localPosition = new Vector3(0f, 0f, 0.07f);
+        lens.transform.localScale = new Vector3(0.085f, 0.05f, 0.085f);
+        Object.DestroyImmediate(lens.GetComponent<Collider>());
+        lens.GetComponent<Renderer>().sharedMaterial = LoadOrMat("Assets/Material/FYPInstrument_Lens.mat", new Color(0.05f, 0.05f, 0.06f));
+        AddBox(root.transform, "闪光灯", new Vector3(0.09f, 0.085f, 0.02f), new Vector3(0.05f, 0.03f, 0.03f),
+            LoadOrMat("Assets/Material/FYPInstrument_Lens.mat", new Color(0.05f, 0.05f, 0.06f)));
+        return Render("camera", root, 24f, 34f, 1.35f);
+    }
+
+    /// <summary>程序化录音笔：扁长机身 + 录制红灯（与 RecorderUnit 放置体同款长相）。</summary>
+    private static string RecorderIcon()
+    {
+        var root = new GameObject("RecorderIcon");
+        AddBox(root.transform, "机身", Vector3.zero, new Vector3(0.12f, 0.035f, 0.05f),
+            LoadOrMat("Assets/Material/FYPInstrument_Body.mat", new Color(0.16f, 0.17f, 0.19f)));
+        AddBox(root.transform, "指示灯", new Vector3(0.042f, 0.022f, 0f), new Vector3(0.014f, 0.008f, 0.014f),
+            LoadOrMat("Assets/Material/FYPInstrument_Led.mat", new Color(0.9f, 0.1f, 0.1f)));
+        return Render("recorder", root, 52f, 20f, 1.7f);
+    }
+
+    /// <summary>程序化温度计：细杆 + 底部感温泡。</summary>
+    private static string ThermometerIcon()
+    {
+        var root = new GameObject("ThermometerIcon");
+        AddBox(root.transform, "杆", Vector3.zero, new Vector3(0.035f, 0.30f, 0.035f),
+            LoadOrMat("Assets/Material/FYPInstrument_Body.mat", new Color(0.16f, 0.17f, 0.19f)));
+        var bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        bulb.name = "感温泡";
+        bulb.transform.SetParent(root.transform, false);
+        bulb.transform.localPosition = new Vector3(0f, -0.165f, 0f);
+        bulb.transform.localScale = new Vector3(0.075f, 0.075f, 0.075f);
+        Object.DestroyImmediate(bulb.GetComponent<Collider>());
+        bulb.GetComponent<Renderer>().sharedMaterial = LoadOrMat("Assets/Material/FYPInstrument_Led.mat", new Color(0.85f, 0.3f, 0.2f));
+        return Render("thermometer", root, 8f, 0f, 1.5f);
     }
 
     // ─────────────────────────────────────────────────────────────

@@ -132,6 +132,10 @@ public class InventoryUI : MonoBehaviour
             // 换班怀表（2026-11 接通）：这一格以前是恒 false 的备用空位，
             // 于是怀表拿了也永远不显示——图标管线本身是好的，卡在持有判定上。
             case PlayerGear.ShiftWatchSlot: return PlayerGear.HasShiftWatch;
+            // Metro 轮新仪器（相机 / 录音笔 / 温度计）——同一条管线接上即显示
+            case PlayerGear.CameraSlot: return PlayerGear.HasCamera;
+            case PlayerGear.RecorderSlot: return PlayerGear.HasRecorder;
+            case PlayerGear.ThermometerSlot: return PlayerGear.HasThermometer;
             default: return false;
         }
     }
@@ -270,13 +274,16 @@ public class InventoryUI : MonoBehaviour
         spFocus = InventoryArt.Sharp(InventoryArt.FocusFill, InventoryArt.FocusLine);
         spKeycap = InventoryArt.Sharp(new Color(0.03f, 0.07f, 0.05f, 0.95f), new Color(0.47f, 1f, 0.76f, 0.35f));
         spScan = InventoryArt.ScanStrip();
-        // 图标按格位索引排：0 手电筒 / 1 万用表 / 2 探测器 / 3 任务提示板 / 4 换班怀表
+        // 图标按格位索引排：0 手电筒 / 1 万用表 / 2 探测器 / 3 任务提示板 / 4 换班怀表 / 5 相机 / 6 录音笔 / 7 温度计
         slotIcons = new Sprite[SlotCount];
         slotIcons[0] = InventoryArt.LoadIcon("flashlight");
         slotIcons[1] = InventoryArt.LoadIcon("multimeter");
         slotIcons[2] = InventoryArt.LoadIcon("emf");
         slotIcons[PlayerGear.OrderTerminalSlot] = InventoryArt.LoadIcon("orderterminal");
         slotIcons[PlayerGear.ShiftWatchSlot] = InventoryArt.LoadIcon("shiftwatch");
+        slotIcons[PlayerGear.CameraSlot] = InventoryArt.LoadIcon("camera");
+        slotIcons[PlayerGear.RecorderSlot] = InventoryArt.LoadIcon("recorder");
+        slotIcons[PlayerGear.ThermometerSlot] = InventoryArt.LoadIcon("thermometer");
         font = InventoryArt.GetFont();
 
         // 条体（屏幕正下方居中：不挡视线，也不与左上角电量/右上角终端抢位置）

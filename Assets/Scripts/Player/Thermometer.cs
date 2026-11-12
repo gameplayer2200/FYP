@@ -28,7 +28,12 @@ public class Thermometer : MonoBehaviour
     {
         if (Time.unscaledTime < nextRefresh) return;
         nextRefresh = Time.unscaledTime + refreshInterval;
+        SampleNow();
+    }
 
+    /// <summary>立即重采样一次读数并返回（Update 按节流调用；测试可直接同步取值）。</summary>
+    public float SampleNow()
+    {
         // 读数 = 基准 - 最近活跃异常源的距离衰减降温（多源取最强，不叠加）
         shown = baseTemperature;
         AnomalyPresence.CollectActive(readings);
@@ -43,6 +48,7 @@ public class Thermometer : MonoBehaviour
                 if (t < shown) shown = t;
             }
         }
+        return shown;
     }
 
     private void OnGUI()

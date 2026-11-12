@@ -1947,4 +1947,363 @@ public static class MetroSceneDev
         System.IO.File.WriteAllBytes(path, ms.ToArray());
         w.Close();
     }
+
+    // ================= 阶段 7：Metro 轮新内容（2026-11：敲击 / 相机 / 录音笔 / 温度计） =================
+    // Exploration 素材包只导入了 EMF/手电两个模型，相机/录音笔/温度计的文件夹是空的——
+    // 三件仪器的外观全部按 BuildFloppy 先例程序拼装（远看轮廓 + 发光件即成立），
+    // 图标由 ItemIconBaker 对同一批拼装体渲染，日后导入真模型可整体替换。
+
+    /// <summary>确保仪器共通材质存在（拼装体与图标共用；已存在则直接复用）。</summary>
+    private static Material InstrumentMat(string path, Color color, bool emissive)
+    {
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m != null) return m;
+        m = new Material(Shader.Find("Standard")) { color = color };
+        if (emissive) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", color * 2.2f); }
+        AssetDatabase.CreateAsset(m, path);
+        return m;
+    }
+
+    private static void EnsureInstrumentMats()
+    {
+        InstrumentMat("Assets/Material/FYPInstrument_Body.mat", new Color(0.16f, 0.17f, 0.19f), false);
+        InstrumentMat("Assets/Material/FYPInstrument_Lens.mat", new Color(0.05f, 0.05f, 0.06f), false);
+        InstrumentMat("Assets/Material/FYPInstrument_Led.mat", new Color(0.85f, 0.15f, 0.10f), true);
+    }
+
+    private static GameObject BodyBox(Transform parent, string name, Vector3 pos, Vector3 scale, Material mat)
+    {
+        var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        box.name = name;
+        box.transform.SetParent(parent, false);
+        box.transform.localPosition = pos;
+        box.transform.localScale = scale;
+        Object.DestroyImmediate(box.GetComponent<Collider>());
+        box.GetComponent<Renderer>().sharedMaterial = mat;
+        return box;
+    }
+
+    /// <summary>拼装拍照相机机身：方机身 + 镜头筒 + 闪光灯小块。</summary>
+    private static GameObject BuildCameraBody(string goName, Vector3 pos, float yaw)
+    {
+        EnsureInstrumentMats();
+        var body = AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/FYPInstrument_Body.mat");
+        var lens = AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/FYPInstrument_Lens.mat");
+        var root = new GameObject(goName);
+        root.transform.position = pos;
+        root.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        BodyBox(root.transform, "机身", Vector3.zero, new Vector3(0.26f, 0.16f, 0.10f), body);
+        var tube = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        tube.name = "镜头";
+        tube.transform.SetParent(root.transform, false);
+        tube.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        tube.transform.localPosition = new Vector3(0f, 0f, 0.07f);
+        tube.transform.localScale = new Vector3(0.085f, 0.05f, 0.085f);
+        Object.DestroyImmediate(tube.GetComponent<Collider>());
+        tube.GetComponent<Renderer>().sharedMaterial = lens;
+        BodyBox(root.transform, "闪光灯", new Vector3(0.09f, 0.085f, 0.02f), new Vector3(0.05f, 0.03f, 0.03f), lens);
+        return root;
+    }
+
+    /// <summary>拼装录音笔机身：扁长盒 + 红指示灯（与 RecorderUnit 放置体同款长相）。</summary>
+    private static GameObject BuildRecorderBody(string goName, Vector3 pos, float yaw)
+    {
+        EnsureInstrumentMats();
+        var root = new GameObject(goName);
+        root.transform.position = pos;
+        root.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        BodyBox(root.transform, "机身", Vector3.zero, new Vector3(0.14f, 0.05f, 0.08f),
+            AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/FYPInstrument_Body.mat"));
+        BodyBox(root.transform, "指示灯", new Vector3(0.045f, 0.028f, 0f), new Vector3(0.016f, 0.008f, 0.016f),
+            AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/FYPInstrument_Led.mat"));
+        return root;
+    }
+
+    /// <summary>拼装温度计机身：细杆 + 感温泡。</summary>
+    private static GameObject BuildThermometerBody(string goName, Vector3 pos, float yaw)
+    {
+        EnsureInstrumentMats();
+        var root = new GameObject(goName);
+        root.transform.position = pos;
+        root.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        BodyBox(root.transform, "杆", Vector3.zero, new Vector3(0.035f, 0.30f, 0.035f),
+            AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/FYPInstrument_Body.mat"));
+        var bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        bulb.name = "感温泡";
+        bulb.transform.SetParent(root.transform, false);
+        bulb.transform.localPosition = new Vector3(0f, -0.165f, 0f);
+        bulb.transform.localScale = new Vector3(0.075f, 0.075f, 0.075f);
+        Object.DestroyImmediate(bulb.GetComponent<Collider>());
+        bulb.GetComponent<Renderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/FYPInstrument_Led.mat");
+        return root;
+    }
+
+    /// <summary>阶段7a（Metro）：异常「敲击」接线 + 录音笔拾取物（检票闸机顶）+ 两处显影墙字。</summary>
+    public static string Stage7_Metro()
+    {
+        var sb = new StringBuilder();
+        var root = GameRoot();
+        var mb = Object.FindObjectsOfType<MetroBlackout>(true);
+        if (mb.Length == 0) return "MetroBlackout missing";
+
+        // 归途门：按场景归属找 Metro 里唯一那扇 AnywhereDoor（门名历史变迁过两次，
+        // 按名字 Find 会踩旧文档的坑——AGENTS 写的是 anywhere-door-Metro，现名已不同）
+        AnywhereDoor exitDoor = null;
+        foreach (var d in Object.FindObjectsOfType<AnywhereDoor>(true))
+            if (d.gameObject.scene.name == "Metro") { exitDoor = d; break; }
+        if (exitDoor == null) return "exit door (Metro scene) missing";
+
+        // 1) 异常「敲击」
+        var anom = EnsureChild(root, "异常");
+        var knockT = anom.Find("敲击");
+        GameObject knockGo;
+        if (knockT == null) { knockGo = new GameObject("敲击"); knockGo.transform.SetParent(anom, false); }
+        else knockGo = knockT.gameObject;
+        var knock = knockGo.GetComponent<KnockAnomaly>();
+        if (knock == null) knock = knockGo.AddComponent<KnockAnomaly>();
+        SetPrivate(knock, "blackout", mb[0]);
+        SetPrivate(knock, "exitDoor", exitDoor);
+        sb.AppendLine("knock wired → " + exitDoor.name);
+
+        // 2) 录音笔拾取物：检票闸机顶（射线从天上找闸机面，落其上 0.06m）
+        var items = EnsureChild(root, "Items");
+        if (items.Find("道具_录音笔") == null)
+        {
+            Vector3 pos = new Vector3(-2.16f, 111.5f, 147.9f);
+            RaycastHit h;
+            if (Physics.Raycast(new Vector3(-2.16f, 116f, 147.9f), Vector3.down, out h, 30f))
+                pos = h.point + Vector3.up * 0.06f;
+            var rec = BuildRecorderBody("道具_录音笔", pos, 180f);
+            rec.transform.SetParent(items, true);
+            rec.AddComponent<RecorderPickup>();
+            SetText(rec.AddComponent<InteractionLabel>(), "text", "拾取录音笔");
+            sb.AppendLine("recorder pickup @ " + pos.ToString("F2"));
+        }
+        else sb.AppendLine("recorder exists");
+
+        // 3) 显影墙字 ×2：门区墙（别开门）+ 去对面的灯的隧道壁（它在数你的脚步）。
+        //    墙面法线 +X（探针实测），TextMesh 默认朝 +Z → 转 90° 朝走廊。
+        sb.AppendLine(Mark(anom, "显影_门区", "别开门", new Vector3(-57.51f, 95.9f, 130.6f)));
+        sb.AppendLine(Mark(anom, "显影_隧道", "它在数你的脚步", new Vector3(-57.51f, 96.6f, 60.0f)));
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        return sb.ToString();
+    }
+
+    private static string Mark(Transform parent, string name, string text, Vector3 pos)
+    {
+        var t = parent.Find(name);
+        GameObject go;
+        if (t == null) { go = new GameObject(name); go.transform.SetParent(parent, false); }
+        else go = t.gameObject;
+        go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, 90f, 0f));
+        if (go.GetComponent<PhotoRevealMark>() == null) go.AddComponent<PhotoRevealMark>();
+        var so = new SerializedObject(go.GetComponent<PhotoRevealMark>());
+        so.FindProperty("text").stringValue = text;
+        so.FindProperty("characterSize").floatValue = 0.22f;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        return name + " ok";
+    }
+
+    /// <summary>阶段7b（Lab）：道具箱补 相机 + 温度计 两件仪器（出发前领取）。</summary>
+    public static string Stage7_Lab()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SpecimenLab.unity", OpenSceneMode.Additive);
+        var sb = new StringBuilder();
+        var chest = GameObject.Find("道具箱");
+        if (chest == null) sb.AppendLine("道具箱 missing");
+        else
+        {
+            var prevActive = SceneManager.GetActiveScene();
+            SceneManager.SetActiveScene(scene);
+            if (chest.transform.Find("道具_相机") == null)
+            {
+                var cam = BuildCameraBody("道具_相机", Vector3.zero, 200f);
+                cam.transform.SetParent(chest.transform, false);
+                cam.transform.localPosition = new Vector3(0.00f, 0.08f, -0.14f);
+                AddHeld(cam, HeldItem.ItemEffect.Camera, "拍照相机", "举起拍照相机——F 快门（对异常拍照即证据）");
+                SetText(cam.AddComponent<InteractionLabel>(), "text", "拾取拍照相机");
+                sb.AppendLine("camera in chest");
+            }
+            else sb.AppendLine("camera exists");
+            if (chest.transform.Find("道具_温度计") == null)
+            {
+                var th = BuildThermometerBody("道具_温度计", Vector3.zero, 20f);
+                th.transform.SetParent(chest.transform, false);
+                th.transform.localPosition = new Vector3(0.14f, 0.08f, -0.10f);
+                AddHeld(th, HeldItem.ItemEffect.Thermometer, "温度计", "举起温度计——异常越近读数越冷");
+                SetText(th.AddComponent<InteractionLabel>(), "text", "拾取温度计");
+                sb.AppendLine("thermometer in chest");
+            }
+            else sb.AppendLine("thermometer exists");
+            SceneManager.SetActiveScene(prevActive);
+            EditorSceneManager.SaveScene(scene);
+        }
+        EditorSceneManager.CloseScene(scene, true);
+        return sb.ToString();
+    }
+
+    // ── Play 模式测试（2026-11 Metro 轮）：敲击 / 相机 / 录音笔 / 温度计 ──
+
+    private static Vector3 ptPosBefore;
+
+    /// <summary>PT-Enter：找到实验室侧通往 Metro 的门（门名历史变迁过，按位置找最稳：
+    /// AGENTS 记载 Metro-A 在 (3.78, 0.02, 5.14)），开门、把玩家摆到门前。
+    /// 之后等 8 秒让 WorldStreamer 预载 Metro，再调 PT_EnterPush。</summary>
+    public static string PT_EnterMetro()
+    {
+        Application.runInBackground = true;
+        AnywhereDoor labDoor = null;
+        float best = float.MaxValue;
+        Vector3 anchor = new Vector3(3.78f, 1f, 5.14f);
+        foreach (var d in Object.FindObjectsOfType<AnywhereDoor>(true))
+        {
+            if (d.gameObject.scene.name != "SpecimenLab") continue;
+            float dist = Vector3.Distance(d.transform.position, anchor);
+            if (dist < best) { best = dist; labDoor = d; }
+        }
+        if (labDoor == null) return "lab Metro door missing";
+        labDoor.SetOpen(true, false, false);
+        CallPlayer("Teleport", new object[] { new Vector3(3.78f, 1f, 4.1f), Quaternion.LookRotation(new Vector3(0, 0, 1)) });
+        return "staged @ " + labDoor.name + "（等 8 秒让对面世界预载，再 PT_EnterPush）";
+    }
+
+    /// <summary>PT-EnterPush：把玩家推过门平面（TryCross 检测到跨面即传送进 Metro）。</summary>
+    public static string PT_EnterPush()
+    {
+        CallPlayer("Teleport", new object[] { new Vector3(3.78f, 1f, 6.0f), Quaternion.LookRotation(new Vector3(0, 0, 1)) });
+        return "pushed past lab door plane（等 3 秒再后续 PT）";
+    }
+
+
+    /// <summary>PT-Knock：门关好、玩家站门区、敲击 0.01 秒后触发（随后 PT_KnockCheck 验状态）。</summary>
+    public static string PT_Knock()
+    {
+        var knock = Object.FindObjectsOfType<KnockAnomaly>(true);
+        if (knock.Length == 0) return "KnockAnomaly missing（先跑 Stage7_Metro）";
+        AnywhereDoor exitDoor = null;
+        foreach (var d in Object.FindObjectsOfType<AnywhereDoor>(true))
+            if (d.gameObject.scene.name == "Metro") { exitDoor = d; break; }
+        if (exitDoor == null) return "exit door missing";
+        exitDoor.SetOpen(false, false, false);
+        CallPlayer("Teleport", new object[] { new Vector3(-46.2f, 94.9f, 130.6f), Quaternion.LookRotation(new Vector3(0, 0, 1)) });
+        typeof(KnockAnomaly).GetField("nextIn", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(knock[0], 0.01f);
+        return "knock armed（等 3 秒再 PT_KnockCheck；门区听三下敲门）";
+    }
+
+    public static string PT_KnockCheck()
+    {
+        var knock = Object.FindObjectsOfType<KnockAnomaly>(true);
+        if (knock.Length == 0) return "missing";
+        var f = typeof(KnockAnomaly).GetField("pushUntil", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        float pushUntil = (float)f.GetValue(knock[0]);
+        bool active = AnomalyPresence.IsActive("metro.knock");
+        return "active=" + active + " pushWindowOpen=" + (pushUntil > Time.time) + "（PT_KnockPush 触发推挤）";
+    }
+
+    /// <summary>PT-KnockPush：记下玩家位置，模拟一次「穿门完成」回调，再由 Check 验位移。</summary>
+    public static string PT_KnockPush()
+    {
+        var knock = Object.FindObjectsOfType<KnockAnomaly>(true);
+        if (knock.Length == 0) return "missing";
+        var root = PlayerRoot();
+        if (root == null) return "player missing";
+        ptPosBefore = root.position;
+        var m = typeof(KnockAnomaly).GetMethod("HandleWorldChanged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        m.Invoke(knock[0], null);
+        return "push invoked（等 1 秒再 PT_KnockPushCheck）";
+    }
+
+    public static string PT_KnockPushCheck()
+    {
+        var root = PlayerRoot();
+        if (root == null) return "player missing";
+        Vector3 d = root.position - ptPosBefore;
+        d.y = 0f;
+        bool pass = d.magnitude >= 1.0f;
+        return (pass ? "PASS" : "FAIL") + " 侧移 " + d.magnitude.ToString("F2") + "m（目标 ≥1m，2m 为满额）";
+    }
+
+    /// <summary>PT-Camera：发相机、选中相机格、站隧道口正对「对面的灯」快门一张。</summary>
+    public static string PT_Camera()
+    {
+        PlayerGear.AcquireCamera();
+        var root = PlayerRoot();
+        if (root == null) return "player missing";
+        if (root.GetComponentInChildren<PhotoCamera>(true) == null) root.gameObject.AddComponent<PhotoCamera>();
+        typeof(PlayerGear).GetProperty("SelectedIndex").SetValue(null, PlayerGear.CameraSlot, null);
+        var lamp = GameObject.Find("对面的灯");
+        Vector3 face = lamp != null ? lamp.transform.position : new Vector3(-55f, 99.5f, 34f);
+        Vector3 from = new Vector3(-50f, 94.9f, 45f);
+        Vector3 dir = face - from;
+        CallPlayer("Teleport", new object[] { from, Quaternion.LookRotation(dir.normalized) });
+        var cam = root.GetComponentInChildren<PhotoCamera>(true);
+        if (cam == null) return "PhotoCamera missing";
+        cam.Snap();
+        return "snapped（视野正对对面的灯；PT_CameraCheck 验证据与显影）";
+    }
+
+    public static string PT_CameraCheck()
+    {
+        bool farLamp = PhotoCamera.ObservedIds.Contains("metro.far-lamp");
+        bool markShown = false;
+        foreach (var mk in Object.FindObjectsOfType<PhotoRevealMark>(true))
+        {
+            var r = mk.GetComponent<MeshRenderer>();
+            if (r != null && r.enabled) markShown = true;
+        }
+        return "far-lamp 证据=" + farLamp + "（本次快门距灯 12m，应拍下）显影中=" + markShown + " 观测总数=" + PhotoCamera.ObservedCount;
+    }
+
+    /// <summary>PT-Recorder：发录音笔、搬到对面的灯旁放下开录（等 21 秒后 PT_RecorderCheck）。</summary>
+    public static string PT_Recorder()
+    {
+        PlayerGear.AcquireRecorder();
+        var root = PlayerRoot();
+        if (root == null) return "player missing";
+        var vr = root.GetComponentInChildren<VoiceRecorder>(true);
+        if (vr == null) vr = root.gameObject.AddComponent<VoiceRecorder>();
+        CallPlayer("Teleport", new object[] { new Vector3(-53.5f, 94.9f, 40f), Quaternion.LookRotation(new Vector3(-1, 0, -1)) });
+        typeof(VoiceRecorder).GetMethod("Deploy", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(vr, null);
+        return "deployed（对面的灯 8m 内常驻活跃；等 21 秒 PT_RecorderCheck）";
+    }
+
+    public static string PT_RecorderCheck()
+    {
+        var units = Object.FindObjectsOfType<RecorderUnit>(true);
+        if (units.Length == 0) return "unit missing（Deploy 失败？）";
+        var root = PlayerRoot();
+        var state = typeof(RecorderUnit).GetField("recording", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(units[0]);
+        // 模拟 E 收回：直接调交互（20 秒窗口应已录到对面的灯）
+        units[0].Interact(root != null ? root.gameObject : null);
+        bool gone = Object.FindObjectsOfType<RecorderUnit>(true).Length == 0;
+        var vr = root != null ? root.GetComponentInChildren<VoiceRecorder>(true) : null;
+        var captured = vr != null ? typeof(VoiceRecorder).GetField("capturedIds", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(vr) : null;
+        return "recording Was=" + state + " unitGone=" + gone + " captured=" + (captured != null ? captured.ToString() : "null") + "（回实验室按 F 播放）";
+    }
+
+    /// <summary>PT-Thermometer：发温度计、选中温度计格，报远/近两档读数。</summary>
+    public static string PT_Thermometer()
+    {
+        PlayerGear.AcquireThermometer();
+        var root = PlayerRoot();
+        if (root == null) return "player missing";
+        var th = root.GetComponentInChildren<Thermometer>(true);
+        if (th == null) th = root.gameObject.AddComponent<Thermometer>();
+        typeof(PlayerGear).GetProperty("SelectedIndex").SetValue(null, PlayerGear.ThermometerSlot, null);
+        CallPlayer("Teleport", new object[] { new Vector3(-50f, 94.9f, 45f), Quaternion.LookRotation(new Vector3(-1, 0, -1)) });
+        return "armed（远处；等 1 秒 PT_ThermometerCheck）";
+    }
+
+    public static string PT_ThermometerCheck()
+    {
+        var root = PlayerRoot();
+        var th = root != null ? root.GetComponentInChildren<Thermometer>(true) : null;
+        if (th == null) return "Thermometer missing";
+        float far = th.SampleNow();
+        // 贴脸档：瞬到灯旁再同步采一次（瞬移即时生效，采样不等帧）
+        CallPlayer("Teleport", new object[] { new Vector3(-55f, 99.3f, 34.5f), Quaternion.identity });
+        float near = th.SampleNow();
+        return "远档 " + far.ToString("F1") + "℃（<26 为冷）/ 近档 " + near.ToString("F1") + "℃（<0 为负值档）";
+    }
 }
