@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 录音笔放置体（VoiceRecorder 放下的那一只）：程序拼装的小机身 + 录制中的红色指示灯，
+/// 像素方块放置体（VoiceRecorder 放下的那一只）：程序拼装的深灰方块 + 录制中的橙色按钮，
 /// 开录后 captureWindow 秒内把 captureRadius 范围内活跃过的异常源记进磁带；
 /// E 收回（把录到的 id 列表交还 VoiceRecorder 后自毁）。
 ///
@@ -15,8 +15,8 @@ public class RecorderUnit : MonoBehaviour, IInteractable
 {
     [Tooltip("交互范围（米）")]
     [SerializeField] private float interactionRange = 1.6f;
-    [SerializeField] private string labelRecording = "收回录音笔（在录）";
-    [SerializeField] private string labelDone = "收回录音笔";
+    [SerializeField] private string labelRecording = "收回像素方块（在录）";
+    [SerializeField] private string labelDone = "收回像素方块";
 
     private VoiceRecorder owner;
     private readonly List<string> captured = new List<string>();
@@ -33,7 +33,7 @@ public class RecorderUnit : MonoBehaviour, IInteractable
     /// <summary>在指定位置生成一只放置体并开录。</summary>
     public static RecorderUnit Create(VoiceRecorder owner, Vector3 position, Quaternion rotation, float window, float radius)
     {
-        var go = new GameObject("录音笔_放置");
+        var go = new GameObject("像素方块_放置");
         go.transform.SetPositionAndRotation(position, rotation);
 
         // 机身：深色小盒

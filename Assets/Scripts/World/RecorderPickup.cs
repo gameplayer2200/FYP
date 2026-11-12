@@ -1,13 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// 探索道具·录音笔拾取物：E 拾取（取走后整件失活，与 ShiftWatchPickup 同构——
-/// 录音笔是「领仪器」不是可丢下的物理件，不进 HeldItem 体系）。
-/// 模型由 Stage7 程序拼装（小机身 + 指示灯），摆 Metro 站厅检票亭。
+/// 探索道具·奇异的像素方块拾取物：E 拾取（取走后整件失活，与 ShiftWatchPickup 同构——
+/// 它是「捡到的怪东西」不是可丢下的物理件，不进 HeldItem 体系）。
+/// 外观即档案描述：一个奇怪的像素方形上有一个橙色按钮（会录下附近异常的声音）。
+/// 模型由 Stage7 程序拼装（深灰方块 + 橙色按钮），摆 Metro 站厅检票护栏上。
 /// </summary>
 public class RecorderPickup : MonoBehaviour, IInteractable
 {
-    [SerializeField] private string takenHint = "获得录音笔——滚轮选中后按 F 放在异常旁，录完 E 收回，回实验室按 F 播放";
+    [SerializeField] private string takenHint = "一个奇怪的像素方形上有一个橙色按钮——选中后按 F 放在异常旁，录完 E 收回，回实验室按 F 播放";
 
     public float InteractionRange { get { return 1.5f; } }
     public Transform GetInteractionPoint() { return transform; }

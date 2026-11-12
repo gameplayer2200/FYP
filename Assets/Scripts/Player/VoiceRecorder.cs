@@ -2,9 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 录音笔（探索道具，提案表 3）：「放在异常点旁录制，回实验室播放——叙事碎片投放器」。
+/// 奇异的像素方块（探索道具）：一个奇怪的像素方形上有一个橙色按钮——放在异常旁它会录下声音，
+/// 回实验室按 F 播放（叙事碎片投放器）。内部实现沿用录音笔的形态命名（VoiceRecorder/TapeLibrary）。
 ///
-/// 状态机（F 键，滚轮选中录音笔格）：
+/// 状态机（F 键，滚轮选中像素方块格）：
 ///   手上·空白 → F 放下（脚前生成 RecorderUnit，开录 captureWindow 秒；期间 8m 内
 ///               活跃过的异常源都会被记进磁带）；
 ///   已放下     → F 提示走过去按 E 收回（不能隔空取——走回去是代价的一部分）；
@@ -40,7 +41,7 @@ public class VoiceRecorder : MonoBehaviour
         if (state == State.Deployed && unit == null)
         {
             state = State.Idle;
-            HintToast.Show("录音笔自己滑回了收纳格");
+            HintToast.Show("像素方块自己滑回了收纳格");
         }
 
         if (Input.GetKeyDown(useKey) && PlayerGear.UseKeyOwner == PlayerGear.RecorderSlot) HandleKey();
@@ -59,7 +60,7 @@ public class VoiceRecorder : MonoBehaviour
         switch (state)
         {
             case State.Deployed:
-                HintToast.Show("录音笔放在原地——走过去按 E 收回");
+                HintToast.Show("方块放在原地——走过去按 E 收回");
                 break;
             case State.Idle:
                 Deploy();
@@ -84,7 +85,7 @@ public class VoiceRecorder : MonoBehaviour
 
         unit = RecorderUnit.Create(this, spawn, Quaternion.LookRotation(fwd), captureWindow, captureRadius);
         state = State.Deployed;
-        HintToast.Show("录音笔放下了——它在听（" + (int)captureWindow + " 秒）");
+        HintToast.Show("方块放下了——橙色按钮亮起，它在听（" + (int)captureWindow + " 秒）");
     }
 
     /// <summary>RecorderUnit 收回时回调（E 键）：带回录到内容或空白。</summary>
@@ -94,7 +95,7 @@ public class VoiceRecorder : MonoBehaviour
         unit = null;
         state = capturedIds != null ? State.CarriedTape : State.Idle;
         HintToast.Show(capturedIds != null
-            ? "磁带里有东西。回实验室选中录音笔按 F 播放"
+            ? "方块里有东西。回实验室选中后按 F 播放"
             : "什么都没录到——离异常再近一点放");
     }
 

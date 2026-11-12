@@ -35,7 +35,12 @@ public class SpecimenPickup : MonoBehaviour, IInteractable
             HintToast.Show("随身收容已满（" + Inventory.Instance.SpecimenCapacity + " 件）");
             return;
         }
-        HintToast.Show(string.IsNullOrEmpty(specimenName) ? pickupHint : "回收「" + specimenName + "」——收容台入账");
+        // 文案红线：捡起只算「随身收容」，「收容台入账」必须等玩家真的把东西放回收容台
+        //（旧文案在这里就写"收容台入账"，玩家会以为捡起瞬间就入了账——实测反馈的误导点）。
+        HintToast.Show(string.IsNullOrEmpty(specimenName)
+            ? pickupHint
+            : "回收「" + specimenName + "」——已随身收容（" + Inventory.Instance.SpecimenCount + "/" + Inventory.Instance.SpecimenCapacity
+              + "），带回实验室收容台才能入账");
         Destroy(gameObject);
     }
 

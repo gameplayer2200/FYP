@@ -55,8 +55,30 @@ public static class ItemIconBaker
         sb.AppendLine(CameraIcon());
         sb.AppendLine(RecorderIcon());
         sb.AppendLine(ThermometerIcon());
+        // 随身异常物格的图标：软盘已有，磁带补一张（道具栏异常物格按档案名映射）
+        sb.AppendLine(TapeIcon());
         AssetDatabase.Refresh();
         return sb.ToString();
+    }
+
+    /// <summary>程序化磁带（随身异常物格用）：扁盒 + 两个带轮。</summary>
+    private static string TapeIcon()
+    {
+        var root = new GameObject("TapeIcon");
+        AddBox(root.transform, "带盒", Vector3.zero, new Vector3(0.26f, 0.05f, 0.16f),
+            LoadOrMat("Assets/Material/FYPInstrument_Body.mat", new Color(0.16f, 0.17f, 0.19f)));
+        var reelMat = LoadOrMat("Assets/Material/FYPInstrument_Lens.mat", new Color(0.05f, 0.05f, 0.06f));
+        foreach (float x in new[] { -0.06f, 0.06f })
+        {
+            var reel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            reel.name = "带轮";
+            reel.transform.SetParent(root.transform, false);
+            reel.transform.localPosition = new Vector3(x, 0.028f, 0f);
+            reel.transform.localScale = new Vector3(0.05f, 0.012f, 0.05f);
+            Object.DestroyImmediate(reel.GetComponent<Collider>());
+            reel.GetComponent<Renderer>().sharedMaterial = reelMat;
+        }
+        return Render("tape", root, 55f, 20f, 1.6f);
     }
 
     /// <summary>程序化拍照相机：方机身 + 镜头筒 + 闪光灯小块。</summary>

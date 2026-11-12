@@ -2065,21 +2065,39 @@ public static class MetroSceneDev
         SetPrivate(knock, "exitDoor", exitDoor);
         sb.AppendLine("knock wired → " + exitDoor.name);
 
-        // 2) 录音笔拾取物：检票闸机顶（射线从天上找闸机面，落其上 0.06m）
+        // 2) 奇异的像素方块拾取物（2026-11-12 由「录音笔」改名迁移）：检票护栏顶。
+        //    注意场景里序列化的旧对象名/旧提示文案不会随类默认值变——这里显式迁移。
         var items = EnsureChild(root, "Items");
-        if (items.Find("道具_录音笔") == null)
+        var cubeT = items.Find("道具_奇异像素方块");
+        if (cubeT == null)
+        {
+            var oldT = items.Find("道具_录音笔");
+            if (oldT != null)
+            {
+                oldT.name = "道具_奇异像素方块";
+                var oldPickup = oldT.GetComponent<RecorderPickup>();
+                if (oldPickup != null)
+                    SetText(oldPickup, "takenHint",
+                        "一个奇怪的像素方形上有一个橙色按钮——选中后按 F 放在异常旁，录完 E 收回，回实验室按 F 播放");
+                var oldLabel = oldT.GetComponent<InteractionLabel>();
+                if (oldLabel != null) SetText(oldLabel, "text", "拾取奇异的像素方块");
+                sb.AppendLine("cube renamed (旧名对象已迁移)");
+                cubeT = oldT;
+            }
+        }
+        if (cubeT == null)
         {
             Vector3 pos = new Vector3(-2.16f, 111.5f, 147.9f);
             RaycastHit h;
             if (Physics.Raycast(new Vector3(-2.16f, 116f, 147.9f), Vector3.down, out h, 30f))
                 pos = h.point + Vector3.up * 0.06f;
-            var rec = BuildRecorderBody("道具_录音笔", pos, 180f);
+            var rec = BuildRecorderBody("道具_奇异像素方块", pos, 180f);
             rec.transform.SetParent(items, true);
             rec.AddComponent<RecorderPickup>();
-            SetText(rec.AddComponent<InteractionLabel>(), "text", "拾取录音笔");
-            sb.AppendLine("recorder pickup @ " + pos.ToString("F2"));
+            SetText(rec.AddComponent<InteractionLabel>(), "text", "拾取奇异的像素方块");
+            sb.AppendLine("cube pickup @ " + pos.ToString("F2"));
         }
-        else sb.AppendLine("recorder exists");
+        else if (!sb.ToString().Contains("renamed")) sb.AppendLine("cube exists");
 
         // 3) 显影墙字 ×2：门区墙（别开门）+ 去对面的灯的隧道壁（它在数你的脚步）。
         //    墙面法线 +X（探针实测），TextMesh 默认朝 +Z → 转 90° 朝走廊。

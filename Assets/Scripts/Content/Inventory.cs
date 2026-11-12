@@ -39,6 +39,9 @@ public class Inventory : MonoBehaviour
     /// <summary>收容数据库（已入账档案，图鉴用）。</summary>
     public IReadOnlyList<SpecimenArch> Archive { get { return archive; } }
 
+    /// <summary>随身档案清单（携带中，按捡起顺序；道具栏的异常物格按它显示图标）。</summary>
+    public IReadOnlyList<SpecimenArch> Pending { get { return pending; } }
+
     private void Awake()
     {
         // 销毁重复的**组件**而不是整个 GameObject——本脚本与 InventoryUI 同挂 WorldManager，

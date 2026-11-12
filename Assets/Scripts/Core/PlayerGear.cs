@@ -144,7 +144,7 @@ public static class PlayerGear
         if (OnCameraAcquired != null) OnCameraAcquired();
     }
 
-    /// <summary>是否持有录音笔（放在异常点旁录制，回实验室播放）。</summary>
+    /// <summary>是否持有奇异的像素方块（放在异常旁录制，回实验室播放）。</summary>
     public static bool HasRecorder { get; private set; }
 
     public static event Action OnRecorderAcquired;
@@ -171,13 +171,13 @@ public static class PlayerGear
     /// <summary>拍照相机所在的格位。</summary>
     public const int CameraSlot = 5;
 
-    /// <summary>录音笔所在的格位。</summary>
+    /// <summary>像素方块所在的格位。</summary>
     public const int RecorderSlot = 6;
 
     /// <summary>温度计所在的格位。</summary>
     public const int ThermometerSlot = 7;
 
-    /// <summary>道具格总数（手电筒 / 万用表 / 探测器 / 任务提示板 / 换班怀表 / 相机 / 录音笔 / 温度计）。</summary>
+    /// <summary>道具格总数（手电筒 / 万用表 / 探测器 / 任务提示板 / 换班怀表 / 相机 / 像素方块 / 温度计）。</summary>
     public const int SlotCount = 8;
 
     /// <summary>任务提示板所在的格位。</summary>

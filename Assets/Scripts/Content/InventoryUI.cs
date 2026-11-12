@@ -2,15 +2,17 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 道具栏（屏幕底部中央）：五格，只放可用的探索道具。
+/// 道具栏（屏幕底部中央）：八格，只放可用的探索道具。
 ///   0 手电筒——拾取后亮起；开灯时暖色高亮 + 呼吸描边。
 ///   1 万用表——拾取后亮起（配电箱测线用）。
 ///   2 探测器——拾取后亮起（把异常扫显形）。
 ///   3 任务提示板——拾取后亮起；开机时暖色高亮（右上角订单 HUD 随之显示）。
 ///   4 换班怀表——首次强制换班后到手（或在值班室取表）；按 F 强制昼夜互换。
-/// 鼠标滚轮 = 切换选中格（五格循环），选中格亮选中环 + 弹跳反馈。
+///   5 拍照相机 / 6 奇异的像素方块 / 7 温度计（2026-11 Metro 轮）。
+/// 鼠标滚轮 = 切换选中格（循环），选中格亮选中环 + 弹跳反馈；新到手的道具格弹跳强调。
 /// F = 只用选中格那一件（见 PlayerGear.UseKeyOwner），一次按键只触发一件道具。
-/// 随身异常物不再占格位，数量显示在右上角订单板（整备视图"携带 N" / 层域视图进度行）。
+/// 随身异常物直接放进道具栏的现有空格里（还没持有工具的格），捡到即亮图标、弹跳，
+/// 放进实验室收容台即让位；不加行不加格。
 ///
 /// 运行时自建：优先复用场景里的 InventoryCanvas（清掉旧 Slots），没有就自建——不依赖场景接线。
 /// 图标：Assets/Resources/UI/Icons/（ItemIconBaker 烘焙；缺图时静默降级只显框）。
@@ -53,6 +55,11 @@ public class InventoryUI : MonoBehaviour
     private int lastSelected = -1;
     private int scaledForHeight = -1;   // 画布缩放比的生效屏幕高度（分辨率变化时重设 scaleFactor）
 
+    // ── 随身异常物（2026-11-12 实测定式：捡到的东西直接放进道具栏现有空格里）──
+    // 不加行不加格：借用「还没持有对应工具」的空格显示图标；工具到手就挪窝/让位。
+    private Sprite[] specimenAt;        // 按真实格位索引：该空格当前放的异常物图标
+    private int specimenShown = -1;     // 上次刷到的携带数（差分用）
+
     private void OnEnable()
     {
         if (!built) Build();
@@ -87,13 +94,15 @@ public class InventoryUI : MonoBehaviour
 
         int selectedIndex = PlayerGear.SelectedIndex;
 
-        // 逐格差分：新获得的那一格弹一下
+        // 逐格差分：新获得的那一格弹一下；工具持有变化还要让异常物挪窝重排
+        bool toolsChanged = false;
         for (int i = 0; i < SlotCount; i++)
         {
             bool has = HasItem(DisplayIndex(i));
             if (has == lastHas[i]) continue;
             lastHas[i] = has;
             if (has && slots[i] != null) slots[i].pop = 1f;
+            toolsChanged = true;
         }
         if (selectedIndex != lastSelected)
         {
@@ -103,7 +112,38 @@ public class InventoryUI : MonoBehaviour
 
         RefreshAppearance();
         for (int i = 0; i < SlotCount; i++) Animate(slots[i]);
+        RefreshSpecimens(toolsChanged);
     }
+
+    /// <summary>
+    /// 随身异常物：直接放进道具栏**现有的空格**里（从左往右找还没持有工具的格），
+    /// 一格一件带图标，新捡的弹一下；放进收容台/散失即让位。
+    /// 道具栏永远 8 格不加行不加格（2026-11-12 实测定式）。工具到位时异常物自动挪窝；
+    /// 空格不够放下的（8 件工具全满）不显示格，右上订单板仍有计数兜底。
+    /// 图标按档案名映射：磁带→tape，其余→floppy。
+    /// </summary>
+    private void RefreshSpecimens(bool force = false)
+    {
+        var inv = Inventory.Instance;
+        int count = inv != null ? inv.SpecimenCount : 0;
+        if (!force && count == specimenShown) return;
+        specimenShown = count;
+
+        if (specimenAt == null || specimenAt.Length != SlotCount) specimenAt = new Sprite[SlotCount];
+        for (int i = 0; i < SlotCount; i++) specimenAt[i] = null;
+
+        var pending = inv != null ? inv.Pending : null;
+        int next = 0;
+        for (int i = 0; i < SlotCount && next < count; i++)
+        {
+            if (HasItem(i)) continue;   // 这格已有自己的工具
+            string archName = pending != null && next < pending.Count ? pending[next].name : null;
+            specimenAt[i] = InventoryArt.LoadIcon(archName != null && archName.Contains("磁带") ? "tape" : "floppy");
+            if (slots[i] != null) slots[i].pop = 1f;   // 放进去的那格弹一下
+            next++;
+        }
+    }
+
 
     /// <summary>
     /// 视觉格位 → 真实格位的映射。正常时恒等；<see cref="GlitchState.Kind.InventorySort"/>
@@ -163,7 +203,10 @@ public class InventoryUI : MonoBehaviour
             var s = slots[i];
             if (s == null) continue;
 
-            bool has = HasItem(DisplayIndex(i));
+            int real = DisplayIndex(i);
+            bool has = HasItem(real);
+            // 空格借给随身异常物：捡到的东西直接显示在道具栏里（放回收容台即让位）
+            var held = has ? slotIcons[real] : (specimenAt != null && real < specimenAt.Length ? specimenAt[real] : null);
             bool warm = IsWarm(i);
 
             SetFocus(s, selected == i);
@@ -173,7 +216,7 @@ public class InventoryUI : MonoBehaviour
                 // 三态：空=暗、持有未用=绿框、使用中=暖色实底 + 呼吸。
                 // "使用中"必须一眼看出来——玩家按了 F 之后要能确认道具真的在工作，
                 // 否则会反复按 F（开了又关）以为没生效。
-                s.frame.sprite = !has ? spSlotIdle : (warm ? spSlotWarm : spSlotActive);
+                s.frame.sprite = held == null ? spSlotIdle : (warm ? spSlotWarm : spSlotActive);
                 var c = Color.white;
                 if (has && warm)
                 {
@@ -183,10 +226,9 @@ public class InventoryUI : MonoBehaviour
                 }
                 s.frame.color = c;
             }
-            int real = DisplayIndex(i);
-            SetIcon(s, has ? slotIcons[real] : null, warm ? InventoryArt.IconWarm : Color.white);
+            SetIcon(s, held, warm ? InventoryArt.IconWarm : Color.white);
 
-            // F 键帽跟着选中格走：只有"按 F 真的有反应"的那一格才亮键帽
+            // F 键帽跟着选中格走：只有"按 F 真的有反应"的那一格才亮键帽（异常物不是工具，不亮）
             SetKeycap(s, has && owner == real);
         }
     }
@@ -323,6 +365,10 @@ public class InventoryUI : MonoBehaviour
             slots[i].keycap = MakeKeycap(slots[i].root, "F");
             slots[i].keycap.SetActive(false);
         }
+
+        // 条体重建后异常物占位一并作废——下一帧按携带数重排
+        specimenAt = null;
+        specimenShown = -1;
 
         built = true;
         RefreshAppearance();
