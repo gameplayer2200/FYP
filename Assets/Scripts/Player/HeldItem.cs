@@ -18,7 +18,7 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class HeldItem : MonoBehaviour, IInteractable
 {
-    public enum ItemEffect { None, Flashlight, EmfDetector, OrderTerminal, Multimeter }
+    public enum ItemEffect { None, Flashlight, EmfDetector, OrderTerminal, Multimeter, Camera }
     private enum State { World, Carried }
 
     [Header("身份")]
@@ -183,6 +183,10 @@ public class HeldItem : MonoBehaviour, IInteractable
                 break;
             case ItemEffect.Multimeter:
                 PlayerGear.AcquireMultimeter();
+                break;
+            case ItemEffect.Camera:
+                PlayerGear.AcquireCamera();
+                if (player.GetComponentInChildren<PhotoCamera>(true) == null) player.AddComponent<PhotoCamera>();
                 break;
             default:
                 break;
