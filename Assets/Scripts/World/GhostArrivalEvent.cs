@@ -8,6 +8,9 @@ using UnityEngine;
 /// </summary>
 public class GhostArrivalEvent : MonoBehaviour
 {
+    // 异常源登记表 id（拍照相机 / 温度计等仪器靠它读到「这里有个正在发生的异常」）
+    private const string PresenceId = "metro.ghost-arrival";
+
     [SerializeField] private MetroBlackout blackout;
     [SerializeField] private LightGroup[] groups;
     [Tooltip("风压声源（循环 Audio，音量由本组件渐强渐弱控制）")]
@@ -29,6 +32,9 @@ public class GhostArrivalEvent : MonoBehaviour
     private float nextIn;
     private bool running;
 
+    private void OnEnable() => AnomalyPresence.Register(PresenceId, transform, "幽灵进站");
+    private void OnDisable() => AnomalyPresence.Unregister(PresenceId);
+
     private void Update()
     {
         if (running) return;
@@ -46,6 +52,7 @@ public class GhostArrivalEvent : MonoBehaviour
     private IEnumerator ArrivalRoutine()
     {
         running = true;
+        AnomalyPresence.SetActive(PresenceId, true); // 进站征兆开始 = 异常在场
         bool[] wasOn = new bool[groups != null ? groups.Length : 0];
         for (int i = 0; i < wasOn.Length; i++) wasOn[i] = groups[i].IsOn;
 
@@ -86,6 +93,7 @@ public class GhostArrivalEvent : MonoBehaviour
         // 恢复进站前的灯态
         for (int i = 0; i < wasOn.Length; i++) groups[i].SetOn(wasOn[i], false);
         HintToast.Show(endHint);
+        AnomalyPresence.SetActive(PresenceId, false);
         running = false;
     }
 }

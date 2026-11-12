@@ -7,6 +7,9 @@ using UnityEngine;
 /// </summary>
 public class EmfStormAnomaly : MonoBehaviour
 {
+    // 异常源登记表 id（拍照相机 / 温度计等仪器靠它读到「这里有个正在发生的异常」）
+    private const string PresenceId = "metro.emf-storm";
+
     [SerializeField] private MetroBlackout blackout;
     [SerializeField] private LightGroup[] groups;
     [Tooltip("电流干扰声（可选，无则纯视觉）")]
@@ -21,6 +24,9 @@ public class EmfStormAnomaly : MonoBehaviour
 
     private float nextIn;
     private bool storming;
+
+    private void OnEnable() => AnomalyPresence.Register(PresenceId, transform, "电磁风暴");
+    private void OnDisable() => AnomalyPresence.Unregister(PresenceId);
 
     private void Update()
     {
@@ -40,6 +46,7 @@ public class EmfStormAnomaly : MonoBehaviour
     private IEnumerator StormRoutine()
     {
         storming = true;
+        AnomalyPresence.SetActive(PresenceId, true); // 风暴开始 = 异常在场
         bool[] wasOn = new bool[groups != null ? groups.Length : 0];
         for (int i = 0; i < wasOn.Length; i++) wasOn[i] = groups[i].IsOn;
 
@@ -60,6 +67,7 @@ public class EmfStormAnomaly : MonoBehaviour
         if (sfx != null) sfx.Stop();
         EmfStorm.Set(false);
         HintToast.Show(calmHint);
+        AnomalyPresence.SetActive(PresenceId, false);
         storming = false;
     }
 }

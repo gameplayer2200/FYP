@@ -129,8 +129,56 @@ public static class PlayerGear
     /// <summary>换班怀表所在的格位（原本是空位）。</summary>
     public const int ShiftWatchSlot = 4;
 
-    /// <summary>道具格总数（手电筒 / 万用表 / 探测器 / 任务提示板 / 备用空位）。</summary>
-    public const int SlotCount = 5;
+    // ── Metro 轮新仪器（2026-11）：格位接在怀表后面 ──────────────
+    // 三件都是「探索道具·调查仪器」（提案表 3），与手电筒/万用表同栏同滚轮。
+
+    /// <summary>是否持有拍照相机（对异常拍照即证据）。</summary>
+    public static bool HasCamera { get; private set; }
+
+    public static event Action OnCameraAcquired;
+
+    public static void AcquireCamera()
+    {
+        if (HasCamera) return;
+        HasCamera = true;
+        if (OnCameraAcquired != null) OnCameraAcquired();
+    }
+
+    /// <summary>是否持有录音笔（放在异常点旁录制，回实验室播放）。</summary>
+    public static bool HasRecorder { get; private set; }
+
+    public static event Action OnRecorderAcquired;
+
+    public static void AcquireRecorder()
+    {
+        if (HasRecorder) return;
+        HasRecorder = true;
+        if (OnRecorderAcquired != null) OnRecorderAcquired();
+    }
+
+    /// <summary>是否持有温度计（异常点附近读数骤降的被动仪表）。</summary>
+    public static bool HasThermometer { get; private set; }
+
+    public static event Action OnThermometerAcquired;
+
+    public static void AcquireThermometer()
+    {
+        if (HasThermometer) return;
+        HasThermometer = true;
+        if (OnThermometerAcquired != null) OnThermometerAcquired();
+    }
+
+    /// <summary>拍照相机所在的格位。</summary>
+    public const int CameraSlot = 5;
+
+    /// <summary>录音笔所在的格位。</summary>
+    public const int RecorderSlot = 6;
+
+    /// <summary>温度计所在的格位。</summary>
+    public const int ThermometerSlot = 7;
+
+    /// <summary>道具格总数（手电筒 / 万用表 / 探测器 / 任务提示板 / 换班怀表 / 相机 / 录音笔 / 温度计）。</summary>
+    public const int SlotCount = 8;
 
     /// <summary>任务提示板所在的格位。</summary>
     public const int OrderTerminalSlot = 3;

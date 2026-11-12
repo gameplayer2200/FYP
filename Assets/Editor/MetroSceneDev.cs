@@ -467,6 +467,19 @@ public static class MetroSceneDev
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
+    /// <summary>给场景物件挂 HeldItem（现役拾取体系）并配置身份。
+    /// effect 枚举按声明序号写入（ItemEffect 未指定显式值，序号 = 值）。</summary>
+    private static HeldItem AddHeld(GameObject go, HeldItem.ItemEffect effect, string displayName, string hint)
+    {
+        var held = go.AddComponent<HeldItem>();
+        var so = new SerializedObject(held);
+        so.FindProperty("effect").enumValueIndex = (int)effect;
+        so.FindProperty("displayName").stringValue = displayName;
+        so.FindProperty("pickupHint").stringValue = hint;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        return held;
+    }
+
     private static Light FindLightByNameAndBox(string name, Vector3 bmin, Vector3 bmax)
     {
         foreach (var l in Object.FindObjectsOfType<Light>(true))
@@ -543,7 +556,7 @@ public static class MetroSceneDev
         if (meter != null)
         {
             meter.transform.SetParent(items, true);
-            meter.AddComponent<MultimeterPickup>();
+            AddHeld(meter, HeldItem.ItemEffect.Multimeter, "万用表", "拾起万用表——在配电室按 F 测线");
             SetText(meter.AddComponent<InteractionLabel>(), "text", "拾取万用表");
             sb.AppendLine("multimeter ok");
         }
@@ -1860,7 +1873,7 @@ public static class MetroSceneDev
             if (fl != null)
             {
                 fl.transform.SetParent(items, true);
-                fl.AddComponent<FlashlightPickup>();
+                AddHeld(fl, HeldItem.ItemEffect.Flashlight, "手电筒", "拾起手电筒——按 F 开关");
                 SetText(fl.AddComponent<InteractionLabel>(), "text", "拾取手电筒");
                 sb.AppendLine("flashlight(Metro) ok");
             }
@@ -1906,7 +1919,7 @@ public static class MetroSceneDev
             if (fl != null)
             {
                 SceneManager.MoveGameObjectToScene(fl, scene);
-                fl.AddComponent<FlashlightPickup>();
+                AddHeld(fl, HeldItem.ItemEffect.Flashlight, "手电筒", "拾起手电筒——按 F 开关");
                 SetText(fl.AddComponent<InteractionLabel>(), "text", "拾取手电筒");
                 sb.AppendLine("flashlight(Lab) ok");
             }

@@ -11,9 +11,10 @@ using UnityEngine;
 /// 为什么道具常驻可见：它们是"出发前在装备箱里领"的东西，摆在箱里一眼能看清有哪几件，
 /// 比藏起来再按 E 才凭空出现更符合直觉；而"打开才能拿"保留了开箱这个动作的仪式感。
 ///
-/// 箱内道具用现成的拾取物脚本（FlashlightPickup / EmfDetectorPickup / OrderTerminalPickup），
-/// 本组件只负责切换它们的 enabled —— 拾取物自己的 OnEnable/OnDisable 会注册/注销交互中枢，
-/// 所以不需要额外的"是否可交互"状态位。取走的道具会自己 Destroy，这里每次都重新扫，不缓存失效引用。
+/// 箱内道具一律按 IInteractable 接口识别（现役体系是 HeldItem 物理件，旧拾取物脚本同样兼容），
+/// 本组件只负责切换它们的 enabled —— 交互物自己的 OnEnable/OnDisable 会注册/注销交互中枢，
+/// 所以不需要额外的"是否可交互"状态位。取走的道具：旧拾取物会 Destroy；HeldItem 则是隐藏携带
+/// 或被丢到别处——两者都靠 StillInside 现场判定「还归不归箱子管」，不缓存失效引用。
 /// </summary>
 public class GearChest : MonoBehaviour, IInteractable, IInteractionPriority
 {
@@ -105,7 +106,7 @@ public class GearChest : MonoBehaviour, IInteractable, IInteractionPriority
         interactionAnchor = go.transform;
     }
 
-    /// <summary>收集箱内道具：优先用手动接线的，否则自动找直接子物体里的拾取物。</summary>
+    /// <summary>收集箱内道具：优先用手动接线的，否则自动找直接子物体里挂了交互物的。</summary>
     private void CollectContents()
     {
         if (contents != null && contents.Length > 0) return;
@@ -114,23 +115,34 @@ public class GearChest : MonoBehaviour, IInteractable, IInteractionPriority
         {
             var c = transform.GetChild(i);
             if (c == null || c == interactionAnchor) continue;
-            bool isGear = c.GetComponent<FlashlightPickup>() != null
-                       || c.GetComponent<EmfDetectorPickup>() != null
-                       || c.GetComponent<OrderTerminalPickup>() != null
-                       || c.GetComponent<MultimeterPickup>() != null;
-            if (isGear) list.Add(c);
+            if (c.GetComponentInChildren<IInteractable>(true) != null) list.Add(c);
         }
         contents = list.ToArray();
     }
 
-    /// <summary>箱内还剩几件没被取走（取走的会自己 Destroy）。</summary>
+    /// <summary>箱内还剩几件没被取走（含 HeldItem：携带中 / 被丢到别处都不算）。</summary>
     private int RemainingCount()
     {
         if (contents == null) return 0;
         int n = 0;
         for (int i = 0; i < contents.Length; i++)
-            if (contents[i] != null) n++;
+            if (StillInside(contents[i])) n++;
         return n;
+    }
+
+    /// <summary>
+    /// 这件道具还算不算「在箱子里」：物件还在（未被销毁）、没被拿走（HeldItem 携带中不算）、
+    /// 也没被玩家丢到别处——HeldItem.Drop 只挪 transform 不改父级，物件丢在十米外的地板上
+    /// 仍然是箱子的子物体；若不加位置判定，合盖会跑去禁用那件远处道具的交互。
+    /// </summary>
+    private bool StillInside(Transform t)
+    {
+        if (t == null) return false;
+        var held = t.GetComponent<HeldItem>();
+        if (held != null && held.IsHeld) return false;
+        Vector3 d = t.position - transform.position;
+        d.y = 0f; // 只看水平距离：箱子本身不挪窝，被丢走的道具一定水平离开
+        return d.sqrMagnitude < 3f * 3f;
     }
 
     /// <summary>
@@ -143,33 +155,23 @@ public class GearChest : MonoBehaviour, IInteractable, IInteractionPriority
         for (int i = 0; i < contents.Length; i++)
         {
             var c = contents[i];
-            if (c == null) continue;                 // 已被取走
+            if (!StillInside(c)) continue;           // 已被取走 / 被丢到别处
             SetPickupsEnabled(c.gameObject, interactable);
         }
     }
 
-    /// <summary>把物体上所有拾取物脚本的 enabled 设成给定值（已取走的物体上脚本已不存在，跳过）。</summary>
+    /// <summary>
+    /// 把物体（含子物体）上所有交互物的 enabled 设成给定值。
+    /// 不再枚举具体拾取物类——现役是 HeldItem，以后加新道具也不该回来改这里：
+    /// 一律按 IInteractable 接口识别，交互物自己的 OnEnable/OnDisable 负责注册/注销。
+    /// </summary>
     private static void SetPickupsEnabled(GameObject go, bool enabled)
     {
-        bool any = false;
-        var fl = go.GetComponent<FlashlightPickup>();
-        if (fl != null) { fl.enabled = enabled; any = true; }
-        var em = go.GetComponent<EmfDetectorPickup>();
-        if (em != null) { em.enabled = enabled; any = true; }
-        var ot = go.GetComponent<OrderTerminalPickup>();
-        if (ot != null) { ot.enabled = enabled; any = true; }
-        var mm = go.GetComponent<MultimeterPickup>();
-        if (mm != null) { mm.enabled = enabled; any = true; }
-        // 道具可能有子物体挂拾取脚本（预制件结构不定），一并处理
-        if (!any)
-            foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb == null) continue;
-                string n = mb.GetType().Name;
-                if (n == "FlashlightPickup" || n == "EmfDetectorPickup"
-                    || n == "OrderTerminalPickup" || n == "MultimeterPickup")
-                    mb.enabled = enabled;
-            }
+        foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>(true))
+        {
+            if (mb == null || !(mb is IInteractable)) continue;
+            if (mb.enabled != enabled) mb.enabled = enabled;
+        }
     }
 
     /// <summary>按当前开合状态刷新交互提示。</summary>

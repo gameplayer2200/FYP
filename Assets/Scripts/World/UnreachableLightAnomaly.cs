@@ -6,6 +6,9 @@ using UnityEngine;
 /// </summary>
 public class UnreachableLightAnomaly : MonoBehaviour
 {
+    // 异常源登记表 id（拍照相机 / 温度计等仪器靠它读到「这里有个正在发生的异常」）
+    private const string PresenceId = "metro.far-lamp";
+
     [SerializeField] private Light lamp;
     [Tooltip("自发光面片（灯罩/灯管）")]
     [SerializeField] private Renderer glowRenderer;
@@ -18,7 +21,16 @@ public class UnreachableLightAnomaly : MonoBehaviour
     private Color glowOn = Color.white;
 
     private void Awake() => BuildCache();
-    private void OnEnable() => BuildCache(); // 域重载后 Awake 不重跑，OnEnable 会
+
+    private void OnEnable()
+    {
+        BuildCache(); // 域重载后 Awake 不重跑，OnEnable 会
+        // 常驻异常：只要世界在，它就一直在发生（灯还亮着 = 它还在等你走过去）
+        AnomalyPresence.Register(PresenceId, transform, "对面的灯");
+        AnomalyPresence.SetActive(PresenceId, true);
+    }
+
+    private void OnDisable() => AnomalyPresence.Unregister(PresenceId);
 
     private void BuildCache()
     {
